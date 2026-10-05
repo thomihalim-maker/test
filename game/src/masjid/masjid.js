@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { createAnimator } from './anim.js';
 import { makeMaterials, BUILDERS, BEDUG, PL, HALL_Z } from './stages.js';
+import { createSite } from './site.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 export const STAGES = [
@@ -35,7 +36,7 @@ export async function init(ctx) {
   const lang = () => (ctx.state.settings?.lang ?? ctx.state.lang) === 'en' ? 1 : 0;
   const tr = (k, v = {}) => { let s = I18N[k][lang()]; for (const a in v) s = s.replace('{' + a + '}', v[a]); return s; };
   const sName = s => lang() ? s.nameEn : s.name;
-  let completeSent = !!st.complete;
+  let completeSent = !!st.complete, building = 0;
   const group = new THREE.Group(); group.name = 'masjid'; scene.add(group);
   const anim = createAnimator(ctx);
   const night = []; // {m, day, night}
@@ -83,7 +84,8 @@ export async function init(ctx) {
     }
     if (S.hallLight && !hallLight) { hallLight = new THREE.PointLight(0xffc678, 6, 15, 1.6); hallLight.position.set(0, PL + 3.2, HALL_Z); group.add(hallLight); }
     if (instant) { S.R.finish(); S.R.update?.(0); } else {
-      S.R.onDone = () => { bake([S]); if (n === STAGES.length) sendComplete(); };
+      building++;
+      S.R.onDone = () => { building = Math.max(0, building - 1); bake([S]); if (n === STAGES.length) sendComplete(); };
     }
     return S;
   }
@@ -162,7 +164,7 @@ export async function init(ctx) {
   });
   const BEDUG3 = new THREE.Vector3(BEDUG.x, 0, BEDUG.z);
   function playerPos() { const c = ctx.modules.characters; const o = c?.player?.position ?? c?.player?.pos ?? c?.player?.mesh?.position ?? c?.pos ?? c?.mesh?.position ?? c?.group?.position; return o?.isVector3 ? o : null; }
-  ctx.on('interact', (d) => { const p = playerPos(); if (built[6] && p && p.distanceTo(BEDUG3) < 3.6) playBedug(); });
+  ctx.on('interact', (d) => { if (!built[6]) return; if (d?.kind) { if (d.kind === 'bedug') playBedug(); return; } const p = d?.pos ?? playerPos(); if (p && Math.hypot(p.x - BEDUG.x, p.z - BEDUG.z) < 3.6) playBedug(); });
 
   // ---- test camera ----
   let camParam = null;
@@ -180,6 +182,8 @@ export async function init(ctx) {
     get max() { return STAGES.length; },
     get next() { return api.stages[st.stage] ?? null; },
     get preview() { return !!st.preview; },
+    get building() { return building > 0; },
+    lang,
     get nightFactor() { return nightK; },
     get drawables() { let n = 0; group.traverse(o => { if ((o.isMesh || o.isInstancedMesh) && o.visible && o.material?.visible !== false) { let v = true; for (let p = o; p; p = p.parent) if (!p.visible) v = false; if (v) n++; } }); return n; },
     canAfford(id) { const n = id == null ? st.stage + 1 : stageIndex(id); const s = STAGES[n - 1]; return !!s && (ctx.state.coins ?? 0) >= s.cost; },
@@ -209,6 +213,7 @@ export async function init(ctx) {
     playBedug, bedugPos: BEDUG3,
     update(dt, t) {
       anim.update(dt);
+      site.update(dt, t);
       if (hourParam !== null) ctx.hour = hourParam;
       const h = ctx.hour ?? 12;
       nightK = Math.max(sstep(17.2, 19.2, h), 1 - sstep(4.8, 6.4, h));
@@ -247,6 +252,8 @@ export async function init(ctx) {
       if (testLights) { testLights.sun.intensity = 3 * (1 - .93 * nightK); testLights.hemi.intensity = 1 - .45 * nightK; testLights.sun.color.set(nightK > .5 ? 0x8aa4ff : 0xfff0d0); scene.background.set(nightK > .5 ? 0x0c1230 : 0xbfe3f5); scene.fog.color.copy(scene.background); }
     },
   };
+  const site = createSite(ctx, M, group, api);
+  api.site = site;
   api.api = api;
   return api;
 }

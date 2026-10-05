@@ -51,14 +51,12 @@ export function flowerGeo(){
   const g=hx('#4a9a2e'), g2=hx('#78c040'), gold=hx('#ffc83a');
   const H=0.34, up=[0,1,0];
   // stem: thin 3-sided
-  const s0=[],s1=[];
-  for(let k=0;k<3;k++){ const a=k/3*Math.PI*2; s0.push(bs.v([Math.cos(a)*0.012,0,Math.sin(a)*0.012],[Math.cos(a),0.2,Math.sin(a)],g)); s1.push(bs.v([Math.cos(a)*0.008,H,Math.sin(a)*0.008],[Math.cos(a),0.2,Math.sin(a)],g2)); }
-  for(let k=0;k<3;k++){ const m=(k+1)%3; bs.q(s0[k],s0[m],s1[m],s1[k]); }
+  bs.q(bs.v([-0.014,0,0],up,g),bs.v([0.014,0,0],up,g),bs.v([0.009,H,0],up,g2),bs.v([-0.009,H,0],up,g2));
   // small leaf
   bs.t(bs.v([0,0.08,0],up,g),bs.v([0.12,0.2,0.0],up,g2),bs.v([0.01,0.12,0.03],up,g));
   // center
-  const cc=bs.v([0,H+0.035,0],up,gold); const ring=[]; for(let k=0;k<6;k++){ const a=k/6*6.283; ring.push(bs.v([Math.cos(a)*0.035,H+0.02,Math.sin(a)*0.035],up,gold)); }
-  for(let k=0;k<6;k++) bs.t(cc,ring[(k+1)%6],ring[k]);
+  const cc=bs.v([0,H+0.035,0],up,gold); const ring=[]; for(let k=0;k<4;k++){ const a=k/4*6.283; ring.push(bs.v([Math.cos(a)*0.04,H+0.02,Math.sin(a)*0.04],up,gold)); }
+  for(let k=0;k<4;k++) bs.t(cc,ring[(k+1)%4],ring[k]);
   // petals (white; tinted by instance color)
   const P=5;
   for(let k=0;k<P;k++){ const a=k/P*6.283;
@@ -97,11 +95,11 @@ export function bushGeo({variant='round',seed=3}={}){
   const pts=[];
   lobes.forEach(([x,y,z,s,sy],k)=>{
     blob(b,[x,y,z],s,sy,s,(nx,ny,nz,p)=>{ const t=clamp(p[1]/top,0,1); return mix(lo,hi,t*t*(3-2*t)); },
-      {seed:seed*7+k,disp:0.16,wd:9,hd:6,upBias:0.4,aoFn:(p)=>0.6+0.4*clamp(p[1]/(top*0.7),0,1)});
-    if(variant==='flower') for(let i=0;i<7;i++){ const th=r()*6.283, ph=r()*1.1; pts.push([x+Math.sin(ph)*Math.cos(th)*s,y+Math.cos(ph)*sy,z+Math.sin(ph)*Math.sin(th)*s]); }
+      {seed:seed*7+k,disp:0.16,wd:8,hd:5,upBias:0.4,aoFn:(p)=>0.6+0.4*clamp(p[1]/(top*0.7),0,1)});
+    if(variant==='flower') for(let i=0;i<4;i++){ const th=r()*6.283, ph=r()*1.1; pts.push([x+Math.sin(ph)*Math.cos(th)*s,y+Math.cos(ph)*sy,z+Math.sin(ph)*Math.sin(th)*s]); }
   });
   const fc=[hx('#ff7ca8'),hx('#fff4f0'),hx('#ffd23f'),hx('#ff6a5a')][seed%4];
-  for(const p of pts) blob(b,p,0.09,0.07,0.09,mul(fc,1.15),{wd:5,hd:3,disp:0,seed:1,upBias:0.6});
+  for(const p of pts) blob(b,p,0.11,0.08,0.11,mul(fc,1.15),{wd:4,hd:2,disp:0,seed:1,upBias:0.6});
   return b.geo();
 }
 export function broadleafGeo(variant=0,seed=1){
@@ -116,20 +114,20 @@ export function broadleafGeo(variant=0,seed=1){
   const lo=hx(pal[0]), hi=hx(pal[1]), mid=mix(lo,hi,0.5);
   const bot=cy-2.0, top=cy+2.0;
   lobes.forEach(([x,y,z,s,sy],k)=>blob(b,[x,y,z],s,sy,s,(nx,ny,nz,p)=>{ const t=clamp((p[1]-bot)/(top-bot),0,1); const tt=t*t*(3-2*t); return mix(mix(lo,mid,clamp(tt*2,0,1)),hi,clamp(tt*2-1,0,1)); },
-    {seed:seed*5+k,disp:0.12,wd:14,hd:9,upBias:0.55,aoFn:(p)=>{ const dc=Math.hypot(p[0],p[2]); return 0.7+0.3*clamp(dc/2.2+(p[1]-cy)*0.25,0,1); }}));
+    {seed:seed*5+k,disp:0.12,wd:11,hd:7,upBias:0.55,aoFn:(p)=>{ const dc=Math.hypot(p[0],p[2]); return 0.7+0.3*clamp(dc/2.2+(p[1]-cy)*0.25,0,1); }}));
   if(variant===2){ // flamboyan blossoms: red-orange clusters on upper canopy
-    for(let i=0;i<40;i++){ const [x,y,z,s,sy]=lobes[(r()*lobes.length)|0]; const th=r()*6.283, ph=r()*1.2;
-      blob(b,[x+Math.sin(ph)*Math.cos(th)*s*1.02,y+Math.cos(ph)*sy*1.02,z+Math.sin(ph)*Math.sin(th)*s*1.02],0.28,0.18,0.28,mix(hx('#ff4a2a'),hx('#ff9a3a'),r()),{wd:6,hd:4,disp:0.1,seed:i,upBias:0.5}); }
+    for(let i=0;i<24;i++){ const [x,y,z,s,sy]=lobes[(r()*lobes.length)|0]; const th=r()*6.283, ph=r()*1.2;
+      blob(b,[x+Math.sin(ph)*Math.cos(th)*s*1.02,y+Math.cos(ph)*sy*1.02,z+Math.sin(ph)*Math.sin(th)*s*1.02],0.34,0.2,0.34,mix(hx('#ff4a2a'),hx('#ff9a3a'),r()),{wd:5,hd:3,disp:0.1,seed:i,upBias:0.5}); }
   }
   return b.geo();
 }
 export function cloverGeo(){
   const b=new B(); const g1=hx('#3e9a3a'), g2=hx('#6cc04a');
-  for(let k=0;k<5;k++){ const a=k*2.4, d=k?0.09:0, cx=Math.cos(a)*d, cz=Math.sin(a)*d, y=0.05+k*0.012;
+  for(let k=0;k<3;k++){ const a=k*2.4, d=k?0.09:0, cx=Math.cos(a)*d, cz=Math.sin(a)*d, y=0.05+k*0.012;
     for(let l=0;l<3;l++){ const la=a+l*2.094; const lx=cx+Math.cos(la)*0.045, lz=cz+Math.sin(la)*0.045;
       const c=b.v([cx,y,cz],[0,1,0],g1), ring=[];
-      for(let i=0;i<5;i++){ const t=la-1.0+i*0.5; ring.push(b.v([lx+Math.cos(t)*0.04,y+0.01,lz+Math.sin(t)*0.04],[0,1,0],g2)); }
-      for(let i=0;i<4;i++) b.t(c,ring[i+1],ring[i]); } }
+      for(let i=0;i<3;i++){ const t=la-0.9+i*0.9; ring.push(b.v([lx+Math.cos(t)*0.04,y+0.01,lz+Math.sin(t)*0.04],[0,1,0],g2)); }
+      for(let i=0;i<2;i++) b.t(c,ring[i+1],ring[i]); } }
   return b.geo();
 }
 export function rockGeo(seed=2){
@@ -194,7 +192,7 @@ export function palmGeo(seed=1){
   const NF=11;
   for(let i=0;i<NF;i++){
     const yaw=i/NF*Math.PI*2+r()*0.3, up=i%3===0;
-    leaf(b,[top[0],top[1]-0.05,top[2]],yaw,3.9+r()*0.8,up?2.4:1.3+r()*0.5,up?2.2:3.2+r()*0.8,0.85,16,mix(cb,hx('#3f9a34'),r()*0.5),mix(ct,hx('#c0e860'),r()*0.4),{jag:0.55,fold:0.35,seed:seed*13+i,sweep:-0.9,shape:0.7,mid:1.25});
+    leaf(b,[top[0],top[1]-0.05,top[2]],yaw,3.9+r()*0.8,up?2.4:1.3+r()*0.5,up?2.2:3.2+r()*0.8,0.85,10,mix(cb,hx('#3f9a34'),r()*0.5),mix(ct,hx('#c0e860'),r()*0.4),{jag:0.55,fold:0.35,seed:seed*13+i,sweep:-0.9,shape:0.7,mid:1.25});
   }
   // coconuts
   for(let i=0;i<3;i++){ const a=i*2.1+r(); blob(b,[top[0]+Math.cos(a)*0.28,top[1]-0.42,top[2]+Math.sin(a)*0.28],0.17,0.19,0.17,hx('#6a4a2a'),{wd:6,hd:4,disp:0.05,seed:i+3}); }
@@ -231,7 +229,7 @@ export function mangoGeo(seed=1){
   blobs.forEach((bl,i)=>{
     const tint=r(); const hiC=mix(hi,hx('#c4e255'),tint*0.5);
     blob(b,[bl[0],bl[1],bl[2]],bl[3],bl[3]*0.82,bl[3],(x,y,z,p)=>{ const t=clamp((p[1]-2.8)/3.0,0,1); return mix(mix(lo,mid,clamp(t*1.6,0,1)),hiC,clamp((t-0.35)*1.6,0,1)); },
-      {seed:seed*11+i,disp:0.22,wd:10,hd:7,upBias:0.45,aoFn:(p,n)=>{ const dc=Math.hypot(p[0],p[2]); return 0.78+0.3*clamp(dc/(R*1.4)+ (p[1]-3.0)*0.12,0,1); }});
+      {seed:seed*11+i,disp:0.22,wd:8,hd:6,upBias:0.45,aoFn:(p,n)=>{ const dc=Math.hypot(p[0],p[2]); return 0.78+0.3*clamp(dc/(R*1.4)+ (p[1]-3.0)*0.12,0,1); }});
   });
   for(let i=0;i<7;i++){ const a=r()*6.283,d=R*(0.7+0.5*r()); blob(b,[Math.cos(a)*d*0.9,cy-0.5-r()*0.6,Math.sin(a)*d*0.9],0.12,0.17,0.12,mix(hx('#ffb03a'),hx('#ff8a3a'),r()),{wd:6,hd:4,disp:0.03,seed:i}); }
   return b.geo();

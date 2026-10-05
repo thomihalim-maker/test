@@ -118,8 +118,8 @@ export function createVegetation(ctx, terrain, blobs){
 
   // ---------- clover / ground-cover patches ----------
   const clov=[]; let cp=0;
-  while(cp<(LOW?40:90)){ cp++; const a=rnd()*6.283, r=8+Math.sqrt(rnd())*50, cx=Math.cos(a)*r, cz=Math.sin(a)*r;
-    if(clearance(cx,cz)<0.5) continue; const R=0.8+rnd()*1.8, n=20+((rnd()*30)|0);
+  while(cp<(LOW?30:60)){ cp++; const a=rnd()*6.283, r=8+Math.sqrt(rnd())*50, cx=Math.cos(a)*r, cz=Math.sin(a)*r;
+    if(clearance(cx,cz)<0.5) continue; const R=0.8+rnd()*1.6, n=12+((rnd()*16)|0);
     for(let k=0;k<n;k++){ const b=rnd()*6.283, d=Math.sqrt(rnd())*R, x=cx+Math.cos(b)*d, z=cz+Math.sin(b)*d;
       if(clearance(x,z)<0.15) continue; const h=heightAt(x,z); if(h<0.3) continue; terrain.colorAt(x,z,tmpC);
       clov.push({x,y:h-0.02,z,ry:rnd()*6.28,s:0.9+rnd()*0.9,c:tmpC.clone().multiplyScalar(1.6+rnd()*0.4)}); } }

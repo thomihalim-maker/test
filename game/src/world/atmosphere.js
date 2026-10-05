@@ -12,7 +12,7 @@ const K=[
  [8,  '#3a88e4','#86c4f4','#b4dcf4','#ffe6c0',2.7,'#bfdcff','#8dbf68',0.95,1.0,'#ffd9a0'],
  [12, '#2c80ec','#62b6f6','#a8d8f8','#fff6e2',3.1,'#c4e2ff','#92c56c',1.0,0.95,'#fff0c0'],
  [16, '#3484e8','#78bcf2','#b8e0f6','#ffe9b8',2.8,'#c0dcff','#8fbe68',0.95,1.0,'#ffe0a0'],
- [17.4,'#5a74cc','#f0a896','#ffbca0','#ff9a58',2.3,'#b8a0e0','#7a5a6a',0.9,1.05,'#ff9a70'],
+ [17.4,'#5a74cc','#f0a896','#ffbca0','#ff9a58',2.3,'#b0b0e0','#7a6a6a',0.9,1.05,'#ff9a70'],
  [18.4,'#3f4ca0','#d87aa0','#ff9070','#ff7a44',1.1,'#e8a8b0','#6a5a58',0.8,1.1,'#ff7040'],
  [19.3,'#1f2c6a','#6a52a0','#b4608e','#ff6a52',0.25,'#8a7ab8','#40405a',0.78,1.15,'#ff5a50'],
  [20.5,'#0b1236','#1c2a64','#303c78','#8fa8ff',0,'#4a5fa8','#1d2340',0.82,1.15,'#000000'],
@@ -144,8 +144,8 @@ export function createAtmosphere(ctx){
     // opposite soft fill tinted by sky
     T.copy(L); T.x*=-1; T.z*=-1; T.y=0.35; T.normalize();
     fill.position.copy(focus).addScaledVector(T,50); fill.target.position.copy(focus);
-    fill.color.copy(k.mid).lerp(new THREE.Color(0.7,0.55,1.0),0.35+0.4*state.golden); fill.intensity=0.4+0.35*state.golden+0.1*state.night;
-    hemi.groundColor.lerp(new THREE.Color('#6a58a0'),0.25+0.25*state.golden); hemi.color.lerp(new THREE.Color('#a890e0'),0.3*state.golden);
+    fill.color.copy(k.mid).lerp(new THREE.Color(0.62,0.55,1.0),0.35+0.3*state.golden); fill.intensity=0.4+0.35*state.golden+0.1*state.night;
+    hemi.groundColor.lerp(new THREE.Color('#6a58a0'),0.25+0.25*state.golden); hemi.color.lerp(new THREE.Color('#9a9ae0'),0.12*state.golden);
     sun.color.lerp(new THREE.Color('#ff8a50'),0.3*state.golden);
     ctx.renderer.toneMappingExposure=k.exp;
     return state;

@@ -12,7 +12,7 @@ const D={ // key: [id, en]
  coins:['Koin','Coins'], pahala:['Pahala','Pahala'], built:['Terbangun','Built'], mosque:['Masjid','Mosque'], reward:['Hadiah','Reward'],
  place:['Bangun','Build'], need:['Butuh','Needs'], tapTool:['Pilih alat','Pick tool'],
  sound:['Suara','Sound'], music:['Musik','Music'], sfx:['Efek','Effects'], lang:['Bahasa','Language'], resetSave:['Hapus Progres','Reset Progress'], sure:['Yakin? Ketuk lagi','Sure? Tap again'],
- close:['Tutup','Close'], nextYear:['Menuju Idul Adha berikutnya: 10 hari lagi!','Next Eid al-Adha in 10 days!'], locked:['Terkunci','Locked'], start:['Mulai Bermain','Start Game'], cont:['Lanjutkan','Continue'], tagline:['Rawat hewan kurban, bangun masjid','Care for the animals, build the masjid'],
+ close:['Tutup','Close'], sick:['sedang sakit, rawat dengan baik','is feeling sick, take care'], recovered:['sudah sehat lagi!','is healthy again!'], shopGear:['Perlengkapan','Supplies'], shopAnimals:['Hewan Kurban','Animals'], baby:['Anak','Baby'], penFull:['Kandang penuh','Pen is full'], nextYear:['Menuju Idul Adha berikutnya: 10 hari lagi!','Next Eid al-Adha in 10 days!'], locked:['Terkunci','Locked'], start:['Mulai Bermain','Start Game'], cont:['Lanjutkan','Continue'], tagline:['Rawat hewan kurban, bangun masjid','Care for the animals, build the masjid'],
  sumTitle:['Hari {n} Selesai','Day {n} Complete'], sumSub:['Alhamdulillah, kerja bagus hari ini!','Alhamdulillah, great work today!'], next:['Lanjut ke Hari {n}','On to Day {n}'],
  fed:['Hewan diberi makan','Animals fed'], washed:['Hewan dimandikan','Animals washed'], happy:['Hewan senang','Happy animals'], placed:['Bagian dibangun','Parts built'], visitors:['Jamaah datang','Visitors'], earned:['Koin didapat','Coins earned'], pahalaE:['Pahala didapat','Pahala earned'],
  eidTitle:['Selamat Idul Adha!','Eid al-Adha Mubarak!'], eidGreet:['Taqabbalallahu minna wa minkum','Taqabbalallahu minna wa minkum'],
@@ -161,7 +161,10 @@ export async function init(ctx){
   const q_done=()=>'q_done';
   function stat(k,n=1){ D0()[k]=(D0()[k]||0)+n; if(S.stats[k]!==undefined) S.stats[k]+=n; checkQuests(); }
   function dayReset(){ S.daily={fed:0,watered:0,washed:0,happy:0,placed:0,visitors:0,coins:0,pahala:0}; S.quests={day:S.day,claimed:{}}; notified.clear(); }
-  ctx.on('animal:fed',()=>{ stat('fed'); addPahala(1); }); ctx.on('animal:watered',()=>{ stat('watered'); addPahala(1); }); ctx.on('animal:washed',()=>{ stat('washed'); addPahala(2); }); ctx.on('animal:happy',()=>{ stat('happy'); addPahala(1); });
+  ctx.on('animal:fed',()=>stat('fed')); ctx.on('animal:watered',()=>stat('watered')); ctx.on('animal:washed',()=>stat('washed'));
+  ctx.on('animal:happy',d=>{ stat('happy'); addPahala(d?.reason==='cared'?3:1); });
+  ctx.on('animal:sick',d=>toast((d?.animal?.name?d.animal.name+' ':'')+t('sick'),'heart','bad'));
+  ctx.on('animal:recovered',d=>toast((d?.animal?.name?d.animal.name+' ':'')+t('recovered'),'heart','good'));
   ctx.on('build:placed',()=>{ stat('placed'); S.stats.built++; if(panel==='build') renderPanel(); });
   ctx.on('build:complete',()=>{ toast(t('masjidDone'),'dome','good'); sfx('bedug'); sfx('chime'); });
   ctx.on('visitor:arrive',()=>{ stat('visitors'); });
@@ -184,7 +187,10 @@ export async function init(ctx){
   }
   const coinSub=()=>`<div class="sub"><span>${t('coins')}</span><span class="pill clay" style="padding:.25em .8em .25em .4em">${ic('coin')}<b>${fmt(S.coins)}</b></span></div>`;
   function shopHTML(){
-    return coinSub()+'<div class="grid">'+SHOP.map(it=>`<div class="card"><div class="big">${ic(it.icon)}</div><h5>${t(it.id)} ×${it.qty}</h5><p>${t(it.id+'D')}</p><span class="own">${t('owned')} ${S.inventory[it.id]||0}</span><button class="btn gold" data-buy="${it.id}"><span class="price">${ic('coin')}${it.price}</span> ${t('buy')}</button></div>`).join('')+'</div>';
+    const an=ctx.modules.animals; let zoo='';
+    if(an?.price){ zoo=`<h5 class="sec">${t('shopAnimals')}</h5><div class="grid">`+['goat','sheep','cow'].map(k=>{ const p=an.price(k), ok=an.canAdd?an.canAdd(k):true, bp=Math.round(p*.5);
+      return `<div class="card"><div class="big">${ic(k==='cow'?'cow':'goat')}</div><h5>${t(k==='goat'?'goats':k==='sheep'?'sheeps':'cows')}</h5><div class="duo"><button class="btn gold ${ok&&S.coins>=p?'':'off'}" data-animal="${k}"><span class="price">${ic('coin')}${p}</span></button><button class="btn teal ${ok&&S.coins>=bp?'':'off'}" data-animal="${k}:baby"><span class="price">${ic('coin')}${bp}</span> ${t('baby')}</button></div></div>`; }).join('')+'</div>'+zoo; }
+    return coinSub()+(zoo?`<h5 class="sec">${t('shopGear')}</h5>`:'')+'<div class="grid">'+SHOP.map(it=>`<div class="card"><div class="big">${ic(it.icon)}</div><h5>${t(it.id)} ×${it.qty}</h5><p>${t(it.id+'D')}</p><span class="own">${t('owned')} ${S.inventory[it.id]||0}</span><button class="btn gold" data-buy="${it.id}"><span class="price">${ic('coin')}${it.price}</span> ${t('buy')}</button></div>`).join('')+'</div>'+zoo;
   }
   function parts(){
     const m=ctx.modules.masjid; const st=m?.stages;
@@ -210,6 +216,8 @@ export async function init(ctx){
     <div class="danger"><div class="set"><span>${t('danger')}</span><button class="hold" id="bReset"><i></i><span>${t('holdReset')}</span></button></div></div>`;
   }
   function bindPanel(){
+    modal.querySelectorAll('[data-animal]').forEach(b=>b.onclick=()=>{ const [k,bb]=b.dataset.animal.split(':'); const an=ctx.modules.animals; if(!an) return; if(an.canAdd&&!an.canAdd(k)){ toast(t('penFull'),'goat','bad'); return; }
+      const p=Math.round(an.price(k)*(bb?.5:1)); if(!spend(p)){ toast(t('noCoins'),'coin','bad'); return; } const r=bb?an.add(k,{baby:true}):an.add(k); if(r===false){ addCoins(p); toast(t('penFull'),'goat','bad'); return; } sfx('coin'); sfx('pop'); renderPanel(); });
     modal.querySelectorAll('[data-claim]').forEach(b=>b.onclick=()=>claim(b.dataset.claim));
     modal.querySelectorAll('[data-buy]').forEach(b=>b.onclick=()=>{ const it=SHOP.find(i=>i.id===b.dataset.buy); if(!spend(it.price)){ toast(t('noCoins'),'coin','bad'); b.classList.add('shake'); setTimeout(()=>b.classList.remove('shake'),400); return; }
       S.inventory[it.id]=(S.inventory[it.id]||0)+it.qty; ctx.emit('inventory:change',S.inventory); sfx('coin'); sfx('pop'); renderHotbar(); renderPanel(); });

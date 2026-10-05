@@ -70,7 +70,7 @@ export async function init(ctx){
       fragmentShader: `uniform sampler2D tDiffuse; uniform float uWarm,uNight; varying vec2 vUv;
         void main(){ vec4 c=texture2D(tDiffuse,vUv); vec2 d=vUv-0.5; float v=smoothstep(0.85,0.25,length(d*vec2(1.0,1.15)));
           float l=dot(c.rgb,vec3(0.2126,0.7152,0.0722)); c.rgb=mix(vec3(l),c.rgb,1.06+0.02*uWarm);
-          c.rgb*=mix(vec3(1.0),vec3(1.06,0.95,0.96),uWarm); c.rgb=mix(c.rgb,c.rgb*vec3(0.85,0.95,1.2),uNight*0.5);
+          c.rgb*=mix(vec3(1.0),vec3(1.06,0.97,0.93),uWarm); c.rgb=mix(c.rgb,c.rgb*vec3(0.85,0.95,1.2),uNight*0.5);
           c.rgb*=mix(0.62,1.0,v); gl_FragColor=c; }`,
     });
     ctx.composer.insertPass(grade, Math.max(1, ctx.composer.passes.length - 1));
