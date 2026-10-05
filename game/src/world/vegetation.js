@@ -39,12 +39,13 @@ export function createVegetation(ctx, terrain, blobs){
 
   // ---------- flowers ----------
   const FP=['#ff7fb0','#ffffff','#ffd23f','#b69cff','#ff9248','#ff6b6b','#7fd4ff'].map(c=>new THREE.Color(c));
-  const fl=[]; let patches=0, ft=0;
+  const fl=[], flowerPatches=[]; let patches=0, ft=0;
   while(patches<(LOW?45:80)&&ft++<6000){
     const a=rnd()*6.283, rr=14+Math.sqrt(rnd())*46, cx=Math.cos(a)*rr, cz=Math.sin(a)*rr;
     if(clearance(cx,cz)<2) continue; const hh=heightAt(cx,cz); if(hh<0.5||slopeAt(cx,cz)>0.4) continue;
     patches++;
     const c1=FP[(rnd()*FP.length)|0], c2=FP[(rnd()*FP.length)|0], R=1.6+rnd()*2.6, n=14+((rnd()*20)|0);
+    flowerPatches.push({x:cx,z:cz,r:R});
     for(let i=0;i<n;i++){ const b=rnd()*6.283, d=Math.sqrt(rnd())*R, x=cx+Math.cos(b)*d, z=cz+Math.sin(b)*d;
       if(clearance(x,z)<0.4) continue; const h=heightAt(x,z); if(h<0.4||slopeAt(x,z)>0.5) continue;
       fl.push({x,y:h-0.02,z,ry:rnd()*6.28,s:0.9+rnd()*0.9,c:(rnd()<0.7?c1:c2).clone().multiplyScalar(0.9+rnd()*0.2)}); }
@@ -157,5 +158,5 @@ export function createVegetation(ctx, terrain, blobs){
   inst(G.lotusGeo(),lm,lotus,{}).name='lotus';
 
   terrain.applyAO(aoList);
-  return { group, palms, mangos, bananas, broad, aoList, update(){} };
+  return { group, palms, mangos, bananas, broad, aoList, flowerPatches, update(){} };
 }

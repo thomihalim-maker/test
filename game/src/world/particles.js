@@ -1,11 +1,11 @@
 // Drifting petals, fireflies, birds, butterflies
 import * as THREE from 'three';
 import { mulberry32 } from './noise.js';
-import { heightAt, POND } from './terrain.js';
+import { heightAt, POND, PEN, dPen } from './terrain.js';
 import { makeRadialTex } from './textures.js';
-import { windU, patchWind } from './wind.js';
+import { windU, patchWind, NFIX } from './wind.js';
 
-export function createParticles(ctx, sources=[]){
+export function createParticles(ctx, sources=[], anchors=[]){
   const group=new THREE.Group(); group.name='particles';
   const r=mulberry32(77);
   // ---- falling blossom petals: only under flowering (flamboyan) trees near the camera ----
@@ -46,16 +46,40 @@ export function createParticles(ctx, sources=[]){
   bm.customProgramCacheKey=()=>'bird';
   const birds=new THREE.InstancedMesh(bg,bm,NB); birds.frustumCulled=false; birds.name='birds'; group.add(birds);
   const B=[]; for(let i=0;i<NB;i++) B.push({cx:(r()-0.5)*50,cz:(r()-0.5)*50,R:28+r()*34,a:r()*6.28,sp:(0.04+r()*0.03)*(r()<.5?1:-1),y:46+r()*16,s:1.3+r()*0.6});
-  // ---- butterflies ----
-  const NBF=14, bfg=new THREE.BufferGeometry();
-  bfg.setAttribute('position',new THREE.Float32BufferAttribute([0,0,0, -0.14,0.0,0.1, -0.12,0,-0.08, 0,0,0, 0.14,0,0.1, 0.12,0,-0.08],3));
-  bfg.setAttribute('normal',new THREE.Float32BufferAttribute([0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0],3));
-  const bfm=new THREE.MeshBasicMaterial({side:THREE.DoubleSide,color:0xffffff});
-  bfm.onBeforeCompile=(sh)=>{ sh.uniforms.uTime=windU.uTime; sh.vertexShader='uniform float uTime;\n'+sh.vertexShader.replace('#include <begin_vertex>',`vec3 transformed=position; transformed.y+=abs(position.x)*sin(uTime*18.0+instanceMatrix[3].x*3.0)*3.0;`); };
-  const bfl=new THREE.InstancedMesh(bfg,bfm,NBF); bfl.frustumCulled=false; group.add(bfl);
-  const bcol=['#ffd23f','#ff9bd0','#ffffff','#9bd0ff'].map(c=>new THREE.Color(c));
-  const BF=[]; for(let i=0;i<NBF;i++){ BF.push({x:r()*50-25,z:r()*50-25,a:r()*6.28,ph:r()*10,y:0.8+r()*1.2}); bfl.setColorAt(i,bcol[i%4]); }
-
+  // ---- butterflies: textured rounded wings (alpha-tested), lit with a little self-glow, they flutter around
+  //      flower patches / flamboyan trees near the camera and never wander into the pen or over water ----
+  const NBF=LOW?6:10;
+  const wingTex=(()=>{ const c=document.createElement('canvas'); c.width=128; c.height=64; const g=c.getContext('2d');
+    const wing=(sx)=>{ g.save(); g.translate(64,32); g.scale(sx,1);
+      // fore-wing (larger, upper) + hind-wing (smaller, lower) lobes
+      g.fillStyle='#ffffff'; g.strokeStyle='#5a4a46'; g.lineWidth=3.2;
+      g.beginPath(); g.ellipse(-26,-9,27,17,-0.35,0,6.283); g.fill(); g.stroke();
+      g.beginPath(); g.ellipse(-20,13,17,13,0.45,0,6.283); g.fill(); g.stroke();
+      g.fillStyle='rgba(255,255,255,1)'; g.beginPath(); g.ellipse(-26,-9,24.5,14.5,-0.35,0,6.283); g.fill(); g.beginPath(); g.ellipse(-20,13,14.5,10.5,0.45,0,6.283); g.fill();
+      // soft inner shading + eye spots
+      g.fillStyle='rgba(120,100,100,0.18)'; g.beginPath(); g.ellipse(-12,0,12,18,0,0,6.283); g.fill();
+      g.fillStyle='rgba(70,55,55,0.55)'; g.beginPath(); g.arc(-38,-14,4.5,0,6.283); g.fill(); g.beginPath(); g.arc(-25,17,3.2,0,6.283); g.fill();
+      g.restore(); };
+    wing(1); wing(-1);
+    g.fillStyle='#3a302c'; g.beginPath(); g.ellipse(64,32,3.5,20,0,0,6.283); g.fill(); // body
+    g.strokeStyle='#3a302c'; g.lineWidth=1.5; g.beginPath(); g.moveTo(63,13); g.quadraticCurveTo(58,4,54,2); g.moveTo(65,13); g.quadraticCurveTo(70,4,74,2); g.stroke(); // antennae
+    const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=4; return t; })();
+  // two quads hinged at the body (x=0); body runs along local z
+  const W=0.085, Lz=0.045, bfg=new THREE.BufferGeometry();
+  bfg.setAttribute('position',new THREE.Float32BufferAttribute([-W,0,-Lz, 0,0,-Lz, 0,0,Lz, -W,0,Lz,  0,0,-Lz, W,0,-Lz, W,0,Lz, 0,0,Lz],3));
+  bfg.setAttribute('normal',new THREE.Float32BufferAttribute(new Array(8).fill(0).flatMap(()=>[0,1,0]),3));
+  bfg.setAttribute('uv',new THREE.Float32BufferAttribute([0,1, 0.5,1, 0.5,0, 0,0,  0.5,1, 1,1, 1,0, 0.5,0],2));
+  bfg.setIndex([0,2,1, 0,3,2, 4,6,5, 4,7,6]);
+  const bfm=new THREE.MeshLambertMaterial({map:wingTex,alphaTest:0.5,side:THREE.DoubleSide,emissive:0x2a2a2a,emissiveMap:wingTex});
+  bfm.onBeforeCompile=(sh)=>{ sh.uniforms.uTime=windU.uTime;
+    sh.vertexShader='uniform float uTime;\n'+sh.vertexShader.replace('#include <begin_vertex>',`vec3 transformed=position; float fa=0.95*sin(uTime*16.0+instanceMatrix[3].x*3.0+instanceMatrix[3].z*1.7)+0.25; float ax=abs(position.x); transformed.y=ax*sin(fa); transformed.x=sign(position.x)*ax*cos(fa);`);
+    sh.fragmentShader=sh.fragmentShader.replace('#include <normal_fragment_begin>',NFIX); };
+  bfm.customProgramCacheKey=()=>'butterfly';
+  const bfl=new THREE.InstancedMesh(bfg,bfm,NBF); bfl.frustumCulled=false; bfl.name='butterflies'; group.add(bfl);
+  const bcol=['#ffd23f','#ffa6d2','#fff6e8','#9fd0ff','#ffb35a'].map(c=>new THREE.Color(c));
+  const BF=[]; for(let i=0;i<NBF;i++){ BF.push({x:0,z:0,a:r()*6.28,ph:r()*10,y:0.5+r()*0.8,home:null,t:0}); bfl.setColorAt(i,bcol[i%5]); }
+  const pickHome=(b,focus)=>{ const near=anchors.filter(h=>Math.hypot(h.x-focus.x,h.z-focus.z)<26); b.home=near.length?near[(r()*near.length)|0]:null;
+    if(b.home){ const a=r()*6.283, d=Math.sqrt(r())*b.home.r; b.x=b.home.x+Math.cos(a)*d; b.z=b.home.z+Math.sin(a)*d; } b.t=0; };
   const d=new THREE.Object3D(), tgt=new THREE.Vector3();
   function update(dt,t,atm,focus){
     const day=1-atm.state.night;
@@ -83,10 +107,19 @@ export function createParticles(ctx, sources=[]){
       d.position.set(x,y,z); d.rotation.set(0,-b.a+(b.sp>0?0:Math.PI)+Math.PI,Math.sin(t*0.5+i)*0.25); d.scale.setScalar(dc<15?1e-4:b.s*Math.min(1,(dc-15)/8)*(0.5+0.5*day)); d.updateMatrix(); birds.setMatrixAt(i,d.matrix); }
     birds.instanceMatrix.needsUpdate=true;
     // butterflies
-    bfl.visible=day>0.5&&atm.state.elev>0.15;
-    if(bfl.visible) for(let i=0;i<NBF;i++){ const b=BF[i]; b.a+=dt*(0.8+0.6*Math.sin(t*0.5+b.ph)); b.x+=Math.cos(b.a)*dt*0.9; b.z+=Math.sin(b.a)*dt*0.9;
-      let dx=b.x-focus.x, dz=b.z-focus.z; if(dx>26)b.x-=52; if(dx<-26)b.x+=52; if(dz>26)b.z-=52; if(dz<-26)b.z+=52;
-      const h=heightAt(b.x,b.z); if(h<0.1) b.a+=Math.PI*dt*2; d.position.set(b.x,Math.max(h,0)+b.y+Math.sin(t*2+b.ph)*0.25,b.z); d.rotation.set(0,-b.a,0); d.scale.setScalar(h<-0.3?1e-4:1); d.updateMatrix(); bfl.setMatrixAt(i,d.matrix); }
+    bfl.visible=day>0.5&&atm.state.elev>0.15&&anchors.length>0;
+    if(bfl.visible) for(let i=0;i<NBF;i++){ const b=BF[i];
+      b.t+=dt; if(!b.home||b.t>40+i*3||Math.hypot(b.home.x-focus.x,b.home.z-focus.z)>30) pickHome(b,focus);
+      if(!b.home){ bfl.setMatrixAt(i,d.matrix.makeScale(0,0,0)); continue; }
+      // wander + steer back toward the home patch; steer out of the pen
+      b.a+=dt*(1.6*Math.sin(t*0.9+b.ph)+0.8*Math.sin(t*2.3+b.ph*1.7));
+      const hx=b.home.x-b.x, hz=b.home.z-b.z, hd=Math.hypot(hx,hz);
+      if(hd>b.home.r+0.8){ const ta=Math.atan2(hz,hx); let da=ta-b.a; da=Math.atan2(Math.sin(da),Math.cos(da)); b.a+=da*Math.min(1,dt*2.5); }
+      if(dPen(b.x,b.z,1.5)<0){ const ta=Math.atan2(b.z-PEN.z,b.x-PEN.x); b.a=ta; }
+      b.x+=Math.cos(b.a)*dt*0.75; b.z+=Math.sin(b.a)*dt*0.75;
+      const h=heightAt(b.x,b.z); const over=h<0.1||dPen(b.x,b.z,0.5)<0;
+      d.position.set(b.x,Math.max(h,0)+b.y+Math.sin(t*2.2+b.ph)*0.2+Math.abs(Math.sin(t*5+b.ph))*0.08,b.z); d.rotation.set(Math.sin(t*3+b.ph)*0.15,-b.a-Math.PI/2,0);
+      d.scale.setScalar(over?1e-4:1); d.updateMatrix(); bfl.setMatrixAt(i,d.matrix); }
     bfl.instanceMatrix.needsUpdate=true;
   }
   return { group, update };

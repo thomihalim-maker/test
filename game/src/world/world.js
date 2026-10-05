@@ -42,7 +42,7 @@ export async function init(ctx){
   const grassField = createGrassField(ctx, terrain, LOW ? { count: 3600, radius: 11 } : { count: 7000, radius: 15 }); scene.add(grassField.mesh);
   const decor = createDecor(ctx, blobs); scene.add(decor.group);
   const lamps = createLamps(ctx, blobs, decor.lampSpots); scene.add(lamps.group);
-  const parts = createParticles(ctx, veg.broad[2].map(t=>({x:t.x,z:t.z,s:t.s}))); scene.add(parts.group);
+  const parts = createParticles(ctx, veg.broad[2].map(t=>({x:t.x,z:t.z,s:t.s})), [...veg.flowerPatches, ...veg.broad[2].map(t=>({x:t.x,z:t.z,r:3*t.s}))]); scene.add(parts.group);
 
   // distant islands: smooth radial-grid hills, beach rim, low-contrast blue-green, palm silhouettes (fog-faded)
   {
