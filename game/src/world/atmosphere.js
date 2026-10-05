@@ -129,7 +129,7 @@ export function createAtmosphere(ctx){
     sky.position.copy(camPos);
     // fog
     scene.fog.color.copy(fogC); scene.background=null;
-    scene.fog.density=0.0056-0.0016*state.golden+0.0010*state.night;
+    scene.fog.density=0.0044-0.0006*state.golden+0.0016*state.night;
     // lights
     const g=state.golden;
     const sunLevel=(k.sunI+(4.0-k.sunI)*g)*S(-0.04,0.18,e);

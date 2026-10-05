@@ -64,29 +64,31 @@ export function thatchTexture(){
   return tex(c);
 }
 // ground patch for inside the pen: dirt + straw + grass specks, soft alpha edge
-export function penGroundTexture(){
-  const [c,g]=cv(512,384); const rnd=mulberry32(21);
-  g.fillStyle='#d1b777'; g.fillRect(0,0,512,384);
-  for(let i=0;i<2600;i++){
-    const x=rnd()*512,y=rnd()*384; const k=rnd();
+// W,H: metres covered; muds: [[u,v,rMetres]] in 0..1 texture space
+export function penGroundTexture(W=18.2,H=14.2,muds=null){
+  const cw=Math.round(W*28.13), ch=Math.round(H*27.04), K=cw*ch/(512*384), ppm=cw/W;
+  const [c,g]=cv(cw,ch); const rnd=mulberry32(21);
+  g.fillStyle='#d1b777'; g.fillRect(0,0,cw,ch);
+  for(let i=0;i<2600*K;i++){
+    const x=rnd()*cw,y=rnd()*ch; const k=rnd();
     g.fillStyle=k<.35?'rgba(120,88,44,.28)':k<.6?'rgba(235,205,125,.35)':k<.8?'rgba(110,150,60,.30)':'rgba(255,240,190,.20)';
     g.beginPath(); g.ellipse(x,y,2+rnd()*7,1+rnd()*3,rnd()*3,0,7); g.fill();
   }
-  for(let i=0;i<500;i++){ const x=rnd()*512,y=rnd()*384,a=rnd()*3; g.strokeStyle='rgba(224,185,95,.5)'; g.lineWidth=1.2;
+  for(let i=0;i<500*K;i++){ const x=rnd()*cw,y=rnd()*ch,a=rnd()*3; g.strokeStyle='rgba(224,185,95,.5)'; g.lineWidth=1.2;
     g.beginPath(); g.moveTo(x,y); g.lineTo(x+Math.cos(a)*9,y+Math.sin(a)*9); g.stroke(); }
   // mud puddles near water trough + wash tub
-  for(const [mx,my,mr] of [[400,85,46],[110,297,50],[300,330,24]]){ const gr=g.createRadialGradient(mx,my,4,mx,my,mr); gr.addColorStop(0,'rgba(92,64,38,.75)'); gr.addColorStop(.7,'rgba(110,80,48,.45)'); gr.addColorStop(1,'rgba(110,80,48,0)'); g.fillStyle=gr; g.beginPath(); g.ellipse(mx,my,mr*1.3,mr*.85,.3,0,7); g.fill(); }
+  for(const [mx,my,mr] of (muds||[[.78,.22,1.64],[.215,.773,1.78],[.586,.86,.85]]).map(([u,v,r])=>[u*cw,v*ch,r*ppm])){ const gr=g.createRadialGradient(mx,my,4,mx,my,mr); gr.addColorStop(0,'rgba(92,64,38,.75)'); gr.addColorStop(.7,'rgba(110,80,48,.45)'); gr.addColorStop(1,'rgba(110,80,48,0)'); g.fillStyle=gr; g.beginPath(); g.ellipse(mx,my,mr*1.3,mr*.85,.3,0,7); g.fill(); }
   // hoof prints (pairs of crescents)
-  for(let i=0;i<46;i++){ const x=40+rnd()*430,y=40+rnd()*300,a=rnd()*6.28; g.save(); g.translate(x,y); g.rotate(a); g.fillStyle='rgba(88,62,36,.4)';
+  for(let i=0;i<46*K;i++){ const x=40+rnd()*(cw-80),y=40+rnd()*(ch-80),a=rnd()*6.28; g.save(); g.translate(x,y); g.rotate(a); g.fillStyle='rgba(88,62,36,.4)';
     for(const o of[-5,5]){ g.beginPath(); g.ellipse(o,0,3,6.5,0,0,7); g.fill(); g.fillStyle='rgba(150,115,70,.35)'; g.beginPath(); g.ellipse(o,.5,1.2,4,0,0,7); g.fill(); g.fillStyle='rgba(88,62,36,.4)'; } g.restore(); }
   // clover patches
-  for(let i=0;i<28;i++){ const x=30+rnd()*450,y=30+rnd()*320; g.fillStyle=rnd()<.5?'rgba(96,160,70,.8)':'rgba(124,184,84,.8)'; for(let k=0;k<3;k++){ g.beginPath(); g.arc(x+Math.cos(k*2.09)*3.5,y+Math.sin(k*2.09)*3.5,3.4,0,7); g.fill(); } if(rnd()<.2){ g.fillStyle='#fff'; g.beginPath(); g.arc(x,y-6,2.2,0,7); g.fill(); } }
+  for(let i=0;i<28*K;i++){ const x=30+rnd()*(cw-60),y=30+rnd()*(ch-60); g.fillStyle=rnd()<.5?'rgba(96,160,70,.8)':'rgba(124,184,84,.8)'; for(let k=0;k<3;k++){ g.beginPath(); g.arc(x+Math.cos(k*2.09)*3.5,y+Math.sin(k*2.09)*3.5,3.4,0,7); g.fill(); } if(rnd()<.2){ g.fillStyle='#fff'; g.beginPath(); g.arc(x,y-6,2.2,0,7); g.fill(); } }
   // loose straw tufts
-  for(let i=0;i<60;i++){ const x=rnd()*512,y=rnd()*384; g.strokeStyle='rgba(247,222,140,.9)'; g.lineWidth=1.6; for(let k=0;k<4;k++){ g.beginPath(); g.moveTo(x,y); g.lineTo(x+(rnd()-.5)*18,y+(rnd()-.5)*10); g.stroke(); } }
+  for(let i=0;i<60*K;i++){ const x=rnd()*cw,y=rnd()*ch; g.strokeStyle='rgba(247,222,140,.9)'; g.lineWidth=1.6; for(let k=0;k<4;k++){ g.beginPath(); g.moveTo(x,y); g.lineTo(x+(rnd()-.5)*18,y+(rnd()-.5)*10); g.stroke(); } }
   // alpha mask: rounded rect with feathered edge
-  const [m,mg]=cv(512,384); mg.fillStyle='#000'; mg.fillRect(0,0,512,384);
-  mg.filter='blur(14px)'; mg.fillStyle='#fff'; mg.beginPath(); mg.roundRect(26,26,460,332,40); mg.fill();
-  const id=g.getImageData(0,0,512,384), md=mg.getImageData(0,0,512,384);
+  const [m,mg]=cv(cw,ch); mg.fillStyle='#000'; mg.fillRect(0,0,cw,ch);
+  mg.filter='blur(14px)'; mg.fillStyle='#fff'; mg.beginPath(); mg.roundRect(26,26,cw-52,ch-52,40); mg.fill();
+  const id=g.getImageData(0,0,cw,ch), md=mg.getImageData(0,0,cw,ch);
   for(let i=0;i<id.data.length;i+=4) id.data[i+3]=md.data[i];
   g.putImageData(id,0,0);
   return tex(c,{repeat:false});

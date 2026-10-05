@@ -77,7 +77,7 @@ export async function init(ctx){
     const isl = new THREE.Mesh(mergeGeometries(g), mat); isl.name = 'distantIslands'; scene.add(isl);
     const pg = palmGeo(7), pm = patchWind(new THREE.MeshLambertMaterial({ vertexColors: true }), { amp: 0.3, height: 9, speed: 0.7 });
     const pl = new THREE.InstancedMesh(pg, pm, palmsI.length), dm = new THREE.Object3D();
-    palmsI.forEach(([x, y, z], k) => { dm.position.set(x, y, z); dm.rotation.set((r() - 0.5) * 0.3, r() * 6.28, (r() - 0.5) * 0.3); dm.scale.setScalar(1.6 + r() * 0.8); dm.updateMatrix(); pl.setMatrixAt(k, dm.matrix); pl.setColorAt(k, new THREE.Color(0.8, 0.88, 0.9)); });
+    palmsI.forEach(([x, y, z], k) => { dm.position.set(x, y, z); dm.rotation.set((r() - 0.5) * 0.3, r() * 6.28, (r() - 0.5) * 0.3); dm.scale.setScalar(1.0 + r() * 0.5); dm.updateMatrix(); pl.setMatrixAt(k, dm.matrix); pl.setColorAt(k, new THREE.Color(0.8, 0.88, 0.9)); });
     pl.computeBoundingSphere(); pl.name = 'islandPalms'; scene.add(pl);
   }
 
