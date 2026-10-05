@@ -40,7 +40,7 @@ export function heightAt(x,z){
 // ---------- colors ----------
 const C=(hex)=>new THREE.Color(hex);
 const gA=C('#7cc444'), gB=C('#55a840'), gC=C('#aed15a'), gD=C('#3a9552'), gE=C('#6db848'), gBlue=C('#3d9a66'), gYel=C('#a8c456');
-const dWorn=C('#9a7450'), dDamp=C('#6f5638'), dA=C('#a97a4c'), dB=C('#e0c48c'), dC=C('#8f7a50'), _dc=new THREE.Color();
+const dWorn=C('#9a7450'), dDamp=C('#6f5638'), dA=C('#a97a4c'), dB=C('#e0c48c'), dC=C('#8f7a50'), _dc=new THREE.Color(), _g0=new THREE.Color();
 const dirtPath=C('#c4905a'), dirtPlaza=C('#c9a875'), dirtPen=C('#bf9254'), straw=C('#d9bd6a');
 const sandC=C('#f3dfa4'), sandWet=C('#cdb581'), mud=C('#7d6a45'), bed=C('#4aa5a0'), bedDeep=C('#2b6f8f');
 const earth=C('#8d6a3f'), rice1=C('#b9d34c'), rice2=C('#86cf4a'), rock=C('#9a9486');
@@ -56,6 +56,7 @@ export function shadeAt(x,z,h,ny,out){
     tmp.lerp(gE,S(0.3,0.9,n4)*0.3);
     const n5=fbm(x*0.022+30,z*0.022-12,2); tmp.lerp(gBlue,S(0.05,0.55,n5)*0.5); tmp.lerp(gYel,S(0.05,0.55,-n5)*0.42);
     tmp.lerp(gC,S(1.5,7,h)*0.45);
+    { const l=tmp.r*0.2126+tmp.g*0.7152+tmp.b*0.0722; tmp.lerp(_g0.setRGB(l,l,l),0.16).multiplyScalar(0.95); }
     tmp.multiplyScalar(0.94+n3*0.16);
     // rice paddies on terraces
     const paddy=S(42,50,r)*S(0.1,0.35,fbm(x*0.03+50,z*0.03+20,2))*(1-S(52,60,r));

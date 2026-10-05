@@ -68,7 +68,7 @@ void main(){
   float foamN=smoothstep(0.35,0.7,fbm(p*3.0+uTime*0.05));
   float foam=clamp(edge*mix(0.12,0.95,sea)+band*0.75*sea*foamN+swash*0.8+crest*0.25,0.0,1.0);
   col=mix(col,mix(vec3(0.85,0.8,0.65),vec3(1.0),max(sea,smoothstep(0.0,0.12,depth)))*(0.5+0.5*uAmb.r),foam*mix(0.55,0.9,sea));
-  float alpha=mix(mix(0.55,0.45,sea),0.94,smoothstep(0.0,1.0,depth));
+  float alpha=mix(mix(0.72,0.45,sea),0.95,smoothstep(0.0,mix(0.7,1.0,sea),depth));
   alpha=max(alpha,foam*0.95);
   alpha=max(alpha,fres*0.5);
   gl_FragColor=vec4(col,alpha);
