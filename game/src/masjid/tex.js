@@ -73,10 +73,10 @@ export const tex = {
     }
   })),
   wood: () => once('wood', () => mk(256, 256, (g, w, h) => {
-    g.fillStyle = '#7a4a2a'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#b07a46'; g.fillRect(0, 0, w, h);
     for (let x = 0; x < w; x += 2) {
       const t = .5 + .5 * Math.sin(x * .21 + Math.sin(x * .05) * 3 + rnd() * .5);
-      g.fillStyle = `rgba(${40 + t * 40},${20 + t * 22},${8 + t * 10},${.18 + rnd() * .22})`;
+      g.fillStyle = `rgba(${90 + t * 50},${50 + t * 30},${20 + t * 14},${.14 + rnd() * .16})`;
       g.fillRect(x, 0, 2, h);
     }
     for (let i = 0; i < 14; i++) { // knots / long streaks
@@ -85,7 +85,7 @@ export const tex = {
       for (let y = 0; y < h; y += 16) g.lineTo(x + Math.sin(y * .05 + i) * 3, y);
       g.stroke();
     }
-    noise(g, w, h, 500, .2, ['#2a1408', '#b98150']);
+    noise(g, w, h, 500, .14, ['#5a3414', '#d8a070']);
   })),
   gold: () => once('gold', () => mk(128, 128, (g, w, h) => {
     const gr = g.createLinearGradient(0, 0, w, h);
@@ -184,7 +184,7 @@ export const tex = {
     for (let x = 64; x < w - 40; x += 32) for (let y = 64; y < h - 40; y += 32) { g.beginPath(); g.moveTo(x, y - 7); g.lineTo(x + 7, y); g.lineTo(x, y + 7); g.lineTo(x - 7, y); g.fill(); }
   })),
   brick: () => once('brick', () => mk(256, 256, (g, w, h) => {
-    g.fillStyle = '#d8c4a0'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#eadcbf'; g.fillRect(0, 0, w, h);
     const bw = 64, bh = 26;
     for (let r = 0; r * bh < h; r++) for (let c = -1; c * bw < w; c++) {
       const x = c * bw + (r % 2 ? bw / 2 : 0) + 2, y = r * bh + 2, v = rnd();
@@ -212,6 +212,68 @@ export const tex = {
     g.fillStyle = '#2c4a3e'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.font = 'bold 58px sans-serif'; g.fillText('Calon', 350, 98); g.fillText('Masjid', 350, 160);
     g.fillStyle = '#e0a83a'; for (let i = 0; i < 5; i++) { g.beginPath(); g.arc(282 + i * 34, 208, 6, 0, 7); g.fill(); }
+  }, { repeat: false })),
+  // wooden shingles (sirap): dark grey-brown, soft stagger
+  sirap: () => once('sirap', () => mk(256, 256, (g, w, h) => {
+    g.fillStyle = '#4a3c33'; g.fillRect(0, 0, w, h);
+    const rows = 8, rh = h / rows;
+    for (let r = rows - 1; r >= 0; r--) {
+      let x = (r % 2) * -16;
+      while (x < w) {
+        const sw = 22 + rnd() * 14, v = rnd(), y = r * rh;
+        const base = [[112, 94, 80], [98, 82, 70], [124, 104, 88], [90, 76, 66]][(v * 4) | 0];
+        const gr = g.createLinearGradient(0, y, 0, y + rh * 1.1);
+        gr.addColorStop(0, `rgb(${base[0] * .92},${base[1] * .92},${base[2] * .92})`); gr.addColorStop(.7, `rgb(${base[0]},${base[1]},${base[2]})`); gr.addColorStop(1, `rgb(${base[0] * .62},${base[1] * .6},${base[2] * .58})`);
+        g.fillStyle = gr; g.fillRect(x + 1, y, sw - 2, rh * 1.08);
+        g.fillStyle = 'rgba(255,240,220,.06)'; g.fillRect(x + 2, y, 2, rh);
+        x += sw;
+      }
+    }
+    noise(g, w, h, 900, .12, ['#2a201a', '#a89080']);
+  })),
+  whitewash: () => once('whitewash', () => mk(256, 256, (g, w, h) => {
+    g.fillStyle = '#fff6e6'; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 26; i++) {
+      const x = rnd() * w, y = rnd() * h, r = 30 + rnd() * 60, gr = g.createRadialGradient(x, y, 0, x, y, r);
+      gr.addColorStop(0, 'rgba(236,222,196,.18)'); gr.addColorStop(1, 'rgba(236,222,196,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    noise(g, w, h, 500, .06, ['#d8c8a8', '#ffffff']);
+  })),
+  // wooden louvers (vent band between roof tiers)
+  louver: () => once('louver', () => mk(128, 128, (g, w, h) => {
+    g.fillStyle = '#3a2618'; g.fillRect(0, 0, w, h);
+    for (let y = 6; y < h - 6; y += 12) { const gr = g.createLinearGradient(0, y, 0, y + 10); gr.addColorStop(0, '#d9a56a'); gr.addColorStop(1, '#8a5a30'); g.fillStyle = gr; g.fillRect(8, y, w - 16, 9); }
+    g.fillStyle = '#c08a52'; g.fillRect(0, 0, 8, h); g.fillRect(w - 8, 0, 8, h); g.fillRect(0, 0, w, 6); g.fillRect(0, h - 6, w, 6);
+  })),
+  // carved wooden lattice (krawangan) with transparent holes: use with alphaTest
+  krawangan: () => once('kraw', () => mk(128, 128, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    g.fillStyle = '#a8703c'; g.fillRect(0, 0, w, h);
+    g.globalCompositeOperation = 'destination-out';
+    const c = 32;
+    for (let y = 0; y < h; y += c) for (let x = 0; x < w; x += c) {
+      g.beginPath(); // 4-petal kawung motif hole
+      for (const [dx, dy] of [[.5, .2], [.8, .5], [.5, .8], [.2, .5]]) { g.moveTo(x + dx * c + 6, y + dy * c); g.ellipse(x + dx * c, y + dy * c, 6.5, 6.5, 0, 0, 7); }
+      g.fill();
+    }
+    g.globalCompositeOperation = 'source-over';
+    g.strokeStyle = '#7a4a22'; g.lineWidth = 3; g.strokeRect(1.5, 1.5, w - 3, h - 3);
+  }, { srgb: true })),
+  // small coloured transom glass (no rose)
+  transom: () => once('transom', () => mk(128, 64, (g, w, h) => {
+    const pal = ['#2e8b57', '#f2b134', '#1f7fa8', '#c0392b', '#f6e3a1'];
+    g.fillStyle = '#2b1a0e'; g.fillRect(0, 0, w, h);
+    const cw = w / 6;
+    for (let i = 0; i < 6; i++) { g.fillStyle = pal[[0, 1, 4, 4, 1, 0][i]]; g.fillRect(i * cw + 3, 4, cw - 6, h - 8); }
+    g.fillStyle = pal[2]; g.fillRect(w / 2 - 14, h / 2 - 10, 28, 20); g.fillStyle = pal[3]; g.beginPath(); g.arc(w / 2, h / 2, 6, 0, 7); g.fill();
+  }, { repeat: false })),
+  // glazed ceramic plate (Kudus-style inlay), white with blue rings
+  plate: () => once('plate', () => mk(64, 64, (g, w, h) => {
+    g.fillStyle = '#b8562f'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#f4f2ea'; g.beginPath(); g.arc(32, 32, 30, 0, 7); g.fill();
+    g.strokeStyle = '#2c5aa0'; g.lineWidth = 3; g.beginPath(); g.arc(32, 32, 26, 0, 7); g.stroke();
+    g.fillStyle = '#3a6fc0'; g.beginPath(); g.arc(32, 32, 9, 0, 7); g.fill();
+    for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; g.beginPath(); g.arc(32 + Math.cos(a) * 17, 32 + Math.sin(a) * 17, 3, 0, 7); g.fill(); }
   }, { repeat: false })),
   water: () => once('water', () => mk(256, 256, (g, w, h) => {
     g.fillStyle = '#4fc3d1'; g.fillRect(0, 0, w, h);

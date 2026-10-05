@@ -7,10 +7,10 @@ export { mergeGeometries };
 const V2 = (x, y) => new THREE.Vector2(x, y);
 
 /** Arch outline, origin bottom-centre. Straight sides then a pointed (ogee-ish) arch. Optional offset grows outline. */
-export function archPoints(w, h, N = 16, grow = 0) {
-  const r = w / 2 + grow, rise = Math.min(h * .5, w * .62), sy = h - rise;
+export function archPoints(w, h, N = 16, grow = 0, round = true) {
+  const r = w / 2 + grow, rise = round ? Math.min(h * .5, w / 2 * .7) : Math.min(h * .5, w * .62), sy = h - rise;
   const pts = [V2(-r, -grow), V2(r, -grow), V2(r, sy)];
-  for (let i = 1; i < N; i++) { const th = (i / N) * Math.PI, c = Math.cos(th); pts.push(V2(r * c, sy + rise * (1 - Math.pow(Math.abs(c), 1.55)) + grow)); }
+  for (let i = 1; i < N; i++) { const th = (i / N) * Math.PI, c = Math.cos(th); pts.push(V2(r * c, sy + (round ? rise * Math.sin(th) : rise * (1 - Math.pow(Math.abs(c), 1.55))) + grow)); }
   pts.push(V2(-r, sy));
   return pts;
 }
@@ -144,4 +144,43 @@ export function tajugRoof({ a0, b0 = a0, a1 = .15, b1 = a1, h, k = 1.25, flick =
   const soffit = new THREE.ShapeGeometry(soffitS); soffit.rotateX(Math.PI / 2); soffit.translate(0, y - .02, 0);
   uvScale(soffit, .5, .5); flat(soffit, .8);
   return { tiles, ridge, wood: merge(wood), trim: merge(trim), soffit, Y };
+}
+
+/**
+ * Straight-sloped Javanese roof (tajug when a1=b1, limasan when b1 small). Origin at the eave centre (y=0).
+ * Returns { tiles (faces + hip ridges, vertex-coloured), wood (fascia), trim (cream drip strip), soffit }.
+ */
+export function pyramidRoof({ a0, b0 = a0, a1 = .08, b1 = a1, h, tile = 1.4, ridgeR = .07, fascia = .16 }) {
+  const C = [[1, 1], [-1, 1], [-1, -1], [1, -1]];
+  const lo = C.map(([sx, sz]) => new THREE.Vector3(sx * a0, 0, sz * b0)), hi = C.map(([sx, sz]) => new THREE.Vector3(sx * a1, h, sz * b1));
+  const pos = [], uv = [], col = [];
+  const slopeLen = (i) => lo[i].clone().add(lo[(i + 1) % 4]).multiplyScalar(.5).distanceTo(hi[i].clone().add(hi[(i + 1) % 4]).multiplyScalar(.5));
+  for (let i = 0; i < 4; i++) {
+    const j = (i + 1) % 4, L0 = lo[i].distanceTo(lo[j]), L1 = hi[i].distanceTo(hi[j]), sl = slopeLen(i);
+    const A = lo[i], B = lo[j], Cc = hi[j], D = hi[i];
+    const ua = 0, ub = L0 / tile, uc = (L0 / 2 + L1 / 2) / tile, ud = (L0 / 2 - L1 / 2) / tile, vt = sl / tile;
+    const quad = [[A, ua, 0, .8], [Cc, uc, vt, 1], [B, ub, 0, .8], [A, ua, 0, .8], [D, ud, vt, 1], [Cc, uc, vt, 1]];
+    for (const [p, u, v, c] of quad) { pos.push(p.x, p.y, p.z); uv.push(u, v); col.push(c, c, c); }
+  }
+  const faces = new THREE.BufferGeometry();
+  faces.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); faces.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); faces.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  faces.computeVertexNormals();
+  if (faces.attributes.normal.getY(0) < 0) { const p = faces.attributes.position.array; for (let t = 0; t < p.length; t += 9) for (let k = 0; k < 3; k++) { const a = p[t + 3 + k]; p[t + 3 + k] = p[t + 6 + k]; p[t + 6 + k] = a; } const u = faces.attributes.uv.array; for (let t = 0; t < u.length; t += 6) for (let k = 0; k < 2; k++) { const a = u[t + 2 + k]; u[t + 2 + k] = u[t + 4 + k]; u[t + 4 + k] = a; } faces.computeVertexNormals(); }
+  const parts = [faces];
+  const rod = (a, b, r, c) => { const d = new THREE.Vector3().subVectors(b, a), L = d.length(); const g = new THREE.CylinderGeometry(r, r, L, 4, 1); g.rotateY(Math.PI / 4); g.translate(0, L / 2, 0); g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize())); g.translate(a.x, a.y, a.z); return flat(g.toNonIndexed(), c); };
+  for (let i = 0; i < 4; i++) parts.push(rod(lo[i].clone().setY(ridgeR * .4), hi[i].clone().setY(h + ridgeR * .4), ridgeR, .62));
+  if (a1 > .2 || b1 > .2) { // top ridge / cap
+    if (b1 < .2) parts.push(rod(new THREE.Vector3(-a1, h + ridgeR * .4, 0), new THREE.Vector3(a1, h + ridgeR * .4, 0), ridgeR * 1.2, .62));
+    else { const cap = new THREE.PlaneGeometry(2 * a1, 2 * b1).rotateX(-Math.PI / 2).translate(0, h, 0); uvScale(cap, a1 / tile, b1 / tile); parts.push(flat(cap.toNonIndexed(), .9)); }
+  }
+  const tiles = mergeGeometries(parts.map(g => { if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); return g; }), false);
+  const wood = [], trim = [];
+  const board = (arr, w, hh, d, x, y, z) => { const g = new THREE.BoxGeometry(w, hh, d); g.translate(x, y, z); arr.push(flat(g, 1)); };
+  const F = fascia, T = .09;
+  board(wood, 2 * a0 + T, F, T, 0, -F / 2 + .02, b0); board(wood, 2 * a0 + T, F, T, 0, -F / 2 + .02, -b0);
+  board(wood, T, F, 2 * b0 + T, a0, -F / 2 + .02, 0); board(wood, T, F, 2 * b0 + T, -a0, -F / 2 + .02, 0);
+  board(trim, 2 * a0 + T + .04, .045, T + .04, 0, -F + .02, b0); board(trim, 2 * a0 + T + .04, .045, T + .04, 0, -F + .02, -b0);
+  board(trim, T + .04, .045, 2 * b0 + T + .04, a0, -F + .02, 0); board(trim, T + .04, .045, 2 * b0 + T + .04, -a0, -F + .02, 0);
+  const soffit = new THREE.PlaneGeometry(2 * a0, 2 * b0).rotateX(Math.PI / 2).translate(0, -.01, 0); uvScale(soffit, a0 / 1.2, b0 / 1.2); flat(soffit, .75);
+  return { tiles, wood: merge(wood), trim: merge(trim), soffit };
 }

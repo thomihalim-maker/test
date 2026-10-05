@@ -127,17 +127,26 @@ export function createSite(ctx, M, parent, api) {
     addSet(2, [[M.wood, wood], [M.sign, sign]], [], [V3(sx, 1.4, sz)]);
   }
 
-  // --- pulsing build marker (ring + light column + bobbing arrow), additive glow
-  const glow = new THREE.MeshBasicMaterial({ color: 0xffcf5a, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, side: THREE.DoubleSide });
-  const rgba = (g, fn) => { const p = g.attributes.position, c = new Float32Array(p.count * 4); for (let i = 0; i < p.count; i++) { c[i * 4] = c[i * 4 + 1] = c[i * 4 + 2] = 1; c[i * 4 + 3] = fn(p.getX(i), p.getY(i), p.getZ(i)); } g.setAttribute('color', new THREE.BufferAttribute(c, 4)); return g; };
-  const ring = new THREE.RingGeometry(1.35, 1.75, 48, 1).rotateX(-Math.PI / 2); rgba(ring, () => .95);
-  const ring2 = new THREE.RingGeometry(.0, 1.35, 48, 1).rotateX(-Math.PI / 2); rgba(ring2, (x, y, z) => .3 * Math.hypot(x, z) / 1.35);
-  const col = new THREE.CylinderGeometry(1.5, 1.55, 3.2, 40, 4, true).translate(0, 1.6, 0); rgba(col, (x, y) => .6 * Math.pow(1 - y / 3.2, 1.5));
-  const markerMesh = new THREE.Mesh(merge([ring, ring2, col].map(g => g.index ? g.toNonIndexed() : g)), glow); markerMesh.renderOrder = 2;
-  const arrowG = new THREE.ConeGeometry(.5, .8, 4); arrowG.rotateX(Math.PI); rgba(arrowG, () => 1);
-  const arrowB = new THREE.CylinderGeometry(.18, .18, .6, 8).translate(0, .7, 0); rgba(arrowB, () => 1);
-  const arrow = new THREE.Mesh(merge([arrowG.toNonIndexed(), arrowB.toNonIndexed()]), glow); arrow.renderOrder = 2;
-  const marker = new THREE.Group(); marker.add(markerMesh, arrow); marker.name = 'masjid-build-marker'; parent.add(marker);
+  // --- build marker: saturated gold ring decal with a dark rim, soft gold column, floating hammer icon, periodic sparkles
+  const gold = new THREE.MeshBasicMaterial({ color: 0xffb81c, vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
+  const rgba = (g, fn, rgb = [1, 1, 1]) => { const p = g.attributes.position, c = new Float32Array(p.count * 4); for (let i = 0; i < p.count; i++) { const [r, gg, b] = typeof rgb === 'function' ? rgb(p.getX(i), p.getY(i), p.getZ(i)) : rgb; c[i * 4] = r; c[i * 4 + 1] = gg; c[i * 4 + 2] = b; c[i * 4 + 3] = fn(p.getX(i), p.getY(i), p.getZ(i)); } g.setAttribute('color', new THREE.BufferAttribute(c, 4)); return g.index ? g.toNonIndexed() : g; };
+  const DK = [.28, .14, .02];
+  const rim = rgba(new THREE.RingGeometry(2.05, 2.35, 48, 1).rotateX(-Math.PI / 2), () => .75, DK);
+  const ring = rgba(new THREE.RingGeometry(1.6, 2.05, 48, 1).rotateX(-Math.PI / 2).translate(0, .005, 0), () => 1);
+  const inner = rgba(new THREE.RingGeometry(1.32, 1.6, 48, 1).rotateX(-Math.PI / 2).translate(0, .005, 0), () => .75, DK);
+  const disc = rgba(new THREE.CircleGeometry(1.32, 48).rotateX(-Math.PI / 2).translate(0, .004, 0), (x, y, z) => .12 + .3 * Math.hypot(x, z) / 1.32);
+  const ticks = []; for (let k = 0; k < 8; k++) { const t = new THREE.PlaneGeometry(.22, .5).rotateX(-Math.PI / 2).translate(0, .008, 1.83); t.rotateY(k * Math.PI / 4); ticks.push(rgba(t, () => 1, DK)); }
+  const column = rgba(new THREE.CylinderGeometry(1.7, 1.8, 2.6, 32, 3, true).translate(0, 1.3, 0), (x, y) => .32 * Math.pow(1 - y / 2.6, 2));
+  const markerMesh = new THREE.Mesh(merge([rim, ring, inner, disc, column, ...ticks]), gold); markerMesh.renderOrder = 2;
+  // hammer icon (gold head, teak handle) floating above
+  const hammerMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .4, metalness: .3, emissive: 0x5a3200, emissiveIntensity: .6 });
+  const hh = new THREE.BoxGeometry(.9, .36, .36); hh.translate(0, .55, 0); tint(hh, '#ffc22a', 0);
+  const hf = new THREE.BoxGeometry(.2, .3, .3); hf.translate(.52, .55, 0); tint(hf, '#d99a10', 0);
+  const hs = new THREE.CylinderGeometry(.09, .1, 1.2, 8); hs.translate(0, -.15, 0); tint(hs, '#9a6234', 0);
+  const arrow = new THREE.Mesh(merge([hh, hf, hs]), hammerMat); arrow.rotation.z = .5;
+  const hammerPivot = new THREE.Group(); hammerPivot.add(arrow);
+  const marker = new THREE.Group(); marker.add(markerMesh, hammerPivot); marker.name = 'masjid-build-marker'; parent.add(marker);
+  let sparkT = 0;
   const markPos = V3(0, 0, 0); let markVis = 0;
   ctx.interactables ??= [];
   ctx.interactables.push({ kind: 'build', get label() { return api.lang() ? 'Build' : 'Bangun'; }, icon: '🔨', pos: markPos, r: 2.4, priority: .5, enabled: () => marker.visible && markVis > .5 });
@@ -170,11 +179,13 @@ export function createSite(ctx, M, parent, api) {
         marker.position.lerp(markPos, marker.visible && markVis > .9 ? Math.min(1, dt * 3) : 1);
       }
       if (marker.visible) {
-        const p = 1 + Math.sin(t * 3.2) * .07;
-        markerMesh.scale.set(p * markVis, markVis, p * markVis); markerMesh.rotation.y = t * .4;
-        arrow.position.y = 3.3 + Math.sin(t * 4) * .22; arrow.rotation.y = t * 1.6; arrow.scale.setScalar(markVis);
-        glow.opacity = .75 + Math.sin(t * 3.2) * .25;
-        if (api.canAfford()) glow.color.setRGB(1.6, 1.1, .35); else glow.color.setRGB(.55, .95, 1.5);
+        const p = 1 + Math.sin(t * 3.2) * .05;
+        markerMesh.scale.set(p * markVis, markVis, p * markVis); markerMesh.rotation.y = t * .3;
+        hammerPivot.position.y = 3.0 + Math.sin(t * 3) * .2; hammerPivot.rotation.y = t * 1.4; hammerPivot.scale.setScalar(markVis);
+        arrow.rotation.z = .5 + Math.max(0, Math.sin(t * 5)) * .5; // little tapping motion
+        gold.opacity = (.85 + Math.sin(t * 3.2) * .15) * markVis;
+        if (api.canAfford()) gold.color.setHex(0xffb81c); else gold.color.setHex(0x4fb6e8);
+        sparkT -= dt; if (sparkT <= 0 && markVis > .9) { sparkT = 1.4; ctx.modules.fx?.burst?.('sparkle', marker.position.clone().add(V3(0, 2.6, 0))); }
       }
     },
     root, marker,

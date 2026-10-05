@@ -31,7 +31,7 @@ const D={ // key: [id, en]
  placeHint:['Ketuk lingkaran bercahaya untuk memasang {k}','Tap a glowing circle to place {k}'], auto:['Dekat saya','Near me'], cancel:['Batal','Cancel'], noSlot:['Tidak ada tempat kosong','No free spot'],
  goatD:['Lincah dan suka jerami','Lively, loves hay'], sheepD:['Berbulu lembut','Soft and woolly'], cowD:['Besar dan sabar','Big and patient'],
  thanks:['Terima kasih, {names}! Kalian membawa kebahagiaan untuk banyak keluarga.','Thank you, {names}! You brought joy to many families.'], rewardEid:['Hadiah Idul Adha','Eid rewards'],
- newBatch:['Hewan-hewan baru telah tiba di kandang','A new group of animals has arrived'], eidCarry:['Berkah, hiasan, dan masjidmu tetap tersimpan.','Your blessings, decorations and masjid carry over.'], nextYearBtn:['Sambut Tahun Baru','Welcome the New Year'],
+ newBatch:['Hewan-hewan baru telah tiba di kandang','A new group of animals has arrived'], eidCarry:['Berkah, hiasan, dan masjidmu tetap tersimpan.','Your blessings, decorations and masjid carry over.'], nextYearBtn:['Sambut Tahun Baru','Welcome the New Year'], young:['{names} masih kecil, jadi tetap tinggal dan tumbuh bersamamu.','{names} are still young, so they stay and grow with you.'],
 };
 const PARTS=[ // fallback list if masjid module has none
  {id:'pondasi',name:['Pondasi & Lantai','Foundation & Floor'],cost:40,desc:['Dasar yang kokoh','A solid base']},
@@ -79,7 +79,7 @@ export async function init(ctx){
     <button class="dbtn clay teal" id="dB">${ic('dome')}<span data-t="build"></span></button>
     <button class="dbtn clay" id="dK" style="position:relative">${ic('book')}<span data-t="book"></span><span class="badge" id="kBadge"></span></button>
   </div>
-  <div id="toasts"></div>
+  <div id="toasts"></div><div id="ach"></div>
   <div id="placebar" class="clay hidden"></div>
   <div id="hint" class="clay hidden"><div class="av">${ic('marbot')}</div><div class="tx" id="hintTx"></div><button class="x" id="hintX" aria-label="Close">${ic('close')}</button></div>
   <div id="hotbar" class="clay"></div>`;
@@ -113,7 +113,14 @@ export async function init(ctx){
 
   // ---------------- toasts ----------------
   const toasts=$('#toasts');
-  function toast(msg,icon='chat',kind){ if(!msg) return; const n=el('div','toast clay '+(kind||''),`${ic(icon)}<span>${msg}</span>`); toasts.appendChild(n); while(toasts.children.length>3) toasts.firstChild.remove(); setTimeout(()=>{ n.classList.add('out'); setTimeout(()=>n.remove(),450); },3200); }
+  // one toast at a time (queued) just above the hotbar; achievements slide in top-right. Screen centre stays clear.
+  function queued(box,cls,ms){ const q=[]; let busy=false;
+    const next=()=>{ const x=q.shift(); if(!x){ busy=false; return; } busy=true; const n=el('div',cls+' '+(x.kind||''),x.html); box.appendChild(n);
+      setTimeout(()=>{ n.classList.add('out'); setTimeout(()=>{ n.remove(); next(); },320); }, q.length?Math.max(1400,ms*.55):ms); };
+    return (html,kind,key)=>{ if(q.some(x=>x.key===key)) return; q.push({html,kind,key}); if(q.length>5) q.shift(); if(!busy) next(); }; }
+  const pushToast=queued(toasts,'toast clay',2600), pushAch=queued($('#ach'),'achv clay',3400);
+  function toast(msg,icon='chat',kind){ if(!msg) return; pushToast(`${ic(icon)}<span>${msg}</span>`,kind,msg); }
+  function ach(title,name,icon,rim){ pushAch(`<div class="ad" style="--rim:${rim||'#ffc83d'}">${ic(icon)}</div><div><small>${title}</small><b>${name}</b></div>`,'',title+name); }
   ctx.on('toast',m=>{ if(typeof m==='string') toast(m); else if(m) toast(m.msg||m.text,m.icon||'chat',m.kind); });
 
   // ---------------- top bar ----------------
@@ -163,9 +170,9 @@ export async function init(ctx){
   ctx.on('animal:sick',d=>toast((d?.animal?.name?d.animal.name+' ':'')+t('sick'),'heart','bad'));
   ctx.on('animal:recovered',d=>toast((d?.animal?.name?d.animal.name+' ':'')+t('recovered'),'heart','good'));
   ctx.on('build:placed',()=>{ S.stats.built++; if(panel==='build') renderPanel(); });
-  ctx.on('build:complete',()=>{ toast(t('masjidDone'),'dome','good'); sfx('bedug'); sfx('chime'); });
+  ctx.on('build:complete',()=>{ ach(t('mosque'),t('masjidDone'),'dome'); sfx('bedug'); sfx('chime'); });
   ctx.on('coins:change',()=>{ syncLedger(); if(panel==='shop'||panel==='build') renderPanel(); });
-  ctx.on('sticker:new',s=>{ toast(`${t('stickerNew')}: ${L(s.name)}`,s.icon,'good'); bookNew++; renderBookBadge(); const c=camTarget(); fx()?.burst('sparkle',{x:c.x,y:c.y+2,z:c.z},16); if(panel==='book') renderPanel(); });
+  ctx.on('sticker:new',s=>{ ach(t('stickerNew'),L(s.name),s.icon,s.rim); bookNew++; renderBookBadge(); const c=camTarget(); fx()?.burst('sparkle',{x:c.x,y:c.y+2,z:c.z},16); if(panel==='book') renderPanel(); });
   ctx.on('berkah:level',d=>{ bookNew++; renderBookBadge(); lastClock=''; queueCard(()=>showLevelUp(d)); });
   ctx.on('decor:change',()=>{ if(panel==='shop') renderPanel(); });
   ctx.on('year:new',()=>{ lastClock=''; renderAll(); });
@@ -197,7 +204,7 @@ export async function init(ctx){
       return `<div class="card"><div class="big">${ic(k==='cow'?'cow':'goat')}</div><h5>${t(k==='goat'?'goats':k==='sheep'?'sheeps':'cows')}</h5><p>${t(k+'D')}</p><div class="duo"><button class="btn gold ${ok&&S.coins>=p?'':'off'}" data-animal="${k}">${price(p)}</button><button class="btn teal ${ok&&S.coins>=bp?'':'off'}" data-animal="${k}:baby">${price(bp)} ${t('baby')}</button></div></div>`; }).join('')+'</div>';
     else if(shopTab==='decor'&&pr) body='<div class="grid">'+pr.decorKinds().map(k=>{
       if(!k.unlocked) return `<div class="card lockd"><div class="big">${ic(k.icon)}</div><h5>${L(k.name)}</h5><p>${L(k.desc)}</p><span class="own lk">${ic('lock')}${t('unlockAt',{l:k.lv})}</span></div>`;
-      return `<div class="card"><div class="big">${ic(k.icon)}</div><h5>${L(k.name)}</h5><p>${L(k.desc)}</p><span class="own">${t('owned')} ${k.owned} · ${t('onPlaza')} ${k.placed}</span><div class="duo"><button class="btn gold ${S.coins>=k.price?'':'off'}" data-dbuy="${k.id}">${price(k.price)}</button><button class="btn teal ${k.owned?'':'off'}" data-dput="${k.id}">${t('put')}</button></div>${k.placed?`<button class="btn link small" data-dstore="${k.id}">${t('store')}</button>`:''}</div>`; }).join('')+'</div>';
+      return `<div class="card"><div class="big">${ic(k.icon)}</div><h5>${L(k.name)}</h5><p>${L(k.desc)}</p><span class="own">${t('owned')} ${k.owned}</span><div class="duo"><button class="btn gold ${S.coins>=k.price?'':'off'}" data-dbuy="${k.id}">${price(k.price)}</button><button class="btn teal ${k.owned?'':'off'}" data-dput="${k.id}">${t('put')}</button></div>${k.placed?`<div class="plc">${t('onPlaza')} ${k.placed} · <button class="btn link small" data-dstore="${k.id}">${t('store')}</button></div>`:''}</div>`; }).join('')+'</div>';
     return `<div class="sub">${tabs(shopTab,[['supply','tabSupply'],...(an?.price?[['animal','tabAnimal']]:[]),...(pr?[['decor','tabDecor']]:[])],'stab')}${coinChip()}</div>`+body;
   }
   function parts(){
@@ -228,7 +235,7 @@ export async function init(ctx){
           return `<div class="lvrow ${got?'got':''}"><span class="lvn">${l}</span><div class="chips">${u.map(x=>`<span class="uchip">${ic(x.icon)}${L(x.name)}</span>`).join('')}</div>${got?ic('check'):ic('lock')}</div>`; }).join('')+'</div>';
     } else if(bookTab==='stickers'){
       const st=pr.stickers(), n=st.filter(s=>s.got).length;
-      body=`<div class="sub"><span>${n}/${st.length}</span><div class="prog"><i style="width:${n/st.length*100}%"></i></div></div><div class="stk">`+st.map(s=>`<div class="sticker ${s.got?'got':''}" style="--rim:${s.rim}"><div class="disc">${s.got?ic(s.icon):'<span class="q">?</span>'}</div><small>${s.got?L(s.name):'???'}</small></div>`).join('')+'</div>';
+      body=`<div class="sub"><span>${n}/${st.length}</span><div class="prog"><i style="width:${n/st.length*100}%"></i></div></div><div class="stk">`+st.map(s=>`<div class="sticker ${s.got?'got':''}" style="--rim:${s.rim}"><div class="disc">${ic(s.icon)}</div><small>${L(s.name)}</small></div>`).join('')+'</div>';
     } else {
       body='<div class="grid outfits">'+pr.outfits().map(o=>{ const hx=n=>'#'+n.toString(16).padStart(6,'0');
         return `<div class="card ${o.worn?'done':''} ${o.unlocked?'':'lockd'}"><div class="big swatch"><svg viewBox="0 0 48 48" class="ic"><path d="M16 5l-11 7 4 9 5-3v25h20V18l5 3 4-9-11-7c-1 4-4 6-8 6s-7-2-8-6z" fill="${hx(o.look.koko)}" stroke="#7a4a22" stroke-width="2.4"/><rect x="14" y="32" width="20" height="11" fill="${hx(o.look.sarong)}" stroke="#7a4a22" stroke-width="2"/><path d="M17 4h14v4H17z" fill="${hx(o.look.peci)}"/></svg></div><h5>${L(o.name)}</h5>${o.worn?`<span class="own">${t('wearing')}</span>`:o.unlocked?`<button class="btn teal" data-outfit="${o.id}">${t('wear')}</button>`:`<span class="own lk">${ic('lock')}${t('unlockAt',{l:o.lv})}</span>`}</div>`; }).join('')+'</div>';
@@ -288,12 +295,12 @@ export async function init(ctx){
   // ---------------- tutorial hints ----------------
   const hint=$('#hint'), ptr=$('#ptr'); const hintSteps=[['h1','move'],['h2','fed'],['h3','build'],['h4','end']]; let hStep=0, hTimer=0, moveT=0;
   const joyOn=()=>{ const e=document.getElementById('mb-joy'); return e&&e.offsetWidth>0?e:null; };
-  function showHint(){ if(S.tutDone||!started){ hint.classList.add('hidden'); ptr.style.display='none'; return; } const s=hintSteps[hStep]; if(!s){ S.tutDone=true; hint.classList.add('hidden'); ptr.style.display='none'; return; }
-    $('#hintTx').textContent=t(s[0]==='h1'&&!joyOn()?'h1k':s[0]); hint.classList.remove('hidden'); hint.style.animation='none'; void hint.offsetWidth; hint.style.animation=''; hTimer=0; moveT=0; }
+  function showHint(){ if(S.tutDone||!started){ hint.classList.add('hidden'); hud.classList.remove('hint-on'); ptr.style.display='none'; return; } const s=hintSteps[hStep]; if(!s){ S.tutDone=true; hint.classList.add('hidden'); hud.classList.remove('hint-on'); ptr.style.display='none'; return; }
+    $('#hintTx').textContent=t(s[0]==='h1'&&!joyOn()?'h1k':s[0]); hint.classList.remove('hidden'); hud.classList.add('hint-on'); hint.style.animation='none'; void hint.offsetWidth; hint.style.animation=''; hTimer=0; moveT=0; }
   function tutDone(ev){ if(hintSteps[hStep]?.[1]===ev){ hStep++; ptr.style.display='none'; setTimeout(showHint,ev==='end'?0:900); } }
   function placePtr(){ const s=hintSteps[hStep]?.[1]; const tgt=s==='move'?joyOn():s==='fed'?document.getElementById('mb-act'):s==='build'?document.getElementById('dB'):null;
     if(!tgt||hint.classList.contains('hidden')){ ptr.style.display='none'; return; } const r=tgt.getBoundingClientRect(); if(!r.width){ ptr.style.display='none'; return; } ptr.style.display='block'; ptr.style.left=(r.left+r.width/2)+'px'; ptr.style.top=(r.top+r.height/2)+'px'; }
-  $('#hintX').onclick=()=>{ S.tutDone=true; hint.classList.add('hidden'); ptr.style.display='none'; };
+  $('#hintX').onclick=()=>{ S.tutDone=true; hint.classList.add('hidden'); hud.classList.remove('hint-on'); ptr.style.display='none'; };
   ctx.on('animal:fed',()=>tutDone('fed'));
 
   // ---------------- cards: day summary, level-up, Eid (queued so they never stack) ----------------
@@ -335,6 +342,7 @@ export async function init(ctx){
       <div class="thanks">${ic('heart')}<span>${t('thanks',{names:nameStr})}</span></div>
       <div class="dist">${[['people',t('dFam')],['dome',t('dNeigh')],['heart',t('dPoor')]].map(([i,l],k)=>`<div class="stat" style="animation-delay:${.5+k*.2}s">${ic(i)}<b>${R.third}</b><small>${t('packs')}<br>${l}</small></div>`).join('')}</div>
       <div class="alist">${R.animals.map(a=>`<div class="arow">${ic(a.kind==='cow'?'cow':'goat')}<span class="an">${a.name||nm[a.kind]}</span><span class="aw">${Math.round(a.w)} kg</span>${starsHTML(a.stars)}</div>`).join('')}</div>
+      ${R.young?.length?`<div class="sm young">${ic('heart')}${t('young',{names:R.young.join(', ')})}</div>`:''}
       ${R.coins||R.pahala?`<div class="rwrow"><span>${t('rewardEid')}</span><b>${ic('coin')}+${R.coins}</b><b>${ic('pahala')}+${R.pahala}</b></div>`:''}
       <div class="sm carry">${t('eidCarry')}</div>
       <div class="btnrow"><button class="btn gold" id="eKeep">${t('nextYearBtn')}</button></div></div>`;

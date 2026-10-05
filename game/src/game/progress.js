@@ -252,18 +252,18 @@ export async function init(ctx){
   }
   function celebrateEid(){
     if(eidCache) return eidCache;
-    const list = A()?.list || [];
-    const an = list.length ? list.map(gradeAnimal) : [];
+    const all = A()?.list || [], list = all.filter(a=>!a.baby);   // young animals are not sacrificed: they stay for next year
+    const an = list.map(gradeAnimal), young = all.filter(a=>a.baby).map(a=>a.name).filter(Boolean);
     const packs = an.reduce((s,a)=>s+a.packs,0), stars = an.reduce((s,a)=>s+a.stars,0);
     const coins = stars*15, pahala = 50 + stars*8;
     S.eidDone = true; S.stats.eids++; if(an.length && an.every(a=>a.stars===3)) S.stats.eid3++;
     addCoins(coins,'eid'); addPahala(pahala,'eid'); checkStickers(); save(S);
-    eidCache = { animals:an, packs, third:Math.round(packs/3), coins, pahala, year:S.year };
+    eidCache = { animals:an, young, packs, third:Math.round(packs/3), coins, pahala, year:S.year };
     return eidCache;
   }
   function newYear(){
     if(!S.eidDone) celebrateEid();
-    const an = A(); if(an?.list?.length && an.remove && an.add){ loadingBatch=true; const kinds=an.list.map(a=>a.kind); for(const a of an.list.slice()) an.remove(a); for(const k of kinds) an.add(k); loadingBatch=false; }
+    const an = A(); if(an?.list?.length && an.remove && an.add){ loadingBatch=true; const adults=an.list.filter(a=>!a.baby), kinds=adults.map(a=>a.kind); for(const a of adults) an.remove(a); for(const k of kinds) an.add(k); loadingBatch=false; }
     S.year++; S.daysToEid=10; S.eidDone=false; eidCache=null; S.stats.years++; save(S);
     ctx.emit('year:new',{ year:S.year });
   }
