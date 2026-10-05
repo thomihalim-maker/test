@@ -51,7 +51,7 @@ void main(){
   float band=smoothstep(0.55,0.95,ring)*(1.0-smoothstep(0.12,0.85,depth))*smoothstep(0.0,0.05,depth);
   float foamN=smoothstep(0.35,0.7,fbm(p*3.0+uTime*0.05));
   float foam=clamp(edge*0.95+band*0.55*foamN,0.0,1.0);
-  col=mix(col,vec3(1.0)*(0.5+0.5*uAmb.r),foam*0.75);
+  col=mix(col,mix(vec3(0.85,0.8,0.65),vec3(1.0),smoothstep(0.0,0.12,depth))*(0.5+0.5*uAmb.r),foam*0.55);
   float alpha=mix(0.35,0.92,smoothstep(0.0,1.1,depth));
   alpha=max(alpha,foam*0.95);
   alpha=max(alpha,fres*0.5);

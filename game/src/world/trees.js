@@ -138,7 +138,7 @@ function leaf(b, base, yaw, len, rise, droop, width, rows, cBase, cTip, {jag=0,n
 export function palmGeo(seed=1){
   const b=new B(), r=mulberry32(seed);
   const H=7.8, lean=1.1; const pts=[], rad=[];
-  for(let i=0;i<=10;i++){ const t=i/10; pts.push([lean*t*t+0.25*Math.sin(t*3.0),H*t,0.35*Math.sin(t*2.2)]); rad.push(0.34-0.15*t); }
+  for(let i=0;i<=10;i++){ const t=i/10; pts.push([lean*t*t+0.25*Math.sin(t*3.0),H*t,0.35*Math.sin(t*2.2)]); rad.push(0.46-0.2*t); }
   const dark=hx('#8a6240'), light=hx('#c9a26c');
   tube(b,pts,rad,7,(t,k,i)=>mul(mix(dark,light,0.4+0.5*((i%2)?1:0.55)*(0.7+0.3*Math.sin(k*2.1))),0.6+0.5*t),{flare:0.5});
   const top=pts[10];
@@ -146,7 +146,7 @@ export function palmGeo(seed=1){
   const NF=11;
   for(let i=0;i<NF;i++){
     const yaw=i/NF*Math.PI*2+r()*0.3, up=i%3===0;
-    leaf(b,[top[0],top[1]-0.05,top[2]],yaw,3.5+r()*0.8,up?2.4:1.3+r()*0.5,up?2.2:3.2+r()*0.8,0.62,16,mix(cb,hx('#3f9a34'),r()*0.5),mix(ct,hx('#c0e860'),r()*0.4),{jag:0.55,fold:0.35,seed:seed*13+i,sweep:-0.9,shape:0.7,mid:1.25});
+    leaf(b,[top[0],top[1]-0.05,top[2]],yaw,3.9+r()*0.8,up?2.4:1.3+r()*0.5,up?2.2:3.2+r()*0.8,0.85,16,mix(cb,hx('#3f9a34'),r()*0.5),mix(ct,hx('#c0e860'),r()*0.4),{jag:0.55,fold:0.35,seed:seed*13+i,sweep:-0.9,shape:0.7,mid:1.25});
   }
   // coconuts
   for(let i=0;i<3;i++){ const a=i*2.1+r(); blob(b,[top[0]+Math.cos(a)*0.28,top[1]-0.42,top[2]+Math.sin(a)*0.28],0.17,0.19,0.17,hx('#6a4a2a'),{wd:6,hd:4,disp:0.05,seed:i+3}); }

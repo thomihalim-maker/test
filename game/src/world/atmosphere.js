@@ -51,7 +51,7 @@ void main(){
   col=mix(col,uSunCol*5.0+uGlow,disc*step(-0.02,uSunDir.y)*smoothstep(-0.02,0.04,uSunDir.y));
   // moon
   float md=dot(d,uMoonDir);
-  float moon=smoothstep(0.9991,0.9994,md);
+  float moon=smoothstep(0.9985,0.9988,md);
   vec3 mcol=vec3(1.0,0.97,0.88)*2.2;
   // crescent-ish shading
   float cres=smoothstep(0.0,0.6,dot(normalize(d-uMoonDir*md),normalize(vec3(0.6,0.5,0.2))))*0.35+0.65;
@@ -94,7 +94,7 @@ export function createAtmosphere(ctx){
   const sun=new THREE.DirectionalLight(0xfff0d0,3); sun.castShadow=true;
   sun.shadow.mapSize.set(2048,2048);
   const sc=sun.shadow.camera; const EXT=36; sc.left=-EXT; sc.right=EXT; sc.top=EXT; sc.bottom=-EXT; sc.near=5; sc.far=220;
-  sun.shadow.bias=-0.0004; sun.shadow.normalBias=0.05; sun.shadow.radius=3;
+  sun.shadow.bias=-0.0004; sun.shadow.normalBias=0.05; sun.shadow.radius=5;
   scene.add(sun); scene.add(sun.target); ctx.sun=sun;
   const fill=new THREE.DirectionalLight(0xbcd8ff,0.35); scene.add(fill); scene.add(fill.target);
 
@@ -122,16 +122,16 @@ export function createAtmosphere(ctx){
     const dayAmt=1-state.night;
     u.uCloudLit.value.setRGB(1,1,1).lerp(k.glow.clone().lerp(new THREE.Color(1,1,1),0.5),0.35).multiplyScalar(0.35+0.85*dayAmt).add(new THREE.Color(0.02,0.03,0.06));
     u.uCloudShade.value.copy(k.mid).lerp(new THREE.Color(0.75,0.8,0.95),0.5).multiplyScalar(0.55+0.4*dayAmt);
-    u.uCover.value=0.54;
+    u.uCover.value=0.47;
     sky.position.copy(camPos);
     // fog
     scene.fog.color.copy(k.hor); scene.background=null;
-    scene.fog.density=0.0046+0.0010*state.golden+0.0012*state.night;
+    scene.fog.density=0.0056+0.0010*state.golden+0.0012*state.night;
     // lights
     const sunLevel=k.sunI*S(-0.04,0.18,e);
-    const moonLevel=0.55*S(-0.03,-0.3,e);
+    const moonLevel=0.9*S(-0.03,-0.3,e);
     const useSun=e>-0.03;
-    sun.color.copy(useSun?k.sun:new THREE.Color('#9db4ff'));
+    sun.color.copy(useSun?k.sun:new THREE.Color('#7f9cff'));
     sun.intensity=useSun?sunLevel:moonLevel;
     L.copy(useSun?sunDir:moonDir); if(L.y<0.16){ L.y=0.16; } L.normalize();
     // snap focus to shadow texel grid in light space
@@ -144,7 +144,9 @@ export function createAtmosphere(ctx){
     // opposite soft fill tinted by sky
     T.copy(L); T.x*=-1; T.z*=-1; T.y=0.35; T.normalize();
     fill.position.copy(focus).addScaledVector(T,50); fill.target.position.copy(focus);
-    fill.color.copy(k.mid).lerp(new THREE.Color(1,1,1),0.3); fill.intensity=0.28+0.1*state.night;
+    fill.color.copy(k.mid).lerp(new THREE.Color(0.7,0.55,1.0),0.35+0.4*state.golden); fill.intensity=0.4+0.35*state.golden+0.1*state.night;
+    hemi.groundColor.lerp(new THREE.Color('#6a58a0'),0.25+0.25*state.golden); hemi.color.lerp(new THREE.Color('#ffb890'),0.25*state.golden);
+    sun.color.lerp(new THREE.Color('#ff9a40'),0.35*state.golden);
     ctx.renderer.toneMappingExposure=k.exp;
     return state;
   }

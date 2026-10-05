@@ -40,7 +40,7 @@ export function heightAt(x,z){
 // ---------- colors ----------
 const C=(hex)=>new THREE.Color(hex);
 const gA=C('#79cf3a'), gB=C('#4fb43a'), gC=C('#b0de48'), gD=C('#35a04c'), gE=C('#6bc23c');
-const dirtPath=C('#c79b60'), dirtPlaza=C('#cfb27c'), dirtPen=C('#c2995a'), straw=C('#d9bd6a');
+const dirtPath=C('#c4905a'), dirtPlaza=C('#c9a875'), dirtPen=C('#bf9254'), straw=C('#d9bd6a');
 const sandC=C('#f3dfa4'), sandWet=C('#cdb581'), mud=C('#7d6a45'), bed=C('#4aa5a0'), bedDeep=C('#2b6f8f');
 const earth=C('#8d6a3f'), rice1=C('#b9d34c'), rice2=C('#86cf4a'), rock=C('#9a9486');
 
@@ -69,13 +69,13 @@ export function buildTerrain(ctx){
     // dirt zones
     let dirt=0, dc=dirtPath;
     const dpa=dPath(x,z)+n3*0.9, dro=dRoad(x,z)+n3*1.0, dpl=Math.hypot(x,z)-12.5+n2*2.2, dpe=dPen(x,z,-0.6)+n3*0.8;
-    const wPath=1-S(-0.2,0.9,dpa), wRoad=(1-S(-0.3,0.8,dro))*(1-S(55,62,z)), wPlaza=(1-S(-0.6,1.3,dpl))*0.95, wPen=1-S(-0.5,0.8,dpe);
+    const wPath=1-S(-0.6,1.4,dpa), wRoad=(1-S(-0.6,1.4,dro))*(1-S(55,62,z)), wPlaza=(1-S(-1.2,1.6,dpl+n4*1.2))*0.95, wPen=1-S(-0.5,0.8,dpe);
     dirt=Math.max(wPath,wRoad,wPlaza,wPen);
     if(dirt>0){
       dc=tmp.clone().copy(dirtPath);
       if(wPlaza>=dirt-1e-3 && wPlaza>wPath) dc.copy(dirtPlaza).lerp(dirtPath,S(0.3,0.9,n1+0.3)*0.5);
       if(wPen>wPlaza&&wPen>=wPath) { dc.copy(dirtPen).lerp(straw,S(-0.1,0.5,n2)*0.7); }
-      dc.multiplyScalar(0.92+n3*0.2);
+      dc.lerp(C('#a97a4c'),S(0.0,0.6,n1)*0.5).lerp(C('#e0c48c'),S(0.1,0.7,n4)*0.4).lerp(C('#8f7a50'),S(0.3,0.8,-n2)*0.3); dc.multiplyScalar(0.88+n3*0.3);
       // grass-tuft fringe on dirt edges
       tmp.lerp(dc,dirt);
     }
@@ -107,7 +107,7 @@ export function buildTerrain(ctx){
       float dg=texture2D(tG,vWP/5.5).r*(0.55+0.55*texture2D(tG,rw/19.0).r);
       float dd=texture2D(tD,vWP/3.2).r;
       float ds=texture2D(tS,vWP/4.5).r;
-      float det=(dg*vSplat.x+dd*vSplat.y+ds*vSplat.z)*1.55;
+      float det=(dg*vSplat.x+dd*vSplat.y+ds*vSplat.z)*1.55; det=mix(1.0,det,1.0)*(0.8+0.5*texture2D(tD,vWP/37.0).r);
       diffuseColor.rgb*=det;`);
   };
   const mesh=new THREE.Mesh(geo,mat); mesh.receiveShadow=true; mesh.name='terrain';

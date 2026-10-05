@@ -9,7 +9,7 @@ export function createParticles(ctx){
   const group=new THREE.Group(); group.name='particles';
   const r=mulberry32(77);
   // ---- petals ----
-  const NP=110; const pg=new THREE.BufferGeometry();
+  const NP=36; const pg=new THREE.BufferGeometry();
   pg.setAttribute('position',new THREE.Float32BufferAttribute([-0.07,0,-0.05, 0.07,0,-0.05, 0.0,0.02,0.08],3));
   pg.setAttribute('normal',new THREE.Float32BufferAttribute([0,1,0,0,1,0,0,1,0],3));
   const pm=new THREE.MeshBasicMaterial({side:THREE.DoubleSide,color:0xffffff});
@@ -51,7 +51,7 @@ export function createParticles(ctx){
   function update(dt,t,atm,focus){
     const day=1-atm.state.night;
     // petals around focus
-    const wd=atm.state.windDir; const vis=day*0.95;
+    const wd=atm.state.windDir; const vis=day*(atm.state.golden>0.2||atm.state.elev<0.6?1:0.7);
     pm.color.setScalar(0.25+0.75*day); petals.visible=vis>0.05;
     if(petals.visible){
       for(let i=0;i<NP;i++){ const p=P[i];
@@ -60,7 +60,7 @@ export function createParticles(ctx){
         // wrap relative to focus
         let dx=p.x-focus.x, dz=p.z-focus.z; if(dx>22)p.x-=44; if(dx<-22)p.x+=44; if(dz>22)p.z-=44; if(dz<-22)p.z+=44;
         const gh=heightAt(p.x,p.z); if(p.y<gh+0.15){ p.y=gh+6+r()*5; }
-        d.position.set(p.x,p.y,p.z); d.rotation.set(t*p.rs+p.ph,t*p.rs*0.7,t*p.rs*0.5); d.scale.setScalar(p.s*1.5*vis+0.0001); d.updateMatrix(); petals.setMatrixAt(i,d.matrix); }
+        d.position.set(p.x,p.y,p.z); d.rotation.set(t*p.rs+p.ph,t*p.rs*0.7,t*p.rs*0.5); d.scale.setScalar(p.s*0.8*vis+0.0001); d.updateMatrix(); petals.setMatrixAt(i,d.matrix); }
       petals.instanceMatrix.needsUpdate=true;
     }
     // fireflies
