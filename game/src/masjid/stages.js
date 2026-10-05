@@ -223,8 +223,10 @@ function roofGroup(S, p) {
   const { M } = S;
   const r = tajugRoof(p);
   const g = new THREE.Group();
-  g.add(mesh(S, shade(r.tiles, { lo: .75, hi: 1, y0: 0, y1: p.h * .5 }), M.roof), mesh(S, r.wood, M.woodDark), mesh(S, r.trim, M.gold, false),
-    mesh(S, r.ridge, M.ridge), mesh(S, r.soffit, M.woodDark, false));
+  const rc = r.ridge.attributes.color; for (let i = 0; i < rc.count; i++) rc.setXYZ(i, .8, .56, .46); // darker terracotta hip ridges
+  const tiles = merge([shade(r.tiles, { lo: .75, hi: 1, y0: 0, y1: p.h * .5 }), r.ridge]);
+  const wood = merge([r.wood, r.soffit]);
+  g.add(mesh(S, tiles, M.roof), mesh(S, wood, M.woodDark), mesh(S, r.trim, M.gold, false));
   return g;
 }
 function finial(S) {
