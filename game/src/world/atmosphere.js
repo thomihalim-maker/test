@@ -144,7 +144,7 @@ export function createAtmosphere(ctx){
     lightTarget.set(0,0,0).addScaledVector(R,tr).addScaledVector(U,tu).addScaledVector(L,tl);
     sun.target.position.copy(lightTarget); sun.position.copy(lightTarget).addScaledVector(L,90);
     sun.target.updateMatrixWorld();
-    hemi.color.copy(k.hs); hemi.groundColor.copy(k.hg); hemi.intensity=k.hI*(0.95+0.25*state.night); hemi.intensity+= (0.55-hemi.intensity)*g;
+    hemi.color.copy(k.hs); hemi.groundColor.copy(k.hg); hemi.intensity=k.hI*(0.95+0.25*state.night); hemi.intensity+= (0.62-hemi.intensity)*g;
     // opposite soft fill tinted by sky
     T.copy(L); T.x*=-1; T.z*=-1; T.y=0.35; T.normalize();
     fill.position.copy(focus).addScaledVector(T,50); fill.target.position.copy(focus);

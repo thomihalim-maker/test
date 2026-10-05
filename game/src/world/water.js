@@ -45,14 +45,14 @@ void main(){
   vec3 body=mix(uShallow,uMid,smoothstep(0.0,1.2,depth)); body=mix(body,uDeep,smoothstep(0.9,4.5,depth));
   body=mix(body,uDeep*vec3(0.75,0.85,1.0),smoothstep(85.0,170.0,rr)*sea);
   // pond: teal-olive shallows -> deep green-teal centre
-  vec3 pondC=mix(vec3(0.30,0.50,0.36),vec3(0.13,0.36,0.38),smoothstep(0.05,0.9,depth)); pondC=mix(pondC,vec3(0.05,0.2,0.26),smoothstep(0.8,1.6,depth));
+  vec3 pondC=mix(vec3(0.16,0.27,0.13),vec3(0.05,0.17,0.15),smoothstep(0.05,0.8,depth)); pondC=mix(pondC,vec3(0.015,0.075,0.085),smoothstep(0.7,1.5,depth));
   body=mix(pondC,body,sea);
   body*=uAmb;
   // sky reflection tint
   vec3 sky=mix(uSkyH,uSkyT,clamp(1.0-V.y*0.0+N.y*0.0,0.0,1.0)*0.55);
   vec3 Rf0=reflect(-V,N);
   // faint treeline reflection on the pond (low reflected rays hit the surrounding greenery)
-  sky=mix(sky,vec3(0.12,0.26,0.12)*uAmb,(1.0-sea)*smoothstep(0.55,0.12,Rf0.y)*0.85);
+  sky=mix(sky,vec3(0.05,0.12,0.05)*uAmb,(1.0-sea)*smoothstep(0.55,0.12,Rf0.y)*0.85);
   vec3 col=mix(body,sky,(0.06+0.5*fres)*mix(0.75,1.0,sea));
   // sun glint
   vec3 Rf=reflect(-V,N);

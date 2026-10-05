@@ -42,8 +42,9 @@ export function solve(P, tg){
   tg.klx = .04 + Math.max(0,c)*(.75+.5*run)*w; tg.krx = .04 + Math.max(0,-c)*(.75+.5*run)*w;
   tg.alx += s*amp*1.1; tg.arx += -s*amp*1.1;            // opposite arm swing
   tg.alz += .08*run*w; tg.arz += .08*run*w;
-  tg.py = PY + (.03+.025*run)*(1-Math.abs(s))*w - .025*w;
-  tg.sy = 1 + .045*Math.cos(2*ph)*w; tg.sx = 1 - (tg.sy-1)*.7;
+  const bo = P.bounce||1;
+  tg.py = PY + (.03+.025*run)*bo*(1-Math.abs(s))*w - .025*w;
+  tg.sy = 1 + .045*bo*Math.cos(2*ph)*w; tg.sx = 1 - (tg.sy-1)*.7;
   tg.lean = (.08*w + .2*run) + (P.stoop||0) + P.accZ*.012;
   tg.twist = s*.17*w; tg.pr += s*.06*w; tg.hz = -s*.05*w; tg.roll += -P.accX*.012 + c*.025*w;
   tg.fz = -(.1*w+.14*run) - P.accZ*.025; tg.fx = Math.sin(ph+.6)*.1*w - P.accX*.02;
@@ -114,10 +115,10 @@ export function solve(P, tg){
     // ---- prayer / sitting poses (looping, spring-blended)
     case 'qiyam': tg.alx=-1.05; tg.arx=-1.22; tg.alz=tg.arz=-.36; tg.hx=.3; tg.eye=.2; tg.smile=.25; tg.llx=tg.lrx=0; tg.klx=tg.krx=.03; tg.lean=.03+(P.stoop||0)*.5; tg.hy=0; tg.hz=0; tg.fz=0; tg.fx=0; tg.pr=0; tg.roll=0; tg.breath=.02*Math.sin(t*1.6+sd); break;
     case 'takbir': tg.alx=tg.arx=-2.45; tg.alz=tg.arz=.38; tg.hx=.08; tg.eye=.2; tg.smile=.3; tg.llx=tg.lrx=0; tg.hy=0; tg.pr=tg.roll=0; break;
-    case 'rukuk': tg.lean=1.12; tg.pp=-.05; tg.alx=tg.arx=-.42; tg.alz=tg.arz=.08; tg.hx=-.85; tg.eye=.2; tg.smile=.3; tg.llx=tg.lrx=-.12; tg.klx=tg.krx=.2; tg.py=PY-.02; tg.hy=0; tg.pr=tg.roll=0; tg.fz=-.04; break;
+    case 'rukuk': tg.lean=.8; tg.pp=.32; tg.alx=tg.arx=-.42; tg.alz=tg.arz=.08; tg.hx=-.85; tg.eye=.2; tg.smile=.3; tg.llx=tg.lrx=.2; tg.klx=tg.krx=.2; tg.py=PY-.02; tg.hy=0; tg.pr=tg.roll=0; tg.fz=-.04; break;
     case 'itidal': tg.alx=tg.arx=.03; tg.alz=tg.arz=.12; tg.hx=.1; tg.eye=.2; tg.smile=.3; tg.llx=tg.lrx=0; tg.lean=0; tg.hy=0; tg.pr=tg.roll=0; break;
-    case 'sujud': tg.py=.27; tg.lean=1.28; tg.alx=tg.arx=-1.42; tg.alz=tg.arz=.22; tg.hx=.12; tg.eye=.2; tg.smile=.25; tg.llx=tg.lrx=.12; tg.klx=tg.krx=1.62; tg.llz=tg.lrz=.05;
-      tg.sgS=.72; tg.sgW=1.12; tg.fz=-.06; tg.hy=0; tg.pr=tg.roll=0; break;
+    case 'sujud': tg.py=.28; tg.pp=.5; tg.lean=.8; tg.alx=tg.arx=-2.4; tg.alz=tg.arz=.35; tg.hx=.1; tg.eye=.2; tg.smile=.25; tg.llx=tg.lrx=.62; tg.klx=tg.krx=1.62; tg.llz=tg.lrz=.05;
+      tg.sgS=.8; tg.sgW=1.08; tg.fz=-.04; tg.fx=0; tg.hy=0; tg.pr=tg.roll=0; tg.twist=0; break;
     case 'tahiyat': sitLegs(tg,false); tg.alx=tg.arx=-.85; tg.alz=tg.arz=-.08; tg.hx=.15; tg.eye=.2; tg.lean=.04; tg.smile=.3; tg.hy=0; tg.pr=tg.roll=0; break;
     case 'sit': sitLegs(tg,true); tg.alx=tg.arx=-.8; tg.alz=tg.arz=-.08; tg.hx=.08; tg.smile=.7; tg.hy = Math.sin(t*.5+sd)*.3; break;
     case 'salam': { const d = Math.sin(t*1.3)>0?1:-1; sitLegs(tg,false); tg.alx=tg.arx=-.85; tg.alz=tg.arz=-.08; tg.hy=d*.95; tg.hz=-d*.1; tg.hx=.05; tg.eye=.45; tg.smile=.5; tg.pr=tg.roll=0; break; }

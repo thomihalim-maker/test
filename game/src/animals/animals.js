@@ -15,9 +15,11 @@ const KIND = {
   sheep:{ speed:.9,   rad:.40, reach:.6,  gain:.0105, w0:[20,30], wMax:55,  price:75,  bleat:'bleat_sheep' },
   cow  :{ speed:.75,  rad:.58, reach:.85, gain:.1,    w0:[190,260], wMax:520, price:220, bleat:'moo' },
 };
-const MAX_ANIMALS=16;
-const TXT={ id:{hay:'Hay habis!',water:'Air habis!',soap:'Sabun habis!',treat:'Camilan habis!',happy:'senang!',full:'sudah kenyang',fullw:'sudah puas minum',clean:'sudah bersih',full2:'Hewan sudah penuh',troughHay:'Palung diisi jerami',troughWater:'Bak air diisi',tubFill:'Bak mandi diisi',cared:'terawat baik!',weightB:'Bonus bobot hewan',sick:'lesu, butuh perawatan',recovered:'sehat kembali!',petDone:'senang dielus'},
-            en:{hay:'Out of hay!',water:'Out of water!',soap:'Out of soap!',treat:'Out of treats!',happy:'is happy!',full:'is full',fullw:'is not thirsty',clean:'is already clean',full2:'Pen is full',troughHay:'Trough filled with hay',troughWater:'Water trough filled',tubFill:'Wash tub filled',cared:'is well cared for!',weightB:'Animal weight bonus',sick:'feels unwell, needs care',recovered:'feels better!',petDone:'loves the pets'} };
+const MAX_BASE=16, MAX_PER_LEVEL=6;
+const penLvlOf=(v)=>{ v=+v||0; return v>=8?2:v>=4?1:Math.max(0,Math.min(2,v|0)); }; // accepts pen level (0..2) or berkah level (4/8)
+const GROW_HOURS=72; // babies grow up over ~3 in-game days
+const TXT={ id:{hay:'Hay habis!',water:'Air habis!',soap:'Sabun habis!',treat:'Camilan habis!',happy:'senang!',full:'sudah kenyang',fullw:'sudah puas minum',clean:'sudah bersih',full2:'Hewan sudah penuh',troughHay:'Palung diisi jerami',troughWater:'Bak air diisi',tubFill:'Bak mandi diisi',grown:'sudah dewasa!',penUp:'Kandang diperluas!',cared:'terawat baik!',weightB:'Bonus bobot hewan',sick:'lesu, butuh perawatan',recovered:'sehat kembali!',petDone:'senang dielus'},
+            en:{hay:'Out of hay!',water:'Out of water!',soap:'Out of soap!',treat:'Out of treats!',happy:'is happy!',full:'is full',fullw:'is not thirsty',clean:'is already clean',full2:'Pen is full',troughHay:'Trough filled with hay',troughWater:'Water trough filled',tubFill:'Wash tub filled',grown:'is all grown up!',penUp:'The pen got bigger!',cared:'is well cared for!',weightB:'Animal weight bonus',sick:'feels unwell, needs care',recovered:'feels better!',petDone:'loves the pets'} };
 
 export async function init(ctx){
   const scene=ctx.scene, S=ctx.state; S.inventory??={hay:10,water:10,soap:3,treat:5};
@@ -33,7 +35,9 @@ export async function init(ctx){
     scene.background=new THREE.Color('#aed9f5');
   }
   const gh=(x,z)=>{ try{ const h=ctx.groundHeight(x,z); return Number.isFinite(h)?h:0; }catch(e){ return 0; } };
-  const pen=buildPen(ctx); const B=pen.bounds; const st=pen.stations;
+  let pen=buildPen(ctx,penLvlOf(S.penLevel)); let B=pen.bounds; let st=pen.stations;
+  const maxAnimals=()=>MAX_BASE+MAX_PER_LEVEL*pen.level;
+  let weather=S.event?.id||'';
   const T=(k)=>TXT[S.lang==='en'?'en':'id'][k];
   const toast=(m)=>ctx.emit('toast',m);
   const audio=(n,o)=>ctx.modules.audio?.play?.(n,o);
@@ -114,7 +118,7 @@ export async function init(ctx){
     const seed=opts.seed??((Math.random()*1e9)|0); const rng=mulberry32(seed^0x9e37);
     const m=buildAnimal(kind,seed,!!opts.baby); const K0=KIND[kind]; const K=opts.baby?{...K0,rad:K0.rad*.62,reach:K0.reach*.62,speed:K0.speed*1.15,w0:K0.w0.map(v=>v*.3),wMax:K0.wMax*.5,gain:K0.gain*.5}:K0;
     const name=opts.name??pickName(kind,rng,used); used.add(name);
-    const a={ id:nextId++, kind, baby:!!opts.baby, breed:m.breed, seed, name, male:m.male, model:m, mesh:m.group, pos:new V3(), heading:opts.heading??rng()*6.28,
+    const a={ id:nextId++, kind, baby:!!opts.baby, growth:opts.baby?(opts.growth||0):1, growE:0, K0, babyS:m.S, adultS:opts.baby?m.S/.6:m.S, breed:m.breed, seed, name, male:m.male, model:m, mesh:m.group, pos:new V3(), heading:opts.heading??rng()*6.28,
       stats:{ hunger:.8, thirst:.8, clean:.9, happy:.7, ...(opts.stats||{}) },
       weight:opts.weight??(K.w0[0]+rng()*(K.w0[1]-K.w0[0])), rad:K.rad, K,
       state:'idle', stT:1+rng()*2, target:null, slot:null, after:null, speed:0, walkAmt:0, ph:rng()*6, sleepAmt:0, headDown:0, headLook:0, look:0,
@@ -129,11 +133,11 @@ export async function init(ctx){
   function spawnPoint(rng){ for(let i=0;i<40;i++){ const x=B.x0+1.5+rng()*(B.x1-B.x0-3), z=B.z0+1.5+rng()*(B.z1-B.z0-3); if(pen.obstacles.every(o=>Math.hypot(o.x-x,o.z-z)>o.r+.9) && list.every(l=>Math.hypot(l.pos.x-x,l.pos.z-z)>1.6)) return [x,0,z]; } return [B.x0+2,0,B.z0+6]; }
   const rs=mulberry32(1234);
   if(Array.isArray(S.animals)&&S.animals.length&&S.animals[0]?.seed!==undefined){
-    for(const d of S.animals){ if(!KIND[d.kind]) continue; Object.assign(create(d.kind,{seed:d.seed,name:d.name,stats:d.stats,weight:d.weight,baby:d.baby,at:spawnPoint(rs)}),{dayW:d.dayW??d.weight,petDay:d.petDay??-1,neglect:d.neglect||0,sick:!!d.sick,needy:!!d.needy}); }
+    for(const d of S.animals){ if(!KIND[d.kind]) continue; Object.assign(create(d.kind,{seed:d.seed,name:d.name,stats:d.stats,weight:d.weight,baby:d.baby,growth:d.growth,at:spawnPoint(rs)}),{dayW:d.dayW??d.weight,petDay:d.petDay??-1,neglect:d.neglect||0,sick:!!d.sick,needy:!!d.needy}); }
   }
   if(!list.length) ['goat','goat','sheep','sheep','cow','goat'].forEach((k,i)=>create(k,{seed:[101,205,309,412,517,623][i],at:spawnPoint(rs)}));
   if(!S.animals?.length){ create('goat',{seed:731,baby:true,at:spawnPoint(rs)}); create('sheep',{seed:842,baby:true,at:spawnPoint(rs)}); }
-  const persist=()=>{ S.animals=list.map(a=>({kind:a.kind,seed:a.seed,name:a.name,stats:{...a.stats},weight:a.weight,baby:a.baby,dayW:a.dayW,petDay:a.petDay,neglect:a.neglect,sick:a.sick,needy:a.needy})); };
+  const persist=()=>{ S.animals=list.map(a=>({kind:a.kind,seed:a.seed,name:a.name,stats:{...a.stats},weight:a.weight,baby:a.baby,growth:a.growth,dayW:a.dayW,petDay:a.petDay,neglect:a.neglect,sick:a.sick,needy:a.needy})); };
   persist();
 
   // ---------------- helpers: station use / AI ----------------
@@ -154,18 +158,21 @@ export async function init(ctx){
   }
   function bleat(a){ a.bleatT=.9; audio(a.K.bleat,{pos:a.pos,vol:.7}); }
   function startState(a,s,dur){ a.state=s; a.stT=dur; }
+  function freeShade(roofOnly){ const sh=st.shade; let any=-1; for(let k=0;k<sh.sleep.length;k++){ const o=sh.occ[k]; if(o&&!o.dead) continue; if(sh.roof[k]) return k; if(any<0&&!roofOnly) any=k; } return any; }
   function chooseNext(a){
     const S2=a.stats, r=Math.random();
     release(a);
     if(isNight() && a.state!=='sleep'){ a.bed=true; // go to bed in the shelter
-      const sh=st.shade; let i=-1; for(let k=0;k<sh.sleep.length;k++){ const o=sh.occ[k]; if(!o||o.dead){ i=k; break; } }
+      const sh=st.shade; const i=freeShade(false);
       if(i>=0){ sh.occ[i]=a; a.slot={st:sh,i}; const p=sh.sleep[i]; go(a,p.x,p.z,()=>{ startState(a,'sleep',1e9); a.heading=Math.PI*(.2+i*.3); },{r:.25,run:true}); return; }
       const p=sh.pos; go(a,p.x+(Math.random()-.5)*3,p.z+2.2+Math.random(),()=>startState(a,'sleep',1e9),{run:true}); return;
     }
-    if(S2.thirst<.5 && st.water.fill>.04){ const i=freeSlot(st.water); if(i>=0){ claim(a,st.water,i); const p=standFor(a,st.water,i); go(a,p.x,p.z,()=>{ a.heading=st.water.face; startState(a,'drink',14); },{r:.15}); return; } }
+    const hr=ctx.hour??12, hot=weather==='panas', rain=weather==='hujan';
+    if(S2.thirst<(hot?.72:.5) && st.water.fill>.04){ const i=freeSlot(st.water); if(i>=0){ claim(a,st.water,i); const p=standFor(a,st.water,i); go(a,p.x,p.z,()=>{ a.heading=st.water.face; startState(a,'drink',14); },{r:.15}); return; } }
     if(S2.hunger<.55){ const cand=st.feed.filter(f=>f.fill>.04).sort((p,q)=>p.pos.distanceTo(a.pos)-q.pos.distanceTo(a.pos));
       for(const f of cand){ const i=freeSlot(f); if(i>=0){ claim(a,f,i); const p=standFor(a,f,i); go(a,p.x,p.z,()=>{ a.heading=f.face; startState(a,'eat',16); },{r:.15}); return; } } }
-    if(S2.clean<.35 && (st.wash.fill>.05?r<.85:r<.25)){ const w=st.wash; const i=freeSlot(w); if(i>=0){ claim(a,w,i); const p=w.slots[i]; go(a,p.x,p.z,()=>{ a.heading=Math.atan2(w.pos.x-a.pos.x,w.pos.z-a.pos.z); startState(a,'wait',10+Math.random()*8); },{r:.2}); return; } }
+    if((rain&&r<.8)||(hot&&hr>=9.5&&hr<16.5&&r<.55)){ const i=freeShade(true); if(i>=0){ const sh=st.shade; sh.occ[i]=a; a.slot={st:sh,i}; const p=sh.sleep[i]; go(a,p.x,p.z,()=>{ startState(a,'rest',10+Math.random()*12); a.heading=Math.PI*(.15+i*.37); },{r:.25,run:rain}); return; } }
+    if(S2.clean<.35 && !rain && (st.wash.fill>.05?r<.85:r<.25)){ const w=st.wash; const i=freeSlot(w); if(i>=0){ claim(a,w,i); const p=w.slots[i]; go(a,p.x,p.z,()=>{ a.heading=Math.atan2(w.pos.x-a.pos.x,w.pos.z-a.pos.z); startState(a,'wait',10+Math.random()*8); },{r:.2}); return; } }
     if(r<.46){ const [x,z]=wanderPoint(a); go(a,x,z,()=>startState(a,'idle',1+Math.random()*3)); }
     else if(r<.68){ startState(a,'graze',4+Math.random()*5); }
     else if(r<.78 && S2.happy>.55 && !a.sick){ a.hopT=0; startState(a,'hop',.9); }
@@ -190,7 +197,7 @@ export async function init(ctx){
   const useItem=(it)=>{ if((S.inventory[it]||0)<=0){ toast(T(it)); return false; } S.inventory[it]--; ctx.emit('inventory:change',S.inventory); return true; };
   function wakeUp(a){ if(a.state==='sleep'){ a.bed=false; release(a); a.state='idle'; a.stT=2; a.wake=3; } }
   const api={
-    list, pen, stations:st, KIND,
+    list, KIND, get pen(){ return pen; }, get stations(){ return st; }, get penLevel(){ return pen.level; },
     nearest(pos,r=3){ let best=null,bd=r*r; for(const a of list){ const dx=a.pos.x-pos.x,dz=a.pos.z-pos.z,d=dx*dx+dz*dz; if(d<bd){bd=d;best=a;} } return best; },
     nearestStation(pos,r=2.6){ const c=[]; for(const f of st.feed) c.push({type:'feed',st:f,d:Math.hypot(f.pos.x-pos.x,f.pos.z-pos.z)}); c.push({type:'water',st:st.water,d:Math.hypot(st.water.pos.x-pos.x,st.water.pos.z-pos.z)}); c.push({type:'wash',st:st.wash,d:Math.hypot(st.wash.pos.x-pos.x,st.wash.pos.z-pos.z)});
       c.sort((p,q)=>p.d-q.d); return c[0]&&c[0].d<=r?c[0]:null; },
@@ -212,8 +219,8 @@ export async function init(ctx){
     fillStation(type='feed'){ if(type==='wash'||type==='tub'){ const w=st.wash; if(w.fill>.9) return false; if(!useItem('water')) return false; w.fill=Math.min(1,w.fill+.6); toast(T('tubFill')); bubbles(w.pos.clone().setY(.7),10); audio('splash',{pos:w.pos,vol:.6}); return true; }
       if(type==='water'){ if(st.water.fill>.9){ return false; } if(!useItem('water')) return false; st.water.fill=Math.min(1,st.water.fill+.55); toast(T('troughWater')); audio('splash',{pos:st.water.pos,vol:.5}); return true; }
       const f=st.feed.slice().sort((p,q)=>p.fill-q.fill)[0]; if(f.fill>.9) return false; if(!useItem('hay')) return false; f.fill=Math.min(1,f.fill+.55); toast(T('troughHay')); audio('munch',{pos:f.pos,vol:.5}); return true; },
-    canAdd:()=>list.length<MAX_ANIMALS, get count(){ return list.length; }, maxAnimals:MAX_ANIMALS,
-    add(kind,o={}){ if(!KIND[kind]||list.length>=MAX_ANIMALS){ if(list.length>=MAX_ANIMALS) toast(T('full2')); return null; }
+    canAdd:()=>list.length<maxAnimals(), get count(){ return list.length; }, get maxAnimals(){ return maxAnimals(); },
+    add(kind,o={}){ if(!KIND[kind]||list.length>=maxAnimals()){ if(list.length>=maxAnimals()) toast(T('full2')); return null; }
       const a=create(kind,{at:[B.x0+1.6,0,PEN.cz+(Math.random()-.5)*1.5],heading:Math.PI/2,baby:!!o.baby,stats:{hunger:.7,thirst:.7,clean:1,happy:.8}}); persist(); sparkles(a.pos.clone().setY(.6),10); audio('pop',{pos:a.pos}); ctx.emit('animal:added',{animal:a}); return a; },
     remove(a){ const i=list.indexOf(a); if(i<0) return; release(a); a.dead=true; scene.remove(a.mesh); scene.remove(a.bubble.sp); a.bubble.tex.dispose(); a.mesh.traverse(o=>o.geometry?.dispose?.()); list.splice(i,1); persist(); },
     price:(k)=>KIND[k]?.price??0,
@@ -251,7 +258,7 @@ export async function init(ctx){
     const reacting=a.petT>0||a.shakeT>0||a.eatT>0&&a.state!=='eat'&&a.state!=='drink'||a.reactT>0;
     switch(a.state){
       case 'walk': { a.stT-=dt; if(!a.target){ a.state='idle'; a.stT=1; break; } const dx=a.target.x-a.pos.x,dz=a.target.z-a.pos.z; if(Math.hypot(dx,dz)<(a.arriveR||.3)||a.stT<=0){ const f=a.after; a.after=null; a.target=null; a.state='idle'; a.stT=.5; if(a.stT<=0&&a.slot) release(a); f?.(); } break; }
-      case 'idle': case 'wait': case 'graze': a.stT-=dt; if(a.stT<=0&&!reacting){ if(a.state==='wait') release(a); chooseNext(a); } break;
+      case 'idle': case 'wait': case 'graze': case 'rest': a.stT-=dt; if(a.stT<=0&&!reacting){ if(a.state==='wait') release(a); chooseNext(a); } break;
       case 'hop': a.stT-=dt; if(a.stT<=0){ a.state='idle'; a.stT=.6; } break;
       case 'eat': { const f=a.slot?.st; a.stT-=dt; if(!f||f.fill<=.005||S2.hunger>=.92||a.stT<=0){ release(a); startState(a,'idle',1+Math.random()*2); if(S2.hunger>.8) a.stats.happy=clamp(S2.happy+.05); break; }
         const r=.05*dt; f.fill=Math.max(0,f.fill-r); S2.hunger=clamp(S2.hunger+r*1.0); S2.happy=clamp(S2.happy+.004*dt); break; }
@@ -266,7 +273,7 @@ export async function init(ctx){
   const tmpA=new V3();
   function move(a,dt){
     const walking=a.state==='walk'&&a.target; let want=0;
-    const immobile=a.state==='sleep'||a.state==='eat'||a.state==='drink'||a.petT>0||a.shakeT>0||a.state==='hop'&&false;
+    const immobile=a.state==='sleep'||a.state==='rest'||a.state==='eat'||a.state==='drink'||a.petT>0||a.shakeT>0||a.state==='hop'&&false;
     if(walking&&!immobile){
       let dx=a.target.x-a.pos.x, dz=a.target.z-a.pos.z; const dist=Math.hypot(dx,dz)||1; dx/=dist; dz/=dist; let ax=0,az=0;
       for(const o of list){ if(o===a) continue; const ox=a.pos.x-o.pos.x, oz=a.pos.z-o.pos.z, d=Math.hypot(ox,oz)||.01, r=a.rad+o.rad+.5; if(d<r){ const p=(r-d)/r; ax+=ox/d*p*1.6; az+=oz/d*p*1.6; } }
@@ -279,7 +286,7 @@ export async function init(ctx){
     a.speed=damp(a.speed,want,want>a.speed?5:7,dt);
     if(a.speed>.02){ a.pos.x+=Math.sin(a.heading)*a.speed*dt; a.pos.z+=Math.cos(a.heading)*a.speed*dt; }
     // hard separation (always)
-    for(const o of list){ if(o===a) continue; const ox=a.pos.x-o.pos.x, oz=a.pos.z-o.pos.z, d=Math.hypot(ox,oz)||.01, r=(a.rad+o.rad)*.92; if(d<r){ const push=(r-d); const share=(o.state==='sleep'||o.state==='eat'||o.state==='drink')?1:.5; a.pos.x+=ox/d*push*share*Math.min(1,dt*8); a.pos.z+=oz/d*push*share*Math.min(1,dt*8); } }
+    for(const o of list){ if(o===a) continue; const ox=a.pos.x-o.pos.x, oz=a.pos.z-o.pos.z, d=Math.hypot(ox,oz)||.01, r=(a.rad+o.rad)*.92; if(d<r){ const push=(r-d); const share=(o.state==='sleep'||o.state==='rest'||o.state==='eat'||o.state==='drink')?1:.5; a.pos.x+=ox/d*push*share*Math.min(1,dt*8); a.pos.z+=oz/d*push*share*Math.min(1,dt*8); } }
     for(const o of pen.obstacles){ const ox=a.pos.x-o.x, oz=a.pos.z-o.z, d=Math.hypot(ox,oz)||.01, r=o.r+a.rad*.55; if(d<r){ a.pos.x+=ox/d*(r-d); a.pos.z+=oz/d*(r-d); } }
     const mg=a.rad*.7; a.pos.x=clamp(a.pos.x,B.x0+mg,B.x1-mg); a.pos.z=clamp(a.pos.z,B.z0+mg,B.z1-mg);
     // face a target direction while standing at a station slightly toward the trough
@@ -292,7 +299,7 @@ export async function init(ctx){
     const m=a.model, bn=m.bones, rl=m.restLocal, D=m.dims, S2=a.stats;
     const asleep=a.state==='sleep';
     a.walkAmt=damp(a.walkAmt,clamp(a.speed/(a.K.speed*.9)),9,dt);
-    a.sleepAmt=damp(a.sleepAmt,asleep?1:0,asleep?2.2:5,dt);
+    a.sleepAmt=damp(a.sleepAmt,asleep?1:(a.state==='rest'?.72:0),(asleep||a.state==='rest')?2.2:5,dt);
     const grazing=a.state==='graze'&&!a.eatT, eating=a.state==='eat'||a.state==='drink';
     const hdTarget = grazing?1:(eating?.42:(a.eatT>0?.5:0));
     a.headDown=damp(a.headDown,hdTarget,7,dt);
@@ -300,7 +307,7 @@ export async function init(ctx){
     // blink
     a.blinkT-=dt; if(a.blinkT<=0){ a.blink=.16; a.blinkT=1.8+Math.random()*3.5; if(Math.random()<.2) a.blinkT=.25; }
     a.blink=Math.max(0,a.blink-dt); let eyeY=a.blink>0?.08:(a.sick?.6:1);
-    const pettedClose=a.petT>0?Math.min(1,a.petT*3):0; eyeY=Math.min(eyeY,1-pettedClose*.7); eyeY=Math.min(eyeY,1-sl*.92);
+    const pettedClose=a.petT>0?Math.min(1,a.petT*3):0; eyeY=Math.min(eyeY,1-pettedClose*.7); eyeY=Math.min(eyeY,1-sl*(asleep?.92:.3));
     // hop
     let hopY=0, sx=1, sy=1;
     if(a.hopT>=0){ a.hopT+=dt; const T=a.hopT, dur=.75; if(T<.13){ const u=T/.13; sy=1-.18*u; sx=1+.1*u; } else if(T<.5){ const u=(T-.13)/.37; hopY=a.hopH*Math.sin(u*Math.PI); sy=1+.14*Math.sin(u*Math.PI); sx=1-.07*Math.sin(u*Math.PI); if(u<.02&&!a.hopSnd){ a.hopSnd=1; } }
@@ -340,7 +347,7 @@ export async function init(ctx){
     hb.position.set(hr.x,hr.y-.4*hd*awake-.1*sl+Math.abs(Math.sin(ph))*.01*w,hr.z+.05*hd);
     const chewBob=chewing?Math.sin(t*14+a.ph)*.03:0;
     hb.rotation.set(.95*hd*awake+.4*sl-bleatUp*1.1+nod+chewBob+(a.reactT>0?Math.sin(t*14)*.15:0),look+(a.petT>0?.25*Math.min(1,a.petT*2):0)*Math.sin(t*1.5),petTilt+a.look*.1);
-    hb.scale.set(inv,inv,inv);
+    const hs=inv*(a.baby?1+(1/1.22-1)*a.growE:1); hb.scale.set(hs,hs,hs);
     bn.jaw.rotation.x=jaw*awake; 
     // eyes
     bn.eyeL.scale.set(1,Math.max(.06,eyeY),1); bn.eyeR.scale.set(1,Math.max(.06,eyeY),1);
@@ -375,22 +382,55 @@ export async function init(ctx){
     b.pop=Math.min(1,(b.pop??1)+dt/.38); const pp=b.pop, popS=pp>=1?1:(1+Math.sin(pp*Math.PI*1.5)*.0)*(1-Math.pow(1-pp,3)*Math.cos(pp*9)*1);
     const vis=(kind&&dist<26)||showName; b.sp.visible=vis&&a.mesh.visible;
     const bob=Math.sin(t*2.5+a.seed)*.04;
-    b.sp.position.set(a.pos.x,a.pos.y+a.model.dims.bubbleY*(1-a.sleepAmt*.25)+bob+(kind?.0:-.28),a.pos.z);
+    b.sp.position.set(a.pos.x,a.pos.y+a.model.dims.bubbleY*(a.mesh.scale.x/a.model.S)*(1-a.sleepAmt*.25)+bob+(kind?.0:-.28),a.pos.z);
     const s=clamp(dist*.1,.42,1.15)*Math.max(.01,popS); b.sp.scale.set(1.28*s,1.0*s,1);
     b.mat.opacity=clamp((28-dist)/6,0,1);
   }
 
   api.update=(dt,t)=>{
     pen.update(dt,t);
+    { const h=ctx.hour??8; let dh=(h-prevHour+24)%24; prevHour=h; if(dh>3) dh=0; if(growDebug) dh+=dt*growDebug; if(dh>0) for(const a of list.slice()) if(a.baby) grow(a,dh/GROW_HOURS); }
+    if(penPop>=0){ penPop+=dt; const u=penPop/.7; pen.root.scale.set(1,u>=1?1:1+Math.sin(u*Math.PI*2.5)*.18*(1-u),1); if(u>=1){ penPop=-1; pen.root.scale.set(1,1,1); } }
     for(const a of list){ stepAI(a,dt); move(a,dt); pose(a,dt,t); updateBubble(a,dt,t); }
     updateParticles(dt,t);
-    saveT+=dt; if(saveT>3){ saveT=0; S.pen={feed:st.feed.map(f=>+f.fill.toFixed(3)),water:+st.water.fill.toFixed(3),wash:+st.wash.fill.toFixed(3)}; for(let i=0;i<list.length;i++){ const a=list[i],d=S.animals?.[i]; if(d&&d.seed===a.seed){ d.stats={...a.stats}; d.weight=a.weight; d.neglect=a.neglect; d.sick=a.sick; d.needy=a.needy; d.petDay=a.petDay; d.dayW=a.dayW; } else persist(); } }
+    saveT+=dt; if(saveT>3){ saveT=0; S.pen={feed:st.feed.map(f=>+f.fill.toFixed(3)),water:+st.water.fill.toFixed(3),wash:+st.wash.fill.toFixed(3)}; for(let i=0;i<list.length;i++){ const a=list[i],d=S.animals?.[i]; if(d&&d.seed===a.seed){ d.stats={...a.stats}; d.weight=a.weight; d.neglect=a.neglect; d.sick=a.sick; d.needy=a.needy; d.petDay=a.petDay; d.dayW=a.dayW; d.baby=a.baby; d.growth=a.growth; } else persist(); } }
     if(camParam&&camParam.length>=6&&!camParam.some(Number.isNaN)){ ctx.camera.position.set(camParam[0],camParam[1],camParam[2]); ctx.camera.lookAt(camParam[3],camParam[4],camParam[5]); if(ctx.cameraRig){ try{ ctx.cameraRig.target.set(camParam[3],camParam[4],camParam[5]); }catch(e){} } }
   };
+  // ---------------- babies growing up ----------------
+  function applyGrowth(a){ const g=a.growth, e=g*g*(3-2*g); a.growE=e; a.mesh.scale.setScalar(lerp(a.babyS,a.adultS,e));
+    const K0=a.K0; a.K={...K0, rad:K0.rad*lerp(.62,1,e), reach:K0.reach*lerp(.62,1,e), speed:K0.speed*lerp(1.15,1,e), w0:K0.w0.map(v=>v*lerp(.3,1,e)), wMax:K0.wMax*lerp(.5,1,e), gain:K0.gain*lerp(.5,1,e)}; a.rad=a.K.rad;
+    a.weight=Math.max(a.weight,a.K.w0[0]*.9); }
+  function grow(a,dg){ a.growth=Math.min(1,a.growth+dg); applyGrowth(a); if(a.growth>=1) growUp(a); }
+  function growUp(a){ // swap the baby mesh for the adult one (same seed => same breed colours, same name)
+    const old=a.model; const m=buildAnimal(a.kind,a.seed,false); scene.remove(old.group); old.group.traverse(o=>o.geometry?.dispose?.());
+    a.model=m; a.mesh=m.group; m.group.position.copy(a.pos); m.group.rotation.y=a.heading; m.group.userData.animal=a; scene.add(m.group);
+    a.baby=false; a.growth=1; a.growE=0; a.K=a.K0; a.rad=a.K.rad; a.babyS=a.adultS=m.S; a.weight=Math.max(a.weight,a.K.w0[0]);
+    sparkles(a.pos.clone().setY(.7),12); a.hopT=0; audio('chime',{pos:a.pos,vol:.6}); toast({msg:`${a.name} ${T('grown')}`,icon:'heart',kind:'good'}); ctx.emit('animal:grown',{animal:a,pos:evPos(a)}); persist(); }
+  for(const a of list) if(a.baby) applyGrowth(a);
+  let prevHour=ctx.hour??8, growDebug=+q.get('grow')||0;
+
+  // ---------------- pen upgrades (progress: 'pen:upgrade' {level}) ----------------
+  let penPop=-1;
+  function rebuildPen(level){ const lv=penLvlOf(level); if(lv<=pen.level) return false;
+    const fills={feed:st.feed.map(f=>f.fill),water:st.water.fill,wash:st.wash.fill};
+    for(const a of list){ a.slot=null; a.target=null; a.after=null; a.bed=false; if(a.state!=='sleep'||true){ a.state='idle'; a.stT=.5+Math.random(); } }
+    pen.dispose(); pen=buildPen(ctx,lv); B=pen.bounds; st=pen.stations;
+    st.feed.forEach((f,i)=>f.fill=fills.feed[i]??.45); st.water.fill=fills.water; st.wash.fill=fills.wash;
+    S.animalPenLevel=lv; penPop=0;
+    const c=new V3((B.x0+B.x1)/2,1,(B.z0+B.z1)/2); const fx=ctx.modules.fx; fx?.burst?.('confetti',c,60); fx?.burst?.('sparkle',new V3(B.x1-2,1.2,B.z1-2),30);
+    for(let i=0;i<16;i++) sparkles(new V3(B.x0+Math.random()*(B.x1-B.x0),.8,B.z0+Math.random()*(B.z1-B.z0)),1);
+    audio('build',{pos:c}); setTimeout(()=>audio('chime',{pos:c}),350); toast({msg:T('penUp'),icon:'goat',kind:'good'}); for(const a of list) if(Math.random()<.6){ a.hopT=0; }
+    ctx.emit('pen:rebuilt',{level:lv,bounds:{...B}}); return true; }
+  ctx.on('pen:upgrade',d=>rebuildPen(d?.level??S.penLevel));
+  ctx.on('event:day',d=>{ weather=d?.id||''; if(weather==='hujan'||weather==='panas') for(const a of list) if(a.state==='idle'||a.state==='graze') a.stT=Math.min(a.stT,.5+Math.random()*2); });
+  api.rebuildPen=rebuildPen; api.weather=()=>weather;
+
   // debug / test hooks
   api.debug={ hearts,bubbles,sparkles,spawnP };
   // test env: ?fill=1 fills troughs, ?night forces hour
   if(q.has('night')) ctx.hour=23;
+  if(q.get('pen')) rebuildPen(+q.get('pen'));
+  if(q.get('weather')) weather=q.get('weather');
   { const P=S.pen||{}; st.feed.forEach((f,i)=>f.fill=P.feed?.[i]??.45); st.water.fill=P.water??.5; st.wash.fill=P.wash??.6; }
   if(q.has('fill')){ st.feed.forEach(f=>f.fill=.8); st.water.fill=.8; st.wash.fill=.9; }
   if(q.has('hungry')) list.forEach(a=>{ a.stats.hunger=.2; a.stats.thirst=.2; a.stats.clean=.15; });

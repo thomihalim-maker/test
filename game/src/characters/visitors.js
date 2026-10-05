@@ -16,35 +16,38 @@ const ACC = [0xe8c060,0xd94a3a,0x2e9e6a,0x3a6fd0,0xf08a30,0x8a4ac8,0xe05c8a,0x1f
 const SAJADAH = [0xb2283c,0x1f6e52,0x274b9c,0x7b2d8e,0xc0782a];
 const SHOE = [0x6b4a2e,0x3b2a20,0x8a6a3a,0x2a2a30,0x7a3b2a];
 
+const SHAPES = [[1,1,1],[1,1,1],[.95,1.07,.97],[1.08,.95,1.0],[1.03,1.02,1.03]];   // round, egg, wide jaw, big
 export function randomSpec(kind){
   kind = kind || pick(['man','man','man','woman','woman','boy','girl','elder','elderW']);
-  const s = { kind, size:1, headScale:1, stoop:0, limb:1, eyeScale:1, torso:'koko', bottom:'sarong', hat:'peci', gender:'m', speed:1,
-    eyes:(Math.random()*3)|0, head:Math.random()<.35?1:0, acc:[], sash:false,
+  const s = { kind, size:1, headScale:1, stoop:0, limb:1, torso:'koko', bottom:'sarong', hat:'peci', gender:'m', speed:1,
+    eyes:(Math.random()*3)|0, head:Math.random()<.35?1:0, acc:[], sash:false, headShape:pick(SHAPES), bodyW:R(.92,1.12),
+    brow:pick([14,14,15,16,17]), cheek:Math.random()<.18?19:18, catSmile:Math.random()<.2,
     colors:{ skin:pick(SKIN), top:pick(KOKO), bot:pick(SARONG), head:pick(PECI), shoe:pick(SHOE), acc:pick(ACC), hair:pick(HAIR) } };
   const c = s.colors;
+  const hijab = ()=>{ const st = pick(['std','std','long','pashmina','sport']); s.hat = st==='sport'?'hijabSport':'hijab'; s.drape = st; };
   switch(kind){
     case 'man':
-      s.size=R(.98,1.06); s.hat = pick(['peci','peci','peci','kopiah','hairShort']);
+      s.size=R(.95,1.08); s.hat = pick(['peci','peci','peci','kopiah','hairShort']);
       if(s.hat==='kopiah') c.head=pick([0xf6f2e8,0xf6f2e8,0xe8dcc0]);
       if(Math.random()<.45){ s.sash=true; c.acc=pick(SAJADAH); }
       if(Math.random()<.3) s.acc.push('moustache'); else if(Math.random()<.15) s.acc.push('goatee');
       if(Math.random()<.12) s.acc.push('glasses');
       break;
     case 'boy':
-      s.size=R(.74,.82); s.headScale=1.14; s.limb=.82; s.eyeScale=1.16; s.eyes=pick([0,1]); s.hat=pick(['peci','hairKid','hairKid']); s.speed=1.15;
-      if(Math.random()<.3) s.acc.push('freckles'); break;
+      s.size=R(.74,.84); s.headScale=1.14; s.limb=.8; s.kid=true; s.bodyW=R(1.0,1.1); s.hat=pick(['peci','hairKid','hairKid']); s.speed=1.15;
+      s.headShape=[1.03,1,1.02]; s.cheek=Math.random()<.35?19:21; s.brow=pick([15,17]); break;
     case 'elder':
-      s.size=.97; s.stoop=.13; s.hat=pick(['kopiah','kopiah','peci']); c.head = s.hat==='kopiah'?0xf4f1ea:pick(PECI); c.hair=pick([0xe8e4dc,0xcfc9bf,0xb8b2a8]);
-      s.acc.push('beard','moustache'); if(Math.random()<.5) s.acc.push('glasses'); s.eyes=2;
+      s.size=R(.93,1.0); s.stoop=.13; s.hat=pick(['kopiah','kopiah','peci']); c.head = s.hat==='kopiah'?0xf4f1ea:pick(PECI); c.hair=pick([0xe8e4dc,0xcfc9bf,0xb8b2a8]);
+      s.acc.push('beard','moustache'); if(Math.random()<.5) s.acc.push('glasses'); s.eyes=2; s.cheek=20; s.brow=16;
       c.top=pick([0xf7f2e4,0xe9dcc0,0xcdd7c0,0xd8e2ea]); s.speed=.6; if(Math.random()<.5){ s.sash=true; c.acc=pick(SAJADAH); } break;
     case 'woman':
-      s.size=R(.96,1.0); s.gender='f'; s.torso='gamis'; s.bottom='skirt'; s.hat='hijab'; c.head=pick(HIJAB); c.top=pick(GAMIS); c.bot=c.top;
-      c.acc=pick([0xffffff,0xfff3d6,0xffffff]); if(Math.random()<.2) s.acc.push('freckles'); if(Math.random()<.1) s.acc.push('glasses'); break;
+      s.size=R(.93,1.02); s.gender='f'; s.torso='gamis'; s.bottom='skirt'; hijab(); c.head=pick(HIJAB); c.top=pick(GAMIS); c.bot=c.top;
+      c.acc=pick([0xffffff,0xfff3d6,0xffffff]); s.brow=pick([15,17]); if(Math.random()<.1) s.acc.push('glasses'); s.bodyW=R(.9,1.06); break;
     case 'girl':
-      s.size=R(.74,.8); s.headScale=1.14; s.limb=.82; s.eyeScale=1.16; s.eyes=pick([0,1]); s.gender='f'; s.torso='gamis'; s.bottom='skirt'; s.hat='hijab';
-      c.head=pick(HIJAB); c.top=pick(GAMIS); c.bot=c.top; c.acc=pick([0xffffff,0xfff3d6]); s.speed=1.15; if(Math.random()<.3) s.acc.push('freckles'); break;
+      s.size=R(.74,.82); s.headScale=1.14; s.limb=.8; s.kid=true; s.gender='f'; s.torso='gamis'; s.bottom='skirt'; s.hat='hijabSport'; s.drape='sport';
+      c.head=pick(HIJAB); c.top=pick(GAMIS); c.bot=c.top; c.acc=0xffffff; s.speed=1.15; s.cheek=Math.random()<.3?19:21; s.brow=15; s.headShape=[1.03,1,1.02]; break;
     case 'elderW':
-      s.size=.94; s.gender='f'; s.stoop=.14; s.torso='gamis'; s.bottom='skirt'; s.hat='hijab'; s.eyes=2;
+      s.size=R(.9,.97); s.gender='f'; s.stoop=.14; s.torso='gamis'; s.bottom='skirt'; s.hat='hijab'; s.drape=pick(['long','std']); s.eyes=2; s.cheek=20; s.brow=17;
       c.head=pick([0xfaf4ea,0x8d6e63,0x6a5acd,0x2e7d6b,0x9e3c5a]); c.top=pick([0xd9c7a8,0xb8c9d6,0xc9b5c9,0xa9c3b0]); c.bot=c.top; c.acc=0xffffff; c.hair=0xd8d4cc;
       s.speed=.6; if(Math.random()<.5) s.acc.push('glasses'); break;
   }
@@ -118,8 +121,10 @@ export function createVisitors(ctx, opts={}){
     const dirx = d>1e-3?dx/d:0, dirz = d>1e-3?dz/d:0;
     const tvx = dirx*want+sx, tvz = dirz*want+sz;
     const ax = (tvx-v.vel.x)*Math.min(1,dt*7), az=(tvz-v.vel.z)*Math.min(1,dt*7);
-    p.accX = ax/dt*.0+0; p.accZ = 0;
     v.vel.x+=ax; v.vel.z+=az;
+    { const awx=ax/Math.max(dt,1e-3), awz=az/Math.max(dt,1e-3), sy=Math.sin(p.yaw), cy=Math.cos(p.yaw);
+      const lx=awx*cy-awz*sy, lz=awx*sy+awz*cy; v.ax=(v.ax||0)+(lx-(v.ax||0))*Math.min(1,dt*8); v.az=(v.az||0)+(lz-(v.az||0))*Math.min(1,dt*8);
+      p.accX=Math.max(-10,Math.min(10,v.ax)); p.accZ=Math.max(-10,Math.min(10,v.az)); }
     p.pos.x+=v.vel.x*dt; p.pos.z+=v.vel.z*dt;
     const sp = Math.hypot(v.vel.x,v.vel.z); p.speed = sp;
     if(sp>.15){ const ty=Math.atan2(v.vel.x,v.vel.z); p.yaw = angLerp(p.yaw,ty,Math.min(1,dt*9)); }
@@ -200,7 +205,7 @@ export function createVisitors(ctx, opts={}){
     // per visitor
     for(let i=V.length-1;i>=0;i--){
       const v=V[i], p=v.person;
-      p.accX=p.accZ=0;
+      if(v.state==='pray'||v.state==='post'||v.state==='sitIdle'||v.state==='static'){ p.accX=p.accZ=0; }
       v.emoteT-=dt;
       switch(v.state){
         case 'arrive': case 'gather': {

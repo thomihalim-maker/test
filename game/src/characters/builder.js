@@ -57,57 +57,10 @@ const BLUSH = 0xff8f86, IRIS = 0x3a2116, IRIS2 = 0x7b4a2c, WHITE = 0xfffaf3, DAR
 // ---------------- head (head-centre space) ----------------
 export function buildHead(variant=0, D=1){
   const { sph } = makeKit(D); const b = new GB(); const R=.34;
-  b.add(sph(R,24,16), {scale:[1.07,.98,1.0], slot:SKIN});
-  for(const s of[-1,1]) b.add(sph(.065,8,6), {pos:[s*.358,-.03,-.01], scale:[.55,1,.85], slot:SKIN, tone:.95});
-  if(variant===0) b.add(sph(.026,8,6), {pos:[0,-.075,.336], scale:[1.1,.8,.8], slot:SKIN, tone:.9});
-  else b.add(sph(.042,10,8), {pos:[0,-.07,.33], scale:[1.15,.85,.8], slot:SKIN, tone:.9});
-  for(const s of[-1,1]) b.add(sph(.064,8,5), {pos:[s*.205,-.115,.262], scale:[1.25,.72,.32], rot:[0,-s*.55,0], color:BLUSH});
-  return b.build();
-}
-// open eyes; shape 0 round, 1 tall-oval, 2 gentle (upper lid)
-export function buildEyes(shape=0, D=1){
-  const { sph, caps, tor } = makeKit(D); const b = new GB(); const y0=-.02;
-  for(const s of[-1,1]){
-    const x=s*.122;
-    if(shape===0){
-      b.add(sph(1,12,9), {pos:[x,y0,.296], scale:[.074,.088,.03], color:WHITE});
-      b.add(sph(1,10,8), {pos:[x+s*-.004,y0-.008,.305], scale:[.06,.074,.026], color:IRIS});
-      if(D>.7) b.add(sph(1,8,6), {pos:[x+s*-.004,y0-.03,.318], scale:[.042,.036,.014], color:IRIS2});
-      b.add(caps(.0095,.07,1,4), {pos:[x,y0+.125,.305], rot:[0,0,Math.PI/2-s*.18], slot:HAIR});
-    } else if(shape===1){
-      b.add(sph(1,14,10), {pos:[x,y0,.296], scale:[.06,.094,.03], color:WHITE});
-      b.add(sph(1,12,10), {pos:[x,y0-.006,.306], scale:[.046,.082,.026], color:IRIS});
-      b.add(sph(1,10,8), {pos:[x,y0-.035,.318], scale:[.03,.032,.013], color:IRIS2});
-      b.add(tor(.05,.0095,4,10,Math.PI*.8), {pos:[x,y0+.09,.3], rot:[0,0,Math.PI*.1], slot:HAIR});
-    } else {
-      b.add(sph(1,14,10), {pos:[x,y0-.01,.296], scale:[.072,.078,.03], color:WHITE});
-      b.add(sph(1,12,10), {pos:[x,y0-.016,.305], scale:[.058,.066,.026], color:IRIS});
-      b.add(sph(1,12,8,), {pos:[x,y0+.04,.3], scale:[.085,.05,.036], slot:SKIN, tone:.97}); // lid
-      b.add(caps(.012,.07,1,4), {pos:[x,y0+.115,.305], rot:[0,0,Math.PI/2+s*.06], slot:HAIR});
-    }
-    b.add(sph(.024,6,5), {pos:[x+s*.02,y0+.028,.325], scale:[1,1,.45], color:0xffffff});
-    if(D>.7) b.add(sph(.011,5,4), {pos:[x-s*.022,y0-.04,.326], scale:[1,1,.45], color:0xffffff});
-  }
-  return b.build();
-}
-export function buildClosedEyes(kind='happy', D=1){
-  const { tor, caps } = makeKit(D); const b = new GB(); const y0=-.02;
-  for(const s of[-1,1]){
-    const x=s*.122;
-    if(kind==='happy') b.add(tor(.045,.0115,4,10,Math.PI), {pos:[x,y0-.02,.315], color:DARK});
-    else b.add(tor(.048,.011,4,10,Math.PI), {pos:[x,y0+.01,.315], rot:[0,0,Math.PI], color:DARK});
-    b.add(caps(.0095,.07,1,4), {pos:[x,y0+.12,.305], rot:[0,0,Math.PI/2-s*.18], slot:HAIR});
-  }
-  return b.build();
-}
-export function buildMouth(kind='smile', D=1){
-  const { sph, tor, caps } = makeKit(D); const b = new GB(); const y=-.12;
-  if(kind==='smile') b.add(tor(.048,.0105,4,10,Math.PI), {pos:[0,y,.326], rot:[0,0,Math.PI], color:0x7a3028});
-  else if(kind==='open'){
-    b.add(sph(.05,10,6), {pos:[0,y-.018,.303], scale:[1,.95,.36], color:0x5a1e1e});
-    b.add(sph(.028,6,4), {pos:[0,y-.036,.318], scale:[1.15,.6,.3], color:0xe8707a});
-  } else if(kind==='o') b.add(sph(.028,8,6), {pos:[0,y-.01,.318], scale:[1,1.15,.4], color:0x5a1e1e});
-  else b.add(caps(.009,.04,1,4), {pos:[0,y,.326], rot:[0,0,Math.PI/2], color:0x7a3028});
+  b.add(sph(R,26,20), {scale:[1.07,.98,1.0], slot:SKIN});
+  for(const s of[-1,1]) b.add(sph(.072,8,6), {pos:[s*.357,-.04,-.015], scale:[.5,1.05,.85], slot:SKIN, tone:.93});
+  if(variant===0) b.add(sph(.024,8,6), {pos:[0,-.07,.333], scale:[1.1,.8,.7], slot:SKIN, tone:.93});
+  else b.add(sph(.036,10,8), {pos:[0,-.066,.326], scale:[1.15,.85,.7], slot:SKIN, tone:.92});
   return b.build();
 }
 export function buildAcc(kind, D=1){
@@ -123,22 +76,25 @@ export function buildAcc(kind, D=1){
     b.add(caps(.008,.05,1,4), {pos:[0,-.01,.34], rot:[0,0,Math.PI/2], color:0x5a3b22});
     for(const s of[-1,1]) b.add(caps(.007,.2,1,4), {pos:[s*.2,-.0,.24], rot:[Math.PI/2,0,s*.35], color:0x5a3b22});
   }
-  else if(kind==='freckles'){
-    for(const s of[-1,1]) for(const [dx,dy] of [[-.03,.01],[.01,.025],[.03,-.012],[-.005,-.02]])
-      b.add(sph(.0085,4,3), {pos:[s*(.2+dx),-.085+dy,.282-Math.abs(dx)*.6], scale:[1,1,.4], color:0xa8643e});
-  }
   return b.build();
 }
 
 // ---------------- torso (pelvis space, neck at y=.41) ----------------
 export function buildTorso(kind, D=1){
   const { sph, caps, lathe, tor } = makeKit(D); const b = new GB(); const zs=.86;
-  if(kind==='koko'){
+  // short neck stub in shade (chin shadow)
+  b.add(lathe([[.078,.37],[.08,.43],[.074,.47],[.002,.475]],12),{slot:SKIN, tone:.8});
+  if(kind==='kid'){
+    b.add(lathe([[.002,-.04],[.236,-.04],[.236,-.0],[.232,.08],[.225,.16],[.215,.25],[.19,.33],[.12,.39],[.08,.41],[.002,.415]],20),{scale:[1,1,.9], slot:TOP});
+    b.add(sph(.2,12,9),{pos:[0,.12,.06], scale:[.95,.8,.75], slot:TOP}); // round belly
+    b.add(lathe([[.24,-.045],[.244,-.03],[.24,-.015]],20,0,Math.PI*2,false),{scale:[1,1,.9], slot:ACC});
+    b.add(lathe([[.094,.37],[.099,.40],[.09,.43],[.072,.435]],16),{scale:[1,1,.92], slot:TOP, tone:.95});
+    b.add(tor(.086,.008,4,18),{pos:[0,.432,0], rot:[Math.PI/2,0,0], scale:[1,.92,1], slot:ACC});
+    for(let i=0;i<2;i++) b.add(sph(.016,6,5),{pos:[0,.34-i*.075,.19], color:GOLD});
+  } else if(kind==='koko'){
     b.add(lathe([[.002,-.04],[.238,-.04],[.236,-.01],[.205,.06],[.19,.12],[.208,.22],[.214,.29],[.195,.36],[.12,.405],[.08,.42],[.002,.425]],20),{scale:[1,1,zs], slot:TOP});
     // hem band (piping)
     b.add(lathe([[.24,-.045],[.244,-.03],[.24,-.015]],20,0,Math.PI*2,false),{scale:[1,1,zs], slot:ACC});
-    // side slits (dark notches)
-    if(D>.7) for(const s of[-1,1]) b.add(caps(.007,.05,1,4),{pos:[s*.238,-.005,0], slot:TOP, tone:.45});
     // mandarin collar + piping
     b.add(lathe([[.094,.39],[.099,.42],[.09,.455],[.072,.46]],16),{scale:[1,1,.92], slot:TOP, tone:.95});
     b.add(tor(.086,.008,4,18),{pos:[0,.456,0], rot:[Math.PI/2,0,0], scale:[1,.92,1], slot:ACC});
@@ -194,8 +150,6 @@ export function buildSarong(D=1){
   b.add(lathe([[.215,.04],[.219,0],[.236,-.1],[.258,-.2],[.274,-.272]],3,.12,.3),{slot:BOT, tone:.88, flex, scale:[1,1,.93]});
   const darkUV = (g)=>{ const u=g.attributes.uv; for(let i=0;i<u.count;i++) u.setXY(i,.04+(i%7)*.004,.05); };
   b.add(new THREE.CircleGeometry(.21,Math.max(6,Math.round(16*D))).rotateX(-Math.PI/2),{pos:[0,.06,0], scale:[1,1,.93], slot:BOT, post:darkUV});
-  // rolled waistband (samples the dark plaid band)
-  b.add(tor(.214,.026,5,22),{pos:[0,-.06,0], rot:[Math.PI/2,0,0], scale:[1,.93,1], slot:BOT, tone:1.25, post:darkUV});
   return b.build();
 }
 export function buildSkirt(D=1){
@@ -208,38 +162,61 @@ export function buildSkirt(D=1){
 }
 
 // ---------------- headgear / hair (head-centre space) ----------------
+// push vertices matching fn() under the skin (radius r) -> clean openings without hard cut edges
+function tuck(g, fn, r=.315){
+  const p = g.attributes.position;
+  for(let i=0;i<p.count;i++){ const x=p.getX(i), y=p.getY(i), z=p.getZ(i); if(fn(x,y,z)){ const k=r/Math.max(1e-4,Math.hypot(x,y,z)); p.setXYZ(i,x*k,y*k,z*k); } }
+  return g;
+}
+const earTuck = (x,y,z)=> Math.abs(x)>.22 && y<.07 && y>-.2 && z>-.13 && z<.15;
 function hairBack(b, D, R, slot){
   const { S } = makeKit(D);
-  // back + sides down to nape, front left open for the face
-  b.add(new THREE.SphereGeometry(R*1.045,S(18),S(12),Math.PI/2+1.3,Math.PI*2-2.6,0,Math.PI*.64),{scale:[1.08,1.0,1.03], pos:[0,0,-.012], slot});
-  b.add(new THREE.SphereGeometry(R*1.045,S(18),S(6),0,Math.PI*2,0,Math.PI*.3),{scale:[1.08,1.0,1.03], pos:[0,0,-.012], slot});
+  // back + sides down over the nape; ear region tucked so ears sit on skin
+  const g = new THREE.SphereGeometry(R*1.045,S(22),S(16),Math.PI/2+1.25,Math.PI*2-2.5,0,Math.PI*.8);
+  b.add(tuck(g,(x,y,z)=>earTuck(x,y,z) || (y<-.26 && z>-.05)),{scale:[1.08,1.0,1.03], pos:[0,0,-.012], slot});
+  b.add(new THREE.SphereGeometry(R*1.045,S(22),S(6),0,Math.PI*2,0,Math.PI*.3),{scale:[1.08,1.0,1.03], pos:[0,0,-.012], slot});
+}
+// hijab shell: soft crown point, tapers to the jaw, wide oval face opening, wraps under the chin (~y -.36)
+function hijabShell(b, D, R, sport){
+  const { S, sph } = makeKit(D);
+  const g = new THREE.SphereGeometry(R*1.08,S(32),S(24));
+  const p = g.attributes.position, RR=R*1.08;
+  const yc=-.075, ea=.272, eb=.272;
+  for(let i=0;i<p.count;i++){ let x=p.getX(i), y=p.getY(i), z=p.getZ(i);
+    const e = (x/ea)**2 + ((y-yc)/eb)**2;
+    if(z>0 && e<1.0){ const k=.315/Math.hypot(x,y,z); x*=k; y*=k; z*=k; }
+    else {
+      const up = Math.max(0,y/RR), dn = Math.max(0,-y/RR);
+      y += .055*up*up*up*(1-Math.abs(x)/RR*.6);            // soft crown point
+      const t = 1-.2*dn*dn;                                 // taper toward the jaw
+      x*=t; z = z>0 ? z*(1-.08*dn) : z*t;
+    }
+    p.setXYZ(i,x,y,z); }
+  g.computeVertexNormals();
+  b.add(g,{scale:[1.06,1.03,1.04], slot:HEAD});
+  // ciput: forehead-only band following the opening rim (~.9pi arc), slightly darker
+  const pts=[]; const N=Math.max(8,Math.round(18*D));
+  for(let i=0;i<=N;i++){ const a=Math.PI*(.05+.9*i/N); const x=Math.cos(a)*ea*1.02, y=yc+Math.sin(a)*eb*1.02;
+    const z=Math.sqrt(Math.max(0,RR*RR-x*x-y*y)); pts.push(new THREE.Vector3(x*1.06,y*1.03,z*1.04+.004)); }
+  b.add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),S(28),.024,S(6),false),{slot:HEAD, tone:.82});
+  // chin wrap below the mouth, blending into the drape
+  b.add(sph(.2,14,8),{pos:[0,-.33,.13], scale:[1.25,.62,.95], slot:HEAD, tone:.97});
+  if(sport) b.add(sph(.2,14,6),{pos:[0,.17,.29], scale:[1.0,.2,.6], rot:[.35,0,0], slot:HEAD, tone:.9}); // bergo visor
 }
 export function buildHat(kind, D=1){
   const { S, sph, lathe, tor } = makeKit(D); const b = new GB(); const R=.34;
   if(kind==='peci'){
     hairBack(b,D,R,HAIR);
-    for(const s of[-1,1]) b.add(sph(.06,6,5),{pos:[s*.33,.03,.06], scale:[.5,1.2,.9], slot:HAIR}); // sideburns
-    // straight-sided, slightly tapered flat-top songkok, slight back tilt
-    const pts=[[.302,.08],[.306,.12],[.288,.334],[.281,.345],[.268,.351],[.002,.353]].map(p=>new THREE.Vector2(p[0],p[1]));
-    b.add(new THREE.LatheGeometry(pts,S(26)),{rot:[-.09,0,0], pos:[0,0,-.012], scale:[1.05,1,1.0], slot:HEAD});
-    b.add(tor(.305,.007,3,S(26)),{rot:[Math.PI/2-.09,0,0], pos:[0,.13,-.001], scale:[1.05,1,1], slot:HEAD, tone:1.9});
+    for(const s of[-1,1]) b.add(sph(.06,6,5),{pos:[s*.33,.07,.07], scale:[.45,1.0,.8], slot:HAIR}); // sideburns
+    // straight-sided, slightly tapered flat-top songkok, slight back tilt (lifted clear of hair: no z-fight)
+    const pts=[[.302,.085],[.307,.12],[.289,.336],[.282,.347],[.269,.353],[.002,.355]].map(p=>new THREE.Vector2(p[0],p[1]));
+    b.add(new THREE.LatheGeometry(pts,S(26)),{rot:[-.09,0,0], pos:[0,.004,-.012], scale:[1.07,1,1.02], slot:HEAD});
   } else if(kind==='kopiah'){
     hairBack(b,D,R,HAIR);
-    b.add(new THREE.SphereGeometry(R*1.05,S(20),S(9),0,Math.PI*2,0,Math.PI*.46),{scale:[1.07,.9,1.04],pos:[0,.06,-.012], rot:[-.08,0,0], slot:HEAD});
-    for(const [y,r] of [[.135,.33],[.2,.29],[.255,.235]]) b.add(tor(r,.011,3,S(22)),{pos:[0,y+.01,-.012-(y-.13)*.08], rot:[Math.PI/2-.08,0,0], scale:[1.07,1.03,1], slot:HEAD, tone:.84});
-  } else if(kind==='hijab'){
-    // shell with an oval face opening (verts inside the oval are tucked inside the head)
-    const g = new THREE.SphereGeometry(R*1.075,S(30),S(22));
-    const p = g.attributes.position;
-    for(let i=0;i<p.count;i++){ const x=p.getX(i), y=p.getY(i), z=p.getZ(i);
-      const e = (x/.245)**2 + ((y+.045)/.255)**2;
-      if(z>0 && e<1.0){ const k=.31/Math.hypot(x,y,z); p.setXYZ(i,x*k,y*k,z*k); } }
-    b.add(g,{scale:[1.08,1.03,1.05], slot:HEAD});
-    // undercap face frame (ciput) softens the cut
-    b.add(tor(.236,.02,5,S(30)),{pos:[0,-.045,.305], scale:[1.0,1.08,1], rot:[-.08,0,0], slot:ACC});
-    // drape over shoulders/chest
-    b.add(lathe([[.24,-.22],[.31,-.3],[.335,-.42],[.31,-.54],[.22,-.6],[.002,-.61]],20),{scale:[.7,1,.66], slot:HEAD, tone:.97});
-    b.add(sph(.09,8,6),{pos:[0,-.3,.24], scale:[1.6,.7,.5], slot:HEAD, tone:.95}); // chin wrap
+    b.add(new THREE.SphereGeometry(R*1.06,S(20),S(9),0,Math.PI*2,0,Math.PI*.46),{scale:[1.07,.9,1.04],pos:[0,.06,-.012], rot:[-.08,0,0], slot:HEAD});
+    for(const [y,r] of [[.135,.335],[.2,.295],[.255,.24]]) b.add(tor(r,.011,3,S(22)),{pos:[0,y+.012,-.012-(y-.13)*.08], rot:[Math.PI/2-.08,0,0], scale:[1.07,1.03,1], slot:HEAD, tone:.84});
+  } else if(kind==='hijab' || kind==='hijabSport'){
+    hijabShell(b,D,R,kind==='hijabSport');
   } else if(kind==='hairKid'){
     hairBack(b,D,R,HAIR);
     b.add(new THREE.SphereGeometry(R*1.05,S(18),S(8),0,Math.PI*2,0,Math.PI*.33),{scale:[1.08,1,1.03],pos:[0,0,-.012], slot:HAIR});
@@ -249,6 +226,24 @@ export function buildHat(kind, D=1){
     hairBack(b,D,R,HAIR);
     b.add(new THREE.SphereGeometry(R*1.05,S(18),S(8),0,Math.PI*2,0,Math.PI*.35),{scale:[1.08,1,1.03],pos:[0,0,-.012], slot:HAIR});
     b.add(sph(.2,10,6),{pos:[-.06,.19,.21], scale:[1.2,.4,.5], rot:[.5,0,.25], slot:HAIR});
+  }
+  return b.build();
+}
+// hijab drapes live in the CHEST frame (so head turns don't swing the cloth). neck ~ y .385..
+export function buildDrape(kind, D=1){
+  const { lathe, sph } = makeKit(D); const b = new GB();
+  const flex = (x,y)=>Math.pow(Math.max(0,(.38-y)/.5),1.6)*.6;
+  if(kind==='long'){        // khimar: cape to the hips, covers the arms
+    b.add(lathe([[.15,.52],[.24,.46],[.31,.36],[.34,.2],[.36,.02],[.37,-.06],[.33,-.075],[.002,-.08]],22),{scale:[1,1,.9], slot:HEAD, tone:.96, flex});
+  } else if(kind==='sport'){ // instant bergo: short rounded bib
+    b.add(lathe([[.15,.52],[.23,.47],[.27,.38],[.24,.3],[.14,.26],[.002,.255]],20),{scale:[1,1,.92], slot:HEAD, tone:.96});
+  } else {                   // standard / pashmina: over shoulders to mid chest
+    b.add(lathe([[.15,.52],[.24,.46],[.3,.37],[.3,.26],[.25,.16],[.12,.12],[.002,.115]],22),{scale:[1,1,.9], slot:HEAD, tone:.96});
+    if(kind==='pashmina'){
+      const box=(w,h,d)=>new THREE.BoxGeometry(w,h,d,1,Math.max(1,Math.round(4*D)),1);
+      b.add(box(.12,.42,.035),{pos:[-.15,.24,.22], rot:[-.25,0,.28], slot:HEAD, tone:.9});
+      b.add(sph(.07,8,6),{pos:[-.2,.03,.25], scale:[1,.5,.4], slot:HEAD, tone:.88});
+    }
   }
   return b.build();
 }

@@ -35,7 +35,7 @@ export async function init(ctx){
 
   // ---------- player ----------
   const look = ()=>({ ...DEFAULT_LOOK, ...(ctx.state.look||{}) });
-  const specFromLook = (l)=>({ kind:'player', size:1, headScale:1, limb:1, eyeScale:1.04, torso:'koko', bottom:'sarong', hat:'peci', gender:'m', eyes:0, head:0, acc:[], sash:false,
+  const specFromLook = (l)=>({ kind:'player', size:1, headScale:1, limb:1, eyeScale:1.04, torso:'koko', bottom:'sarong', hat:'peci', gender:'m', eyes:0, head:0, acc:[], sash:false, brow:14, cheek:18, headShape:[1,1,1], bodyW:1.04,
     colors:{ skin:hexOf(l.skin), top:hexOf(l.koko), bot:hexOf(l.sarong), head:hexOf(l.peci), shoe:hexOf(l.shoe), acc:hexOf(l.trim), hair:hexOf(l.hair) } });
   let lookKey = JSON.stringify(look());
   const player = new Person(specFromLook(look()));

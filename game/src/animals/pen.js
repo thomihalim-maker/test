@@ -7,7 +7,9 @@ import { woodTexture, strawTexture, thatchTexture, penGroundTexture, mulberry32 
 export const PEN = { cx:26, cz:6, hw:8, hd:6 };   // centre + half extents (x: 18..34, z: 0..12). Gate on -X side at z=6.
 const V3=THREE.Vector3;
 
-export function buildPen(ctx){
+export const PEN_EXT=[[0,0],[3,2],[6,4]];   // pen upgrade level -> extra metres on +X,+Z
+export function buildPen(ctx,lvl=0){
+  lvl=Math.max(0,Math.min(2,lvl|0)); const [EX,EZ]=PEN_EXT[lvl]; const X1=8+EX, Z1=6+EZ;
   const root=new THREE.Group(); root.name='animalPen'; root.position.set(PEN.cx,0,PEN.cz);
   const rnd=mulberry32(99);
   const B={wood:[],straw:[],thatch:[],misc:[],foam:[],tubfoam:[]}; const low=ctx.quality==='low';
@@ -28,24 +30,22 @@ export function buildPen(ctx){
 
   // ------------ fence ------------
   const posts=[];
-  const zs=[-6,-4,-2,-1.2,1.2,2,4,6];            // x=-8 side (gate between -1.2..1.2)
-  const addPost=(x,z,h=1.05,w=.16,tall=false)=>{ posts.push({x,z,h});
-    put('wood',rbox(w,h,w,.04,2),{p:[x,h/2,z],r:[(rnd()-.5)*.05,rnd()*3,(rnd()-.5)*.05],c:tall?'#a97745':woodC()});
+  const postKeys=new Set();
+  const addPost=(x,z,h=1.05,w=.16,tall=false)=>{ const key=x.toFixed(2)+','+z.toFixed(2); if(postKeys.has(key)) return; postKeys.add(key); posts.push({x,z,h});
+    put('wood',rbox(w,h,w,.04),{p:[x,h/2,z],r:[(rnd()-.5)*.05,rnd()*3,(rnd()-.5)*.05],c:tall?'#a97745':woodC()});
     put('wood',new THREE.SphereGeometry(w*.62,8,5),{p:[x,h+.015,z],s:[1,.7,1],c:tall?'#e9b95c':'#d9b27a'});
     colliders.push({x,z,r:.28});
   };
-  for(let x=-8;x<=8.01;x+=2) { addPost(x,-6); addPost(x,6); }
-  for(let z=-4;z<=4.01;z+=2) if(Math.abs(z)>1.5) addPost(8,z);
-  for(const z of [-4,-2,2,4]) addPost(-8,z);
-  addPost(-8,-1.2,2.15,.24,true); addPost(-8,1.2,2.15,.24,true);
   const rail=(x1,z1,x2,z2)=>{ const dx=x2-x1,dz=z2-z1,len=Math.hypot(dx,dz),ang=Math.atan2(-dz,dx);
-    for(const y of [.42,.82]) put('wood',rbox(len+.06,.085,.06,.025,2),{p:[(x1+x2)/2,y+(rnd()-.5)*.01,(z1+z2)/2],r:[0,ang,0],c:woodC()}); };
-  for(let x=-8;x<8;x+=2){ rail(x,-6,x+2,-6); rail(x,6,x+2,6); }
-  for(let z=-6;z<6;z+=2){ rail(8,z,8,z+2); }
-  rail(-8,-6,-8,-4); rail(-8,-4,-8,-2); rail(-8,-2,-8,-1.2); rail(-8,1.2,-8,2); rail(-8,2,-8,4); rail(-8,4,-8,6);
-  // extra colliders so the player can't walk through rails
-  for(let x=-8;x<=8;x+=.9){ colliders.push({x,z:-6,r:.3},{x,z:6,r:.3}); }
-  for(let z=-6;z<=6;z+=.9){ colliders.push({x:8,z,r:.3}); if(Math.abs(z)>1.7) colliders.push({x:-8,z,r:.3}); }
+    for(const y of [.42,.82]) put('wood',rbox(len+.06,.085,.06,.025),{p:[(x1+x2)/2,y+(rnd()-.5)*.01,(z1+z2)/2],r:[0,ang,0],c:woodC()}); };
+  // a straight fence run with posts ~every 2 m (skipA/skipB leave an end post to the gate)
+  const fenceLine=(ax,az,bx,bz,skipA=false,skipB=false)=>{ const len=Math.hypot(bx-ax,bz-az), n=Math.max(1,Math.round(len/2));
+    for(let i=0;i<=n;i++){ const t=i/n, x=ax+(bx-ax)*t, z=az+(bz-az)*t; if((i===0&&skipA)||(i===n&&skipB)) continue; addPost(x,z); }
+    for(let i=0;i<n;i++){ const t0=i/n,t1=(i+1)/n; rail(ax+(bx-ax)*t0,az+(bz-az)*t0,ax+(bx-ax)*t1,az+(bz-az)*t1); }
+    const m=Math.ceil(len/.9); for(let i=0;i<=m;i++){ const t=i/m; colliders.push({x:ax+(bx-ax)*t,z:az+(bz-az)*t,r:.3}); } };
+  fenceLine(-8,-6,X1,-6); fenceLine(-8,Z1,X1,Z1); fenceLine(X1,-6,X1,Z1);
+  fenceLine(-8,-6,-8,-1.2,false,true); fenceLine(-8,1.2,-8,Z1,true,false);
+  addPost(-8,-1.2,2.15,.24,true); addPost(-8,1.2,2.15,.24,true);
 
   // gate arch + open leaves
   put('wood',rbox(.22,.2,2.9,.05),{p:[-8,2.05,0],c:'#a97745'});
@@ -61,9 +61,9 @@ export function buildPen(ctx){
   const flagCols=['#ff6b81','#ffd166','#2ec4b6','#6c8cff','#ffffff','#ff9f43','#b983ff'];
   const bunting=(a,b,sag,n)=>{ for(let i=0;i<n;i++){ const t=(i+.5)/n; const p=new V3().lerpVectors(a,b,t); p.y-=Math.sin(t*Math.PI)*sag;
       put('misc',new THREE.SphereGeometry(i%3===1?.075:.05,6,4),{p:[p.x,p.y,p.z],c:flagCols[i%flagCols.length]}); } };
-  bunting(new V3(-8,2.0,-1.2),new V3(-8,1.05,-6),.35,18); bunting(new V3(-8,2.0,1.2),new V3(-8,1.05,6),.35,18);
-  bunting(new V3(-8,1.05,-6),new V3(8,1.05,-6),.5,30); bunting(new V3(-8,1.05,6),new V3(8,1.05,6),.5,30);
-  bunting(new V3(8,1.05,-6),new V3(8,1.05,6),.5,22);
+  const bl=(a,b,sag)=>bunting(a,b,sag,Math.round(a.distanceTo(b)*1.85));
+  bl(new V3(-8,2.0,-1.2),new V3(-8,1.05,-6),.35); bl(new V3(-8,2.0,1.2),new V3(-8,1.05,Z1),.35);
+  bl(new V3(-8,1.05,-6),new V3(X1,1.05,-6),.5); bl(new V3(-8,1.05,Z1),new V3(X1,1.05,Z1),.5); bl(new V3(X1,1.05,-6),new V3(X1,1.05,Z1),.5);
 
   // ------------ hay bales (cylinders lying down) ------------
   // bales are boxy-round; twine rings placed manually per orientation
@@ -137,8 +137,8 @@ export function buildPen(ctx){
     obstacles.push({x:tx,z:tz,r:1.05},{x:tx+1.5,z:tz+.2,r:.4}); colliders.push({x:tx,z:tz,r:1.0},{x:tx+1.5,z:tz+.2,r:.4}); }
 
   // ------------ shade shelter (thatched, bamboo posts) ------------
-  let lantern=null;
-  { const sx=4.6,sz=3.4, W=3.9, D=2.9, ph=1.85;
+  const lanterns=[]; const shadeSpots=[], shadeRoof=[];
+  function shelter(sx,sz,W,D,ph,extra){
     put('straw',new THREE.PlaneGeometry(W-.1,D-.1,1,1).rotateX(-Math.PI/2),{p:[sx,.04,sz],c:'#f6d98a',uv:2.2});
     for(const a of[-1,1]) for(const b of[-1,1]){ const x=sx+a*(W/2-.12),z=sz+b*(D/2-.12); put('wood',new THREE.CylinderGeometry(.11,.13,ph,10),{p:[x,ph/2,z],c:'#d6a566'}); put('wood',new THREE.SphereGeometry(.14,8,6),{p:[x,.1,z],s:[1,.5,1],c:'#a9774a'}); obstacles.push({x,z,r:.35}); colliders.push({x,z,r:.3}); }
     put('wood',rbox(W,.14,.16,.03),{p:[sx,ph,sz-D/2+.12],c:'#c18f5a'}); put('wood',rbox(W,.14,.16,.03),{p:[sx,ph,sz+D/2-.12],c:'#c18f5a'});
@@ -149,31 +149,44 @@ export function buildPen(ctx){
       const ey=ph+.14+.0, ez=sz+s2*rw; put('wood',rbox(W+.56,.07,.07,.02),{p:[sx,ey+.02,ez],c:'#e0b377'});
       for(const e of[-1,1]) put('wood',rbox(.06,.07,rl,.02),{p:[sx+e*(W+.5)/2,cy,cz],r:[s2*ang,0,0],c:'#e0b377'}); }
     put('thatch',new THREE.CylinderGeometry(.12,.12,W+.6,10).rotateZ(Math.PI/2),{p:[sx,ph+.14+rw*slope+.05,sz],c:'#d4a45c'});
-    lantern=new THREE.Mesh(new THREE.SphereGeometry(.13,12,10),new THREE.MeshStandardMaterial({color:'#ffd27a',emissive:'#ffb347',emissiveIntensity:.3,roughness:.5})); lantern.scale.set(1,1.25,1); lantern.position.set(sx,ph-.35,sz); root.add(lantern);
+    const lantern=new THREE.Mesh(new THREE.SphereGeometry(.13,12,10),new THREE.MeshStandardMaterial({color:'#ffd27a',emissive:'#ffb347',emissiveIntensity:.3,roughness:.5})); lantern.scale.set(1,1.25,1); lantern.position.set(sx,ph-.35,sz); root.add(lantern); lanterns.push(lantern);
     put('misc',new THREE.CylinderGeometry(.008,.008,.35,4),{p:[sx,ph-.12,sz],c:'#4a3a2a'});
-    stations.shade={pos:new V3(sx,0,sz),rx:W/2-.5,rz:D/2-.5,sleep:[new V3(sx-1.05,0,sz-.35),new V3(sx,0,sz-.4),new V3(sx+1.05,0,sz-.35),new V3(sx-.6,0,sz+.6),new V3(sx+.55,0,sz+.6),new V3(sx+1.3,0,sz+.55),
-      new V3(sx-1.2,0,sz+2.2),new V3(sx,0,sz+2.4),new V3(sx+1.3,0,sz+2.3),new V3(sx-2.4,0,sz+.2)]};
+    const cols=Math.max(2,Math.floor((W-.6)/1.05)), rows=D>2.6?2:1;
+    for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){ shadeSpots.push(new V3(sx-(cols-1)*.525+c*1.05+(r?.25:0),0,sz+(rows>1?(r?.55:-.38):0))); shadeRoof.push(true); }
+    for(const e of (extra||[])){ shadeSpots.push(new V3(sx+e[0],0,sz+e[1])); shadeRoof.push(false); }
   }
+  shelter(4.6,3.4,3.9,2.9,1.85,[[-1.2,2.2],[0,2.4],[1.3,2.3],[-2.4,.2]]);
+  if(lvl>=1) shelter(X1-2.3,Z1-1.9,3.4,2.7,1.75,[[0,-2.0],[1.2,-2.0]]);
+  if(lvl>=2){ // open straw bedding corner with a bale windbreak
+    const bx=X1-2.4, bz=-3.0; put('straw',new THREE.PlaneGeometry(3.2,2.4).rotateX(-Math.PI/2),{p:[bx,.04,bz],c:'#f6d98a',uv:1.8});
+    for(const dz of[-.9,0,.9]){ put('straw',new THREE.CylinderGeometry(.42,.42,.78,18,1),{p:[bx+1.25,.42,bz+dz],r:[Math.PI/2,0,0],c:'#f2d482',uv:1.2}); }
+    obstacles.push({x:bx+1.25,z:bz,r:.9}); colliders.push({x:bx+1.25,z:bz-.6,r:.5},{x:bx+1.25,z:bz+.6,r:.5});
+    for(const [dx,dz] of [[-.8,-.6],[.15,-.6],[-.8,.6],[.15,.6]]){ shadeSpots.push(new V3(bx+dx,0,bz+dz)); shadeRoof.push(false); } }
+  stations.shade={pos:new V3(4.6,0,3.4),sleep:shadeSpots,roof:shadeRoof};
   // sacks & bucket & lantern props
   { for(const [x,z,s] of[[7,-2.6,1],[7.2,-3.2,.9],[-6.8,-1.0,.8]]){ put('misc',new THREE.SphereGeometry(.3*s,12,10),{p:[x,.3*s,z],s:[1,1.15,.85],c:'#d9c29a'}); put('misc',new THREE.SphereGeometry(.12*s,8,6),{p:[x,.68*s,z],c:'#c4a97a'}); put('misc',new THREE.TorusGeometry(.12*s,.015,5,12).rotateX(Math.PI/2),{p:[x,.6*s,z],c:'#8a5e38'}); colliders.push({x,z,r:.3}); obstacles.push({x,z,r:.45}); }
     put('misc',new THREE.CylinderGeometry(.2,.16,.3,14),{p:[6.9,.15,-4.2],c:'#4aa3c9'}); put('misc',new THREE.TorusGeometry(.19,.015,5,14).rotateX(Math.PI/2),{p:[6.9,.3,-4.2],c:'#8a5e38'}); }
   // tufts of grass + flowers around the fence (decor, instanced)
+  const mx=(X1-8)/2, hx=(X1+8)/2, mz=(Z1-6)/2, hz=(Z1+6)/2;
+  const perim=(side,t,off)=>{ if(side===0) return [mx+t*(hx+.6),-6-off]; if(side===1) return [mx+t*(hx+.6),Z1+off]; if(side===2) return [X1+off,mz+t*(hz+.6)];
+    let z=mz+t*(hz+.6); if(Math.abs(z)<2) z+=3.5*Math.sign(z||1); return [-8-off,z]; };
   const tuftG=(()=>{ const gs=[]; for(let i=0;i<5;i++){ const g=new THREE.ConeGeometry(.045,.32+(i%3)*.08,4); g.translate(0,.16,0); g.rotateZ((i-2)*.22); g.rotateY(i*1.3);
       const n=g.attributes.position.count,a=new Float32Array(n*3); for(let k=0;k<n;k++){ const t=g.attributes.position.getY(k)/.4; a[k*3]=.35+.2*t; a[k*3+1]=.7+.2*t; a[k*3+2]=.25; } g.setAttribute('color',new THREE.BufferAttribute(a,3)); gs.push(g);} return mergeGeometries(gs); })();
   const tN=low?40:110, tufts=new THREE.InstancedMesh(tuftG,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.9}),tN); const dm=new THREE.Object3D();
   for(let i=0;i<tN;i++){ const side=rnd()*4|0, t=(rnd()*2-1), off=.35+rnd()*.7;
-    let x,z; if(side===0){x=t*8.6;z=-6-off;} else if(side===1){x=t*8.6;z=6+off;} else if(side===2){x=8+off;z=t*6.6;} else {x=-8-off;z=t*6.6; if(Math.abs(z)<2) z+=3.5*Math.sign(z||1);}
+    let [x,z]=perim(side,t,off);
     dm.position.set(x,0,z); dm.rotation.y=rnd()*6; dm.scale.setScalar(.8+rnd()*.9); dm.updateMatrix(); tufts.setMatrixAt(i,dm.matrix); }
   root.add(tufts);
   const fl=new THREE.InstancedMesh(new THREE.SphereGeometry(.05,6,5),new THREE.MeshStandardMaterial({roughness:.6}),low?20:50); const fc=['#fff','#ffd166','#ff8fb1','#b9a3ff'];
-  for(let i=0;i<fl.count;i++){ const side=rnd()*4|0,t=(rnd()*2-1),off=.5+rnd()*.9; let x,z; if(side===0){x=t*8.6;z=-6-off;} else if(side===1){x=t*8.6;z=6+off;} else if(side===2){x=8+off;z=t*6.6;} else {x=-8-off;z=t*6.6; if(Math.abs(z)<2) z+=3.5*Math.sign(z||1);}
+  for(let i=0;i<fl.count;i++){ const side=rnd()*4|0,t=(rnd()*2-1),off=.5+rnd()*.9; let [x,z]=perim(side,t,off);
     dm.position.set(x,.3+rnd()*.12,z); dm.rotation.set(0,0,0); dm.scale.setScalar(.9+rnd()*.6); dm.updateMatrix(); fl.setMatrixAt(i,dm.matrix); fl.setColorAt(i,new THREE.Color(fc[i%4])); }
   root.add(fl);
 
   // ------------ ground patch ------------
-  const gtex=penGroundTexture();
-  const ground=new THREE.Mesh(new THREE.PlaneGeometry(PEN.hw*2+2.2,PEN.hd*2+2.2).rotateX(-Math.PI/2),new THREE.MeshStandardMaterial({map:gtex,transparent:true,roughness:1,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
-  ground.position.y=.025; ground.receiveShadow=true; ground.renderOrder=1; root.add(ground);
+  const GW=X1+8+2.2, GH=Z1+6+2.2, gx0=-9.1, gz0=-7.1; const uvOf=(x,z,r)=>[(x-gx0)/GW,(z-gz0)/GH,r];
+  const gtex=penGroundTexture(GW,GH,[uvOf(5.4,-4.0,1.64),uvOf(-5.2,3.9,1.78),uvOf(1.3,5.1,.85)]);
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(GW,GH).rotateX(-Math.PI/2),new THREE.MeshStandardMaterial({map:gtex,transparent:true,roughness:1,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
+  ground.position.set((X1-8)/2,.025,(Z1-6)/2); ground.receiveShadow=true; ground.renderOrder=1; root.add(ground);
   // dirt path from gate outward
   { const pc=document.createElement('canvas'); pc.width=128; pc.height=64; const g=pc.getContext('2d'); g.filter='blur(5px)'; g.fillStyle='#c9ab74'; g.beginPath(); g.roundRect(10,10,108,44,18); g.fill();
     const t=new THREE.CanvasTexture(pc); t.colorSpace=THREE.SRGBColorSpace;
@@ -204,7 +217,7 @@ export function buildPen(ctx){
   }
   // legacy sub-group for troughs (kept empty-safe)
   ctx.scene.add(root);
-  for(const c of colliders) ctx.colliders.push({x:c.x+PEN.cx,z:c.z+PEN.cz,r:c.r});
+  const colRefs=colliders.map(c=>({x:c.x+PEN.cx,z:c.z+PEN.cz,r:c.r})); ctx.colliders.push(...colRefs);
 
   // convert helpers: local -> world positions for stations
   const toWorld=(v)=>v.clone().add(new V3(PEN.cx,0,PEN.cz));
@@ -217,11 +230,14 @@ export function buildPen(ctx){
   const warm=new THREE.PointLight('#ffb35c',0,9,1.6); warm.position.set(PEN.cx+4.6,1.5,PEN.cz+3.4); ctx.scene.add(warm);
   function update(dt,t){
     const h=ctx.hour??8; const night=Math.max(Math.min(1,Math.max(0,(h-17.3)/1.8)),Math.min(1,Math.max(0,(6.8-h)/1.5)));
-    warm.intensity=night*7*(.94+.06*Math.sin(t*7)); lantern.material.emissiveIntensity=.3+night*2.2; mats.foam.emissiveIntensity=.05+night*.5;
+    warm.intensity=night*7*(.94+.06*Math.sin(t*7)); for(const l of lanterns) l.material.emissiveIntensity=.3+night*2.2; mats.foam.emissiveIntensity=.05+night*.5;
     for(const st of stations.feed){ const f=Math.max(0,st.fill); st.mesh.visible=f>0.01; st.mesh.scale.set(1,.06+.34*f,.2+.08*f); st.mesh.position.y=.42+.12*f; }
     const w=stations.water; w.mesh.position.y=.46+.28*Math.max(.05,w.fill)+Math.sin(t*2.2)*.004; w.mesh.material.emissiveIntensity=.2+Math.sin(t*1.7)*.05; w.mesh.visible=w.fill>.01;
     const wf=stations.wash.fill??0; stations.wash.water.position.y=.3+.28*Math.max(.05,wf)+Math.sin(t*1.5)*.006; stations.wash.water.visible=wf>.01;
     if(meshes.tubfoam){ meshes.tubfoam.visible=wf>.06; meshes.tubfoam.position.y=(Math.min(1,wf)-1)*.28; meshes.tubfoam.scale.y=1; }
   }
-  return { root, stations, obstacles:world.obstacles, update, bounds:{x0:PEN.cx-PEN.hw,x1:PEN.cx+PEN.hw,z0:PEN.cz-PEN.hd,z1:PEN.cz+PEN.hd}, gate:new V3(PEN.cx-PEN.hw,0,PEN.cz) };
+  function dispose(){ ctx.scene.remove(root); ctx.scene.remove(warm); warm.dispose?.();
+    for(const c of colRefs){ const i=ctx.colliders.indexOf(c); if(i>=0) ctx.colliders.splice(i,1); }
+    root.traverse(o=>{ o.geometry?.dispose?.(); const ms=Array.isArray(o.material)?o.material:[o.material]; for(const m of ms){ if(!m) continue; m.map?.dispose?.(); m.dispose?.(); } }); }
+  return { root, stations, obstacles:world.obstacles, update, dispose, level:lvl, bounds:{x0:PEN.cx-8,x1:PEN.cx+X1,z0:PEN.cz-6,z1:PEN.cz+Z1}, gate:new V3(PEN.cx-8,0,PEN.cz) };
 }
