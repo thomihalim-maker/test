@@ -398,7 +398,8 @@ function s4(S) {
   for (const yy of [py + .7, py + 2.05]) for (const s2 of [-1, 1]) { const a1 = new THREE.BoxGeometry(3.2, .12, .12); a1.translate(0, yy, s2 * 1.5); posts.push(flat(a1, .95)); const a2 = new THREE.BoxGeometry(.12, .12, 3.2); a2.translate(s2 * 1.5, yy, 0); posts.push(flat(a2, .95)); }
   part(merge(posts), M.wood, 2.0, { amp: .08, fx: 'dust' });
   // a small bedug hanging inside, as at Kudus
-  { const dr = new THREE.CylinderGeometry(.34, .34, .8, 12); dr.rotateZ(Math.PI / 2); dr.translate(0, py + 1.3, 0); part(shade(dr, { lo: .7, y0: py + .96, y1: py + 1.64 }), M.wood, 2.3, { kind: 'pop', dur: .5 }); }
+  { const dr = new THREE.CylinderGeometry(.34, .34, .8, 12); dr.rotateZ(Math.PI / 2); dr.translate(0, py + 1.0, 0); part(shade(dr, { lo: .7, y0: py + .66, y1: py + 1.34 }), M.wood, 2.3, { kind: 'pop', dur: .5 }); }
+  part(new THREE.CylinderGeometry(.16, .13, .3, 8).translate(0, py + 1.85, 0), M.lantern, 2.4, { kind: 'pop', dur: .4, cast: false });
   const r1 = roofGroup(S, { a0: 2.45, a1: 1.3, h: .62 }); r1.position.set(0, py + 2.2, 0); root.add(r1); R.add(r1, { delay: 2.6, dur: .9, kind: 'drop', drop: 3, fx: 'dust', snd: 'pop' });
   const r2 = roofGroup(S, { a0: 1.55, a1: .06, h: 1.45 }); r2.position.set(0, py + 2.75, 0); root.add(r2); R.add(r2, { delay: 3.0, dur: .9, kind: 'drop', drop: 3, amp: .13, fx: 'dust', snd: 'pop' });
   const kn = knob(S, 1); kn.position.set(0, py + 4.15, 0); root.add(kn);
