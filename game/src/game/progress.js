@@ -93,6 +93,8 @@ export async function init(ctx){
   const spend = n => ui()?.spend ? ui().spend(n) : (S.coins>=n ? (S.coins-=n, ctx.emit('coins:change',{coins:S.coins}), true) : false);
   const playerPos = () => ctx.modules.characters?.pos || ctx.cameraRig?.target || { x:0, y:0, z:0 };
 
+  // restore the saved clock unless the URL pins an hour (world reads ?hour itself)
+  if(!Q.has('hour') && Number.isFinite(S.hour)) ctx.hour = S.hour;
   let prevHour = ctx.hour ?? 8, acc = 0, dirty = false, crowdT = 20, crowdN = 0, crowdDay = -1;
   const notified = new Set();
   // ---------- levels ----------
@@ -136,7 +138,7 @@ export async function init(ctx){
     if(E.special){ const gs=GUEST.filter(g=>g.can(c)); if(gs.length){ const g=gs[Math.floor(R()*gs.length)], n=g.goal(c); list.push({ id:'guest', guest:GUEST.indexOf(g), goal:n, coins:40+n*5, pahala:15, special:true }); } }
     S.quests = { day:S.day, list, claimed:{} };
     S.daily = freshDaily(); S.pettedToday = []; notified.clear();
-    rainSet();
+    rainSet(); ctx.emit('event:day',{ id:ev, day:S.day, ...E });
   }
   const defOf = q => q.id==='guest' ? GUEST[q.guest] || GUEST[0] : QUESTS.find(d=>d.id===q.id);
   function quests(){
@@ -221,9 +223,9 @@ export async function init(ctx){
   function rainSet(){ try{ ctx.modules.fx?.setRain?.(S.event?.id==='hujan'); }catch(e){} }
 
   // ---------- day end ----------
-  let lastDayT = -99, pendingEid = false;
+  let lastDayT = -1e9, pendingEid = false;
   function endDay(){
-    if(ctx.time-lastDayT<1.5) return; lastDayT=ctx.time;
+    const now=performance.now(); if(now-lastDayT<1500) return; lastDayT=now;
     const finished = S.day, D = { ...S.daily }, ev = S.event?.id;
     // auto-claim finished quests so nothing is lost
     let autoCoins=0, autoPah=0; for(const q of quests()) if(q.done&&!q.claimed){ S.quests.claimed[q.id]=true; autoCoins+=q.coins; autoPah+=q.pahala; }
@@ -269,14 +271,14 @@ export async function init(ctx){
   }
 
   // ---------- init ----------
-  if(!Array.isArray(S.quests?.list) || S.quests.day!==S.day) rollDay(); else rainSet();
+  if(!Array.isArray(S.quests?.list) || !S.quests.list.length || S.quests.day!==S.day) rollDay(); else rainSet();
   if(S.daysToEid<=0 && S.eidDone) newYear();            // celebrated but the new year never started (reload)
   pendingEid = S.daysToEid<=0 && !S.eidDone;
   if(!S.berkahSeen) S.berkahSeen = level();
   if(S.outfit && S.outfit!=='klasik') { const o=OUTFITS.find(x=>x.id===S.outfit); if(o&&level()>=o.lv) S.look={ ...(S.look||{}), ...o.look }; }
   if(Q.get('decor')==='all'){ S.decor.placed = SLOTS.map((s,i)=>({ slot:s[0], kind:DECOR_KINDS[i%DECOR_KINDS.length].id })); decor.sync(S.decor.placed); }
   if(Q.has('slots')) decor.showSlots(freeSlots());
-  setTimeout(()=>{ checkQuests(); checkStickers(); },1500);
+  setTimeout(()=>{ checkQuests(); checkStickers(); ctx.emit('event:day',{ id:S.event.id, day:S.day, ...EVENTS[S.event.id] }); },1500);
 
   return {
     LEVELS, OUTFITS, EVENTS, STICKERS, QUESTS, DECOR_KINDS, WEEKDAYS,

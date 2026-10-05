@@ -18,11 +18,12 @@ export function createBlobs(ctx, cap=900){
   return api;
 }
 
-export function createLamps(ctx, blobs){
+export function createLamps(ctx, blobs, extra=[]){
   const group=new THREE.Group(); group.name='lamps';
   const spots=[];
-  for(const z of [16,26,36,46]) for(const sd of [-1,1]) spots.push([roadX(z)+sd*3.0,z]);
-  spots.push([11,3.6],[16,8.6],[POND.x+7,POND.z-5],[POND.x-6,POND.z+7],[-12,-16],[14,-17]);
+  // street lamps stay outside r~16 of the plaza (the masjid has its own lanterns)
+  for(const z of [21,31,41,51]) for(const sd of [-1,1]) spots.push([roadX(z)+sd*3.0,z]);
+  spots.push([17,9.2],[POND.x+7,POND.z-5],[POND.x-6,POND.z+7],...extra);
   const post=new THREE.CylinderGeometry(0.1,0.14,2.4,8); post.translate(0,1.2,0);
   const cap=new THREE.ConeGeometry(0.34,0.26,6); cap.translate(0,2.86,0);
   const lamp=new THREE.BoxGeometry(0.32,0.42,0.32); lamp.translate(0,2.55,0);
@@ -46,11 +47,11 @@ export function createLamps(ctx, blobs){
   const pg=new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2);
   const pools=new THREE.InstancedMesh(pg,pm,spots.length); const d=new THREE.Object3D();
   spots.forEach(([x,z],i)=>{ d.position.set(x,heightAt(x,z)+0.07,z); d.scale.set(7,1,7); d.updateMatrix(); pools.setMatrixAt(i,d.matrix); }); pools.frustumCulled=false; group.add(pools);
-  const pls=(ctx.quality==='low'?[]:[0,1]).map(()=>{const l=new THREE.PointLight(0xffb060,0,16,1.6); group.add(l); return l;});
+  const pls=(ctx.quality==='low'?[]:[0,1]).map(()=>{const l=new THREE.PointLight(0xffb060,0,13,2); group.add(l); return l;});
   function update(t,night,focus){
-    if(focus){ const s=spots.map(([x,z])=>[Math.hypot(x-focus.x,z-focus.z),x,z]).sort((a,b)=>a[0]-b[0]); pls.forEach((l,i)=>{ l.position.set(s[i][1],heightAt(s[i][1],s[i][2])+2.4,s[i][2]); l.intensity=Math.max(0,night)*22; }); }
+    if(focus){ const s=spots.map(([x,z])=>[Math.hypot(x-focus.x,z-focus.z),x,z]).sort((a,b)=>a[0]-b[0]); pls.forEach((l,i)=>{ l.position.set(s[i][1],heightAt(s[i][1],s[i][2])+2.4,s[i][2]); l.intensity=Math.max(0,night)*12; }); }
     const on=Math.max(0,night); const flick=1+0.04*Math.sin(t*7)+0.02*Math.sin(t*13.3);
-    sm.opacity=on*0.75*flick; pm.opacity=on*0.9; bulbM.color.setRGB(0.5+0.5*(1-on)*0.8+on*1.4,0.4+0.5*(1-on)*0.5+on*1.0,0.25+on*0.45);
+    sm.opacity=on*0.75*flick; pm.opacity=on*0.65; bulbM.color.setRGB(0.5+0.5*(1-on)*0.8+on*1.4,0.4+0.5*(1-on)*0.5+on*1.0,0.25+on*0.45);
   }
   return { group, update, spots };
 }

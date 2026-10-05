@@ -39,12 +39,14 @@ export function heightAt(x,z){
 
 // ---------- colors ----------
 const C=(hex)=>new THREE.Color(hex);
-const gA=C('#79cf3a'), gB=C('#4fb43a'), gC=C('#b0de48'), gD=C('#35a04c'), gE=C('#6bc23c');
+const gA=C('#7cc444'), gB=C('#55a840'), gC=C('#aed15a'), gD=C('#3a9552'), gE=C('#6db848'), gBlue=C('#3d9a66'), gYel=C('#a8c456');
+const dWorn=C('#9a7450'), dDamp=C('#6f5638'), dA=C('#a97a4c'), dB=C('#e0c48c'), dC=C('#8f7a50'), _dc=new THREE.Color();
 const dirtPath=C('#c4905a'), dirtPlaza=C('#c9a875'), dirtPen=C('#bf9254'), straw=C('#d9bd6a');
 const sandC=C('#f3dfa4'), sandWet=C('#cdb581'), mud=C('#7d6a45'), bed=C('#4aa5a0'), bedDeep=C('#2b6f8f');
 const earth=C('#8d6a3f'), rice1=C('#b9d34c'), rice2=C('#86cf4a'), rock=C('#9a9486');
 
 // terrain surface shading at a point -> writes color into out, returns [grass,dirt,sand] weights
+const segD=(px,pz,ax,az,bx,bz)=>{ const dx=bx-ax,dz=bz-az; const t=clamp(((px-ax)*dx+(pz-az)*dz)/(dx*dx+dz*dz),0,1); return Math.hypot(px-ax-dx*t,pz-az-dz*t); };
 export function shadeAt(x,z,h,ny,out){
   const r=Math.hypot(x,z), tmp=out;
     const n1=fbm(x*0.045,z*0.045,3), n2=fbm(x*0.15+9,z*0.15,3), n3=vnoise(x*0.7,z*0.7)-0.5, n4=fbm(x*0.4-5,z*0.4+2,2);
@@ -52,6 +54,7 @@ export function shadeAt(x,z,h,ny,out){
     tmp.copy(gB).lerp(gA,S(-0.35,0.35,n1));
     tmp.lerp(gC,S(0.05,0.7,n2)*0.55); tmp.lerp(gD,S(0.25,0.8,-n2)*0.55);
     tmp.lerp(gE,S(0.3,0.9,n4)*0.3);
+    const n5=fbm(x*0.022+30,z*0.022-12,2); tmp.lerp(gBlue,S(0.05,0.55,n5)*0.5); tmp.lerp(gYel,S(0.05,0.55,-n5)*0.42);
     tmp.lerp(gC,S(1.5,7,h)*0.45);
     tmp.multiplyScalar(0.94+n3*0.16);
     // rice paddies on terraces
@@ -65,12 +68,18 @@ export function shadeAt(x,z,h,ny,out){
     const wPath=1-S(-0.6,1.4,dpa), wRoad=(1-S(-0.6,1.4,dro))*(1-S(55,62,z)), wPlaza=(1-S(-1.2,1.6,dpl+n4*1.2))*0.95, wPen=1-S(-0.5,0.8,dpe);
     dirt=Math.max(wPath,wRoad,wPlaza,wPen);
     if(dirt>0){
-      dc=tmp.clone().copy(dirtPath);
+      dc=_dc.copy(dirtPath);
       if(wPlaza>=dirt-1e-3 && wPlaza>wPath) dc.copy(dirtPlaza).lerp(dirtPath,S(0.3,0.9,n1+0.3)*0.5);
       if(wPen>wPlaza&&wPen>=wPath) { dc.copy(dirtPen).lerp(straw,S(-0.1,0.5,n2)*0.7); }
-      dc.lerp(C('#a97a4c'),S(0.0,0.6,n1)*0.5).lerp(C('#e0c48c'),S(0.1,0.7,n4)*0.4).lerp(C('#8f7a50'),S(0.3,0.8,-n2)*0.3); dc.multiplyScalar(0.88+n3*0.3);
-      // grass-tuft fringe on dirt edges
+      dc.lerp(dA,S(0.0,0.6,n1)*0.5).lerp(dB,S(0.1,0.7,n4)*0.4).lerp(dC,S(0.3,0.8,-n2)*0.3); dc.multiplyScalar(0.88+n3*0.3);
+      // worn walking lines (road entry -> masjid front, path -> plaza)
+      const wd=Math.min(segD(x,z,roadX(14),14,0,8.5),segD(x,z,8.5,6,3.5,4.5),segD(x,z,0,8.5,-6,11))+n3*0.7;
+      const worn=(1-S(0.25,1.3,wd))*Math.max(wPlaza,wPath,wRoad);
+      dc.lerp(dWorn,worn*0.45);
       tmp.lerp(dc,dirt);
+      // damp darker band where dirt meets grass
+      const damp=S(0.18,0.5,dirt)*(1-S(0.62,0.95,dirt))*(wPen>0.5?0.3:1);
+      tmp.lerp(dDamp,damp*0.28);
     }
     // sand/shore/seabed
     const dp=Math.hypot(x-POND.x,z-POND.z);
@@ -116,7 +125,7 @@ export function buildTerrain(ctx, { quality='high' }={}){
       .replace('#include <map_fragment>',`
       vec2 rw=mat2(0.8,0.6,-0.6,0.8)*vWP;
       float dg=texture2D(tG,vWP/5.5).r*(0.55+0.55*texture2D(tG,rw/19.0).r);
-      float dd=texture2D(tD,vWP/3.2).r;
+      float dd=texture2D(tD,vWP/3.2).r*(0.62+0.5*texture2D(tD,(mat2(0.6,-0.8,0.8,0.6)*vWP)/1.15).r);
       float ds=texture2D(tS,vWP/4.5).r;
       float det=(dg*vSplat.x+dd*vSplat.y+ds*vSplat.z)*1.55; det=mix(1.0,det,1.0)*(0.8+0.5*texture2D(tD,vWP/37.0).r);
       diffuseColor.rgb*=det;`);
@@ -133,7 +142,7 @@ export function buildTerrain(ctx, { quality='high' }={}){
     const k=j*NV+i, x=-HALF+i*MS, z=-HALF+j*MS, h=heightAt(x,z), r=Math.hypot(x,z);
     const e=0.6, dx=heightAt(x+e,z)-h, dz=heightAt(x,z+e)-h, ny=1/Math.hypot(dx/e,dz/e,1);
     const sp=shadeAt(x,z,h,ny,tmp);
-    let w=sp[0]*S(0.82,0.92,ny)*S(-0.2,0.25,h);
+    let w=Math.pow(sp[0],0.6)*(0.75+0.5*vnoise(x*0.9,z*0.9))*S(0.82,0.92,ny)*S(-0.2,0.25,h);
     if(r>40) w*=S(0.3,0.8,h);
     w*=S(0.0,0.6,clearance(x,z)+1.2);
     mcol[k*3]=tmp.r; mcol[k*3+1]=tmp.g; mcol[k*3+2]=tmp.b;
@@ -150,7 +159,20 @@ export function buildTerrain(ctx, { quality='high' }={}){
   const NP=N+1;
   function applyAO(list){
     const ca=geo.attributes.color;
+    let maskDirty=false;
     for(const o of list){
+      if(o.c){ // colour tint (e.g. fallen blossom carpet) + thin the grass field there
+        const R=o.r;
+        const i0=Math.max(0,Math.floor((unwarp(o.x-R)+1)/2*N)), i1=Math.min(N,Math.ceil((unwarp(o.x+R)+1)/2*N));
+        const j0=Math.max(0,Math.floor((unwarp(o.z-R)+1)/2*N)), j1=Math.min(N,Math.ceil((unwarp(o.z+R)+1)/2*N));
+        for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++){ const k=j*NP+i, px=pos.getX(k), pz=pos.getZ(k), d=Math.hypot(px-o.x,pz-o.z); if(d>R) continue;
+          const f=o.k*(1-S(R*0.35,R,d))*(0.55+0.45*vnoise(px*1.3,pz*1.3));
+          col[k*3]+=(o.c.r-col[k*3])*f; col[k*3+1]+=(o.c.g-col[k*3+1])*f; col[k*3+2]+=(o.c.b-col[k*3+2])*f; }
+        for(let j=Math.max(0,Math.floor((o.z-R+HALF)/MS));j<=Math.min(NV-1,Math.ceil((o.z+R+HALF)/MS));j++)
+          for(let i=Math.max(0,Math.floor((o.x-R+HALF)/MS));i<=Math.min(NV-1,Math.ceil((o.x+R+HALF)/MS));i++){
+            const d=Math.hypot(-HALF+i*MS-o.x,-HALF+j*MS-o.z); if(d>R) continue; const k=j*NV+i; gm[k*4+3]=Math.round(gm[k*4+3]*(0.45+0.55*S(R*0.5,R,d))); maskDirty=true; }
+        continue;
+      }
       const R=o.r*1.6;
       const i0=Math.max(0,Math.floor((unwarp(o.x-R)+1)/2*N)), i1=Math.min(N,Math.ceil((unwarp(o.x+R)+1)/2*N));
       const j0=Math.max(0,Math.floor((unwarp(o.z-R)+1)/2*N)), j1=Math.min(N,Math.ceil((unwarp(o.z+R)+1)/2*N));
@@ -160,7 +182,7 @@ export function buildTerrain(ctx, { quality='high' }={}){
         col[k*3]*=f*0.97; col[k*3+1]*=f; col[k*3+2]*=Math.min(1,f*1.05);
       }
     }
-    ca.needsUpdate=true;
+    ca.needsUpdate=true; if(maskDirty) grassMask.needsUpdate=true;
   }
   return { mesh, heightTex:ht, colorAt, grassMask, heightHF, applyAO, NV, MS };
 }

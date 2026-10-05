@@ -1,12 +1,12 @@
 // Shared wind uniform + onBeforeCompile patch (world-space coherent sway for instanced foliage)
 import * as THREE from 'three';
-export const windU = { uTime: { value: 0 } };
+export const windU = { uTime: { value: 0 }, uRim: { value: new THREE.Color(0, 0, 0) } };
 export const NFIX = THREE.ShaderChunk.normal_fragment_begin.replace('gl_FrontFacing ? 1.0 : - 1.0', '1.0');
-export function patchWind(mat, { amp = 0.2, height = 1, speed = 1, flutter = 0, wind = true } = {}) {
+export function patchWind(mat, { amp = 0.2, height = 1, speed = 1, flutter = 0, wind = true, rim = 0 } = {}) {
   mat.side = THREE.DoubleSide;
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uTime = windU.uTime; sh.uniforms.uAmp = { value: amp }; sh.uniforms.uH = { value: height };
-    sh.uniforms.uSpd = { value: speed }; sh.uniforms.uFl = { value: flutter };
+    sh.uniforms.uSpd = { value: speed }; sh.uniforms.uFl = { value: flutter }; sh.uniforms.uRim = windU.uRim; sh.uniforms.uRimK = { value: rim };
     if (wind) sh.vertexShader = 'uniform float uTime,uAmp,uH,uSpd,uFl;\n' + sh.vertexShader.replace('#include <begin_vertex>', `
       vec3 transformed=vec3(position);
       #ifdef USE_INSTANCING
@@ -21,7 +21,8 @@ export function patchWind(mat, { amp = 0.2, height = 1, speed = 1, flutter = 0, 
       wo.y-=abs(gu)*uAmp*ww*0.25;
       wo.y+=sin(uTime*3.1*uSpd+ph*3.0+position.x*1.7+position.z*1.3)*uFl*length(position.xz)*ww;
       transformed+=transpose(wim)*wo/wis2;`);
-    sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', NFIX);
+    sh.fragmentShader = 'uniform vec3 uRim; uniform float uRimK;\n' + sh.fragmentShader.replace('#include <normal_fragment_begin>', NFIX)
+      .replace('#include <opaque_fragment>', 'outgoingLight += uRim * uRimK * pow(1.0 - clamp(abs(dot(normalize(vViewPosition), normal)), 0.0, 1.0), 2.5) * (0.4 + diffuseColor.rgb);\n#include <opaque_fragment>');
   };
   mat.customProgramCacheKey = () => 'wind';
   return mat;

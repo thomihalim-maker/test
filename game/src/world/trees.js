@@ -34,7 +34,7 @@ export function grassTuft({ n=5, height=1, width=0.09, spread=0.16, seed=1, base
   return b.geo();
 }
 // cheap tuft: n single-triangle blades (n tris)
-export function grassTri({ n=5, height=0.6, width=0.12, spread=0.18, seed=1, base=[0.5,0.62,0.45], tip=[1.3,1.42,0.85] }={}){
+export function grassTri({ n=5, height=0.6, width=0.12, spread=0.18, seed=1, base=[0.34,0.44,0.38], tip=[1.16,1.24,1.0] }={}){
   const b=new B(), r=mulberry32(seed);
   for(let k=0;k<n;k++){
     const a=r()*Math.PI*2, d=r()*spread, ox=Math.cos(a)*d, oz=Math.sin(a)*d;
@@ -72,7 +72,10 @@ export function flowerGeo(){
 }
 
 // ---------- blob (displaced sphere with spherical normals) ----------
-function blob(b, c, rx,ry,rz, color, {wd=9,hd=6,disp=0.18,seed=1,upBias=0.35,aoFn=null}={}){
+// geometry detail multiplier (set from quality tier before building)
+let DET=1; export function setDetail(d){ DET=d; }
+function blob(b, c, rx,ry,rz, color, {wd=9,hd=6,disp=0.18,seed=1,upBias=0.35,aoFn=null,center=null,cw=0}={}){
+  wd=Math.max(4,Math.round(wd*DET)); hd=Math.max(2,Math.round(hd*DET));
   const r=mulberry32(seed), phase=[r()*9,r()*9,r()*9];
   const rows=[];
   for(let j=0;j<=hd;j++){ const phi=j/hd*Math.PI; const row=[];
@@ -81,12 +84,14 @@ function blob(b, c, rx,ry,rz, color, {wd=9,hd=6,disp=0.18,seed=1,upBias=0.35,aoF
       const d=1+disp*(Math.sin(x*3+phase[0])*Math.cos(y*3+phase[1])+Math.sin(z*4+phase[2])*0.5);
       const p=[c[0]+x*rx*d,c[1]+y*ry*d,c[2]+z*rz*d]; const nn=nrm(x/rx*0.8+0*x,y*1+upBias,z/rz*0.8); 
       let col=typeof color==='function'?color(x,y,z,p):color; if(aoFn) col=mul(col,aoFn(p,[x,y,z]));
-      row.push(b.v(p,nrm(x,y+upBias,z),col)); } rows.push(row); }
+      let nx=x, ny=y, nz=z;
+      if(center){ const q=nrm(p[0]-center[0],p[1]-center[1],p[2]-center[2]); nx+=(q[0]-nx)*cw; ny+=(q[1]-ny)*cw; nz+=(q[2]-nz)*cw; }
+      row.push(b.v(p,nrm(nx,ny+upBias,nz),col)); } rows.push(row); }
   for(let j=0;j<hd;j++)for(let i=0;i<wd;i++){ const i2=(i+1)%wd; b.q(rows[j][i],rows[j+1][i],rows[j+1][i2],rows[j][i2]); }
 }
 export function bushGeo({variant='round',seed=3}={}){
   const b=new B(), r=mulberry32(seed);
-  const pal={round:['#2a7f3a','#86d04a'],tall:['#1f6f40','#6cc25a'],flat:['#357f2c','#a4d846'],flower:['#2b7a3c','#7fca4e']}[variant];
+  const pal={round:['#2a7340','#86c45a'],tall:['#1f6646','#6cb868'],flat:['#36752f','#a2cc56'],flower:['#2b7040','#80c25c']}[variant];
   const lo=hx(pal[0]), hi=hx(pal[1]);
   const lobes=variant==='tall'?[[0,0.55,0,0.62,0.95],[0.25,1.15,0.1,0.48,0.7],[-0.3,0.45,0.15,0.48,0.75]]
     :variant==='flat'?[[0,0.3,0,0.95,0.45],[0.75,0.25,0.2,0.6,0.38],[-0.7,0.26,-0.15,0.65,0.4],[0.1,0.28,0.7,0.55,0.36]]
@@ -95,7 +100,7 @@ export function bushGeo({variant='round',seed=3}={}){
   const pts=[];
   lobes.forEach(([x,y,z,s,sy],k)=>{
     blob(b,[x,y,z],s,sy,s,(nx,ny,nz,p)=>{ const t=clamp(p[1]/top,0,1); return mix(lo,hi,t*t*(3-2*t)); },
-      {seed:seed*7+k,disp:0.16,wd:8,hd:5,upBias:0.4,aoFn:(p)=>0.6+0.4*clamp(p[1]/(top*0.7),0,1)});
+      {seed:seed*7+k,disp:0.14,wd:9,hd:6,upBias:0.3,center:[0,top*0.4,0],cw:0.7,aoFn:(p)=>0.55+0.45*clamp(p[1]/(top*0.75),0,1)});
     if(variant==='flower') for(let i=0;i<4;i++){ const th=r()*6.283, ph=r()*1.1; pts.push([x+Math.sin(ph)*Math.cos(th)*s,y+Math.cos(ph)*sy,z+Math.sin(ph)*Math.sin(th)*s]); }
   });
   const fc=[hx('#ff7ca8'),hx('#fff4f0'),hx('#ffd23f'),hx('#ff6a5a')][seed%4];
@@ -104,21 +109,41 @@ export function bushGeo({variant='round',seed=3}={}){
 }
 export function broadleafGeo(variant=0,seed=1){
   const b=new B(), r=mulberry32(seed);
+  if(variant===2) return flamboyanGeo(seed);
   const H=variant===1?3.0:2.4;
   const pts=[],rad=[]; for(let i=0;i<=5;i++){ const t=i/5; pts.push([0.25*Math.sin(t*2.5),H*t,0.1*t]); rad.push(0.36-0.14*t); }
   tube(b,pts,rad,8,(t,k)=>mul(mix(hx('#6a4a32'),hx('#9a7350'),0.5+0.5*Math.sin(k*2.1)),0.75+0.35*t),{flare:0.7});
   const cy=H+(variant===1?1.9:1.5);
   const lobes=variant===1?[[0,cy,0,1.7,2.3],[0.3,cy+1.5,0.1,1.25,1.3],[-0.9,cy-0.4,0.4,1.1,1.1],[0.9,cy-0.3,-0.3,1.1,1.1]]
     :[[0,cy,0,2.3,1.85],[1.3,cy-0.3,0.5,1.25,1.1],[-1.25,cy-0.25,-0.4,1.3,1.1],[0.2,cy+0.9,-0.9,1.15,1.0],[-0.4,cy+0.8,1.0,1.1,0.95]];
-  const pal=variant===2?['#2a7a36','#8fd24c']:variant===1?['#2b7f45','#9ee05a']:['#2f8a38','#a8e24c'];
+  const pal=variant===1?['#24704a','#94d062']:['#2c7a3e','#a2d058'];
   const lo=hx(pal[0]), hi=hx(pal[1]), mid=mix(lo,hi,0.5);
   const bot=cy-2.0, top=cy+2.0;
   lobes.forEach(([x,y,z,s,sy],k)=>blob(b,[x,y,z],s,sy,s,(nx,ny,nz,p)=>{ const t=clamp((p[1]-bot)/(top-bot),0,1); const tt=t*t*(3-2*t); return mix(mix(lo,mid,clamp(tt*2,0,1)),hi,clamp(tt*2-1,0,1)); },
-    {seed:seed*5+k,disp:0.12,wd:11,hd:7,upBias:0.55,aoFn:(p)=>{ const dc=Math.hypot(p[0],p[2]); return 0.7+0.3*clamp(dc/2.2+(p[1]-cy)*0.25,0,1); }}));
-  if(variant===2){ // flamboyan blossoms: red-orange clusters on upper canopy
-    for(let i=0;i<24;i++){ const [x,y,z,s,sy]=lobes[(r()*lobes.length)|0]; const th=r()*6.283, ph=r()*1.2;
-      blob(b,[x+Math.sin(ph)*Math.cos(th)*s*1.02,y+Math.cos(ph)*sy*1.02,z+Math.sin(ph)*Math.sin(th)*s*1.02],0.34,0.2,0.34,mix(hx('#ff4a2a'),hx('#ff9a3a'),r()),{wd:5,hd:3,disp:0.1,seed:i,upBias:0.5}); }
-  }
+    {seed:seed*5+k,disp:0.1,wd:12,hd:8,upBias:0.25,center:[0,cy+0.2,0],cw:0.7,aoFn:(p)=>{ const dc=Math.hypot(p[0],p[2]); return 0.62+0.38*clamp(dc/2.2+(p[1]-cy)*0.3,0,1); }}));
+  return b.geo();
+}
+// flamboyan (Delonix regia): short trunk, spreading branches, wide flat umbrella canopy packed with red-orange blossom
+function flamboyanGeo(seed=1){
+  const b=new B(), r=mulberry32(seed);
+  const H=2.3;
+  const pts=[],rad=[]; for(let i=0;i<=4;i++){ const t=i/4; pts.push([0.15*Math.sin(t*2),H*t,0]); rad.push(0.34-0.1*t); }
+  const bark=(t,k)=>mul(mix(hx('#6a5038'),hx('#9a8062'),0.5+0.5*Math.sin(k*2.3)),0.8+0.3*t);
+  tube(b,pts,rad,8,bark,{flare:0.8});
+  const cy=3.7, NB=6;
+  for(let i=0;i<NB;i++){ const a=i/NB*6.283+r()*0.4, R=2.0+r()*0.7;
+    tube(b,[[pts[4][0],H-0.1,0],[Math.cos(a)*R*0.45,H+0.7,Math.sin(a)*R*0.45],[Math.cos(a)*R,cy-0.35,Math.sin(a)*R]],[0.17,0.11,0.07],5,bark); }
+  const lobes=[[0,cy+0.25,0,2.0,0.75]];
+  for(let i=0;i<7;i++){ const a=i/7*6.283+r()*0.3, R=2.2+r()*0.5; lobes.push([Math.cos(a)*R,cy+(r()-0.5)*0.3,Math.sin(a)*R,1.25+r()*0.35,0.55+r()*0.15]); }
+  const lo=hx('#2c6a36'), gm=hx('#5fa046'), red=hx('#e8462a'), org=hx('#ff8a34');
+  lobes.forEach(([x,y,z,s,sy],k)=>blob(b,[x,y,z],s,sy,s,(nx,ny,nz,p)=>{
+      const t=clamp((ny+1)/2,0,1); const leaf=mix(lo,gm,clamp(t*1.4,0,1));
+      const bl=clamp((t-0.42)*3.2,0,1)*(0.75+0.25*Math.sin(p[0]*3.1+p[2]*2.3)); return mix(leaf,mix(red,org,0.5+0.5*Math.sin(p[0]*1.7-p[2]*2.9)),bl); },
+    {seed:seed*9+k,disp:0.16,wd:12,hd:6,upBias:0.25,center:[0,cy-0.3,0],cw:0.6,aoFn:(p)=>0.65+0.35*clamp((p[1]-cy+0.6)/1.2,0,1)}));
+  // blossom clusters on the upper surface
+  const n=Math.round(46*DET);
+  for(let i=0;i<n;i++){ const [x,y,z,s,sy]=lobes[(r()*lobes.length)|0]; const th=r()*6.283, ph=r()*1.0;
+    blob(b,[x+Math.sin(ph)*Math.cos(th)*s*0.98,y+Math.cos(ph)*sy*0.98,z+Math.sin(ph)*Math.sin(th)*s*0.98],0.3,0.14,0.3,mix(red,org,r()),{wd:5,hd:2,disp:0.12,seed:i,upBias:0.6}); }
   return b.geo();
 }
 export function cloverGeo(){
@@ -225,11 +250,11 @@ export function mangoGeo(seed=1){
   for(let i=0;i<9;i++){ const a=i/9*6.283+r()*0.5, d=i?R*(0.6+0.4*r()):0; blobs.push([Math.cos(a)*d,cy+(i?(r()-0.3)*0.9:0.5),Math.sin(a)*d, 1.05+r()*0.7]); }
   // branches
   for(const bl of blobs.slice(1,6)) tube(b,[[0,2.1,0],[bl[0]*0.5,2.9,bl[2]*0.5],[bl[0]*0.85,bl[1]-0.4,bl[2]*0.85]],[0.12,0.09,0.06],4,()=>hx('#6a4a30'));
-  const lo=hx('#2a8a3c'), mid=hx('#52b83e'), hi=hx('#a8e24f');
+  const lo=hx('#2a7a40'), mid=hx('#52a648'), hi=hx('#a6d25c');
   blobs.forEach((bl,i)=>{
     const tint=r(); const hiC=mix(hi,hx('#c4e255'),tint*0.5);
     blob(b,[bl[0],bl[1],bl[2]],bl[3],bl[3]*0.82,bl[3],(x,y,z,p)=>{ const t=clamp((p[1]-2.8)/3.0,0,1); return mix(mix(lo,mid,clamp(t*1.6,0,1)),hiC,clamp((t-0.35)*1.6,0,1)); },
-      {seed:seed*11+i,disp:0.22,wd:8,hd:6,upBias:0.45,aoFn:(p,n)=>{ const dc=Math.hypot(p[0],p[2]); return 0.78+0.3*clamp(dc/(R*1.4)+ (p[1]-3.0)*0.12,0,1); }});
+      {seed:seed*11+i,disp:0.18,wd:9,hd:6,upBias:0.25,center:[0,cy,0],cw:0.65,aoFn:(p,n)=>{ const dc=Math.hypot(p[0],p[2]); return 0.78+0.3*clamp(dc/(R*1.4)+ (p[1]-3.0)*0.12,0,1); }});
   });
   for(let i=0;i<7;i++){ const a=r()*6.283,d=R*(0.7+0.5*r()); blob(b,[Math.cos(a)*d*0.9,cy-0.5-r()*0.6,Math.sin(a)*d*0.9],0.12,0.17,0.12,mix(hx('#ffb03a'),hx('#ff8a3a'),r()),{wd:6,hd:4,disp:0.03,seed:i}); }
   return b.geo();

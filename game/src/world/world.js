@@ -11,7 +11,8 @@ import { createDecor } from './decor.js';
 import { createGrassField } from './grassfield.js';
 import { createParticles } from './particles.js';
 import { createCameraRig } from './camera.js';
-import { windU } from './wind.js';
+import { windU, patchWind } from './wind.js';
+import { palmGeo } from './trees.js';
 import { mulberry32, fbm } from './noise.js';
 
 export async function init(ctx){
@@ -38,28 +39,46 @@ export async function init(ctx){
   const blobs = createBlobs(ctx); scene.add(blobs.mesh);
   const water = createWater(ctx, terrain.heightTex); scene.add(water.mesh);
   const veg = createVegetation(ctx, terrain, blobs); scene.add(veg.group);
-  const lamps = createLamps(ctx, blobs); scene.add(lamps.group);
   const grassField = createGrassField(ctx, terrain, LOW ? { count: 3600, radius: 11 } : { count: 7000, radius: 15 }); scene.add(grassField.mesh);
   const decor = createDecor(ctx, blobs); scene.add(decor.group);
-  const parts = createParticles(ctx); scene.add(parts.group);
+  const lamps = createLamps(ctx, blobs, decor.lampSpots); scene.add(lamps.group);
+  const parts = createParticles(ctx, veg.broad[2].map(t=>({x:t.x,z:t.z,s:t.s}))); scene.add(parts.group);
 
-  // distant islands / headlands for depth (fog-faded)
+  // distant islands: smooth radial-grid hills, beach rim, low-contrast blue-green, palm silhouettes (fog-faded)
   {
-    const r = mulberry32(5), g = [];
+    const r = mulberry32(5), g = [], palmsI = [];
     const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
-    for (let i = 0; i < 7; i++) {
-      const a = i / 7 * Math.PI * 2 + r() * 0.6, d = 135 + r() * 55, s = 14 + r() * 22;
-      const geo = new THREE.SphereGeometry(1, 14, 9); const p = geo.attributes.position; const cols = [];
-      for (let k = 0; k < p.count; k++) {
-        let y = p.getY(k); const x = p.getX(k), z = p.getZ(k);
-        const n = fbm(x * 2 + i * 7, z * 2, 3);
-        p.setXYZ(k, x * (1 + n * 0.25), y < 0 ? y * 0.1 : y * (0.8 + n * 0.5 + 0.35 * Math.sin(x * 5 + i) * Math.cos(z * 4)), z * (1 + n * 0.25));
-        const t = Math.max(0, y); const c = new THREE.Color('#3f8f4a').lerp(new THREE.Color('#8fcf55'), t); cols.push(c.r, c.g, c.b);
+    const RINGS = 12, SEG = 36, beach = new THREE.Color('#d9cfa6'), lo = new THREE.Color('#5b8d7a'), hi = new THREE.Color('#8fb08c'), wet = new THREE.Color('#9fb8a8');
+    for (let i = 0; i < 6; i++) {
+      const a = i / 6 * Math.PI * 2 + 0.4 + r() * 0.5, d = 140 + r() * 50, R = 22 + r() * 26, peak = 10 + r() * 16, sq = 0.55 + r() * 0.35, rot = r() * 6.28;
+      const cx = Math.cos(a) * d, cz = Math.sin(a) * d, bumps = [0, 1, 2].map(() => [r() * 0.6 - 0.3, r() * 0.6 - 0.3, 0.25 + r() * 0.3, 0.4 + r() * 0.6]);
+      const pos = [], col = [], idx = [];
+      for (let k = 0; k <= RINGS; k++) {
+        const rho = k / RINGS;
+        for (let j = 0; j < SEG; j++) {
+          const th = j / SEG * Math.PI * 2, ex = Math.cos(th), ez = Math.sin(th) * sq;
+          const edge = 1 + 0.12 * Math.sin(th * 3 + i) + 0.06 * Math.sin(th * 7 + i * 2);
+          const lx = ex * rho * edge, lz = ez * rho * edge;
+          let h = Math.pow(Math.max(0, 1 - rho * rho), 1.6) * 0.75;
+          for (const [bx, bz, br, bh] of bumps) h += bh * 0.5 * Math.exp(-((lx - bx) ** 2 + (lz - bz) ** 2) / (br * br));
+          h = h * peak * Math.max(0, Math.min(1, (1 - rho) / 0.18)) - (rho > 0.97 ? 2.5 : 0) + 0.3;
+          const x = lx * R, z = lz * R, cr = Math.cos(rot), sr = Math.sin(rot);
+          pos.push(cx + x * cr - z * sr, h - 0.6, cz + x * sr + z * cr);
+          const tH = Math.min(1, Math.max(0, (h - 0.6) / peak * 1.6));
+          const c = h < 0.9 ? beach.clone().lerp(wet, Math.max(0, 0.6 - h)) : lo.clone().lerp(hi, tH);
+          col.push(c.r, c.g, c.b);
+          if (k === RINGS - 2 && j % 4 === 0 && r() < 0.4 && palmsI.length < (LOW ? 6 : 12)) palmsI.push([pos[pos.length - 3], h - 0.7, pos[pos.length - 1]]);
+        }
       }
-      geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3)); geo.computeVertexNormals();
-      geo.deleteAttribute('uv'); geo.scale(s * 1.5, s * 0.6, s * 1.2); geo.translate(Math.cos(a) * d, -1.2, Math.sin(a) * d); g.push(geo);
+      for (let k = 0; k < RINGS; k++) for (let j = 0; j < SEG; j++) { const j2 = (j + 1) % SEG, A = k * SEG + j, B2 = k * SEG + j2, C2 = (k + 1) * SEG + j, D = (k + 1) * SEG + j2; idx.push(A, C2, B2, B2, C2, D); }
+      const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); geo.setIndex(idx); geo.computeVertexNormals();
+      g.push(geo);
     }
     const isl = new THREE.Mesh(mergeGeometries(g), mat); isl.name = 'distantIslands'; scene.add(isl);
+    const pg = palmGeo(7), pm = patchWind(new THREE.MeshLambertMaterial({ vertexColors: true }), { amp: 0.3, height: 9, speed: 0.7 });
+    const pl = new THREE.InstancedMesh(pg, pm, palmsI.length), dm = new THREE.Object3D();
+    palmsI.forEach(([x, y, z], k) => { dm.position.set(x, y, z); dm.rotation.set((r() - 0.5) * 0.3, r() * 6.28, (r() - 0.5) * 0.3); dm.scale.setScalar(1.6 + r() * 0.8); dm.updateMatrix(); pl.setMatrixAt(k, dm.matrix); pl.setColorAt(k, new THREE.Color(0.8, 0.88, 0.9)); });
+    pl.computeBoundingSphere(); pl.name = 'islandPalms'; scene.add(pl);
   }
 
   let grade = null;
@@ -83,6 +102,7 @@ export async function init(ctx){
     atm.update(dt, t, ctx.hour, ctx.camera.position, focus);
     ctx.night = atm.state.night;
     windU.uTime.value = t;
+    windU.uRim.value.copy(atm.sun.color).multiplyScalar(Math.min(1.2, atm.sun.intensity / 3) * (0.5 + 0.6 * atm.state.golden) * (1 - atm.state.night));
     water.update(t, atm);
     _gf.copy(ctx.camera.position).sub(focus).multiplyScalar(0.45).add(focus); grassField.update(_gf);
     lamps.update(t, atm.state.night, focus);

@@ -39,7 +39,7 @@ export function createGrassField(ctx, terrain, { count = 9000, radius = 17 } = {
       float gu=sin(uTime*1.44+ph)*0.55+sin(uTime*2.76+ph*1.7+1.3)*0.25+0.7*(sin(uTime*0.35+wp.x*0.06+wp.y*0.04)*0.5+0.5);
       transformed+=vec3(0.92,-0.25*abs(gu),0.38)*gu*0.2*ww*s;
       transformed+=vec3(wp.x,gh-0.04,wp.y);
-      vColor.rgb*=mk.rgb*mk.rgb*(1.15+0.3*aRnd.x);`);
+      vColor.rgb*=mk.rgb*mk.rgb*(1.08+0.28*aRnd.x);`);
     sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', NFIX);
   };
   mat.customProgramCacheKey = () => 'grassfield';

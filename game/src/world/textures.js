@@ -44,6 +44,12 @@ export function makeDirtTex(){
     const r = mulberry32(5);
     for(let i=0;i<900;i++){ const x=r()*s,y=r()*s,rad=0.8+r()*2.4,v=r()<0.5?0.55:1;
       wrapStroke(g,s,x,y,()=>{ g.fillStyle=`rgba(${v*255|0},${v*255|0},${v*255|0},${0.18+r()*0.3})`; g.beginPath(); g.ellipse(x,y,rad*1.3,rad,r()*3,0,6.3); g.fill(); }); }
+    // hairline dry cracks (random-walk with branches), dark line + soft light lip
+    const crack=(x,y,a,len,w)=>{ const pts=[[x,y]]; for(let k=0;k<len;k++){ a+=(r()-0.5)*0.9; x+=Math.cos(a)*3.2; y+=Math.sin(a)*3.2; pts.push([x,y]); if(r()<0.08&&w>0.6) crack(x,y,a+(r()<0.5?1:-1)*(0.8+r()*0.6),(len-k)*0.5|0,w*0.7); }
+      wrapStroke(g,s,pts[0][0],pts[0][1],()=>{ g.lineCap='round'; g.lineJoin='round';
+        g.strokeStyle='rgba(255,255,255,0.22)'; g.lineWidth=w+1.2; g.beginPath(); pts.forEach(([px,py],i)=>i?g.lineTo(px+0.8,py+0.8):g.moveTo(px+0.8,py+0.8)); g.stroke();
+        g.strokeStyle='rgba(40,40,40,0.5)'; g.lineWidth=w; g.beginPath(); pts.forEach(([px,py],i)=>i?g.lineTo(px,py):g.moveTo(px,py)); g.stroke(); }); };
+    for(let i=0;i<9;i++) crack(r()*s,r()*s,r()*6.28,10+(r()*14|0),1.1+r()*0.6);
     // little straw scratches
     for(let i=0;i<160;i++){ const x=r()*s,y=r()*s,a=r()*6.28,l=4+r()*8;
       wrapStroke(g,s,x,y,()=>{ g.strokeStyle='rgba(255,255,255,0.35)'; g.lineWidth=1; g.beginPath(); g.moveTo(x,y); g.lineTo(x+Math.cos(a)*l,y+Math.sin(a)*l); g.stroke(); }); }

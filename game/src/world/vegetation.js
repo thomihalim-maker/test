@@ -6,7 +6,8 @@ import { patchWind } from './wind.js';
 import * as G from './trees.js';
 
 export function createVegetation(ctx, terrain, blobs){
-  const LOW=ctx.quality==='low', TREE_SHADOW=!LOW;
+  const LOW=ctx.quality==='low', TREE_SHADOW=!LOW, TF=LOW?0.5:1;
+  G.setDetail(LOW?0.7:1);
   const group=new THREE.Group(); group.name='vegetation';
   const rnd=mulberry32(20240607);
   const WHITE=new THREE.Color(1,1,1);
@@ -30,7 +31,7 @@ export function createVegetation(ctx, terrain, blobs){
     const h=heightAt(x,z); if(h<0.7&&rr>40) continue; if(h<-0.2) continue;
     if(slopeAt(x,z)>0.7) continue;
     const pm=0.45+0.55*(fbm(x*0.12,z*0.12,2)*0.5+0.5); if(rnd()>pm) continue;
-    terrain.colorAt(x,z,tmpC); tmpC.multiplyScalar((0.9+rnd()*0.35)*1.25);
+    terrain.colorAt(x,z,tmpC); tmpC.multiplyScalar((0.9+rnd()*0.35)*1.15);
     if(rnd()<0.12) tmpC.lerp(tc.set('#e6e060'),0.35);
     grassItems.push({x,y:h-0.03,z,ry:rnd()*6.28,s:1.25*(0.8+rnd()*0.6),c:tmpC.clone()});
   }
@@ -71,27 +72,34 @@ export function createVegetation(ctx, terrain, blobs){
     ctx.colliders.push({x,z,r:0.45*s}); blobs.add(x,z,2.2*s*(list===palms?0.9:list===bananas?0.9:1.15)); aoList.push({x,z,r:(list===palms?1.2:2.4)*s,k:list===palms?0.3:0.4}); return true;
   }
   // road avenue: palms either side
-  for(let z=22;z<56;z+=6.5){ for(const sd of [-1,1]){ const x=roadX(z)+sd*(4.6+rnd()*1.2); tryTree(palms,x+rnd()-0.5,z+rnd()*2,1.4,0.9,1.15,{tilt:0.12}); } }
+  for(let z=22;z<56;z+=LOW?13:6.5){ for(const sd of [-1,1]){ const x=roadX(z)+sd*(4.6+rnd()*1.2); tryTree(palms,x+rnd()-0.5,z+rnd()*2,1.4,0.9,1.15,{tilt:0.12}); } }
   // plaza ring (outside radius 18)
-  for(let i=0;i<14;i++){ const a=i/14*6.283+rnd()*0.3, r=20+rnd()*7; tryTree(i%3?palms:mangos,Math.cos(a)*r,Math.sin(a)*r,i%3?1.4:2.2,0.9,1.2,{tilt:0.1}); }
+  for(let i=0;i<14;i+=LOW?2:1){ const a=i/14*6.283+rnd()*0.3, r=20+rnd()*7; tryTree(i%3?palms:mangos,Math.cos(a)*r,Math.sin(a)*r,i%3?1.4:2.2,0.9,1.2,{tilt:0.1}); }
   // beach palms
-  for(let i=0;i<200&&palms.length<44;i++){ const a=rnd()*6.283, r=52+rnd()*8; tryTree(palms,Math.cos(a)*r,Math.sin(a)*r,1.8,0.9,1.25,{minH:0.15,maxSlope:0.5,tilt:0.25}); }
+  for(let i=0;i<200&&palms.length<44*TF;i++){ const a=rnd()*6.283, r=52+rnd()*8; tryTree(palms,Math.cos(a)*r,Math.sin(a)*r,1.8,0.9,1.25,{minH:0.15,maxSlope:0.5,tilt:0.25}); }
   // meadow mangoes & palms
-  for(let i=0;i<600&&mangos.length<14;i++){ const a=rnd()*6.283, r=24+rnd()*22; tryTree(mangos,Math.cos(a)*r,Math.sin(a)*r,2.6,0.85,1.2,{}); }
-  for(let i=0;i<400&&palms.length<44;i++){ const a=rnd()*6.283, r=24+rnd()*26; tryTree(palms,Math.cos(a)*r,Math.sin(a)*r,1.6,0.85,1.2,{tilt:0.15}); }
+  for(let i=0;i<600&&mangos.length<14*TF;i++){ const a=rnd()*6.283, r=24+rnd()*22; tryTree(mangos,Math.cos(a)*r,Math.sin(a)*r,2.6,0.85,1.2,{}); }
+  for(let i=0;i<400&&palms.length<56*TF;i++){ const a=rnd()*6.283, r=24+rnd()*26; tryTree(palms,Math.cos(a)*r,Math.sin(a)*r,1.6,0.85,1.2,{tilt:0.15}); }
   // broadleaf round-canopy trees (ACNH-style): meadow groves + near plaza/pen
-  { let n=0; for(let i=0;i<1500&&n<34;i++){ const a=rnd()*6.283, r=19+rnd()*31; const v=n%7===3?2:(n%2); if(tryTree(broad[v],Math.cos(a)*r,Math.sin(a)*r,2.5,0.8,1.15,{maxSlope:0.4,tilt:0.06})) n++; } }
+  { let n=0; for(let i=0;i<1500&&n<34*TF;i++){ const a=rnd()*6.283, r=19+rnd()*31; const v=n%5===2?2:(n%2); if(tryTree(broad[v],Math.cos(a)*r,Math.sin(a)*r,2.5,0.8,1.15,{maxSlope:0.4,tilt:0.06})) n++; } }
   // pond surroundings: bananas + palm
-  for(let i=0;i<300&&bananas.length<8;i++){ const a=rnd()*6.283, r=9+rnd()*8; tryTree(bananas,POND.x+Math.cos(a)*r,POND.z+Math.sin(a)*r,1.6,0.9,1.15,{}); }
-  for(let i=0;i<500&&bananas.length<20;i++){ const a=rnd()*6.283, r=20+rnd()*34; tryTree(bananas,Math.cos(a)*r,Math.sin(a)*r,1.6,0.9,1.15,{}); }
+  for(let i=0;i<300&&bananas.length<8*TF;i++){ const a=rnd()*6.283, r=9+rnd()*8; tryTree(bananas,POND.x+Math.cos(a)*r,POND.z+Math.sin(a)*r,1.6,0.9,1.15,{}); }
+  for(let i=0;i<500&&bananas.length<20*TF;i++){ const a=rnd()*6.283, r=20+rnd()*34; tryTree(bananas,Math.cos(a)*r,Math.sin(a)*r,1.6,0.9,1.15,{}); }
   const palmMats=[1,2,3].map(()=>null);
-  const mkPalm=(seed,items)=>inst(G.palmGeo(seed),patchWind(std(),{amp:0.55,height:9,speed:0.9,flutter:0.05}),items,{cast:TREE_SHADOW});
+  const mkPalm=(seed,items)=>inst(G.palmGeo(seed),patchWind(std(),{amp:0.55,height:9,speed:0.9,flutter:0.05,rim:0.25}),items,{cast:TREE_SHADOW});
   const pv=[[],[]]; palms.forEach((p,i)=>pv[i%2].push(p));
   pv.forEach((it,i)=>{ if(it.length) mkPalm(i+1,it).name='palm'+i; });
-  broad.forEach((it,v)=>{ if(it.length) inst(G.broadleafGeo(v,v+3),patchWind(std({roughness:0.9}),{amp:0.18,height:7,speed:0.8,flutter:0.02}),it,{cast:TREE_SHADOW}).name='broadleaf'+v; });
-  inst(G.mangoGeo(1),patchWind(std(),{amp:0.22,height:8,speed:0.8,flutter:0.02}),mangos,{cast:TREE_SHADOW}).name='mango';
+  broad.forEach((it,v)=>{ if(it.length) inst(G.broadleafGeo(v,v+3),patchWind(std(),{amp:0.18,height:7,speed:0.8,flutter:0.02,rim:0.35}),it,{cast:TREE_SHADOW}).name='broadleaf'+v; });
+  inst(G.mangoGeo(1),patchWind(std(),{amp:0.22,height:8,speed:0.8,flutter:0.02,rim:0.35}),mangos,{cast:TREE_SHADOW}).name='mango';
+  // fallen blossom carpet under flamboyans: terrain tint + a few instanced petal flakes
+  const flakes=[], FLC=[new THREE.Color('#e8462a'),new THREE.Color('#ff7a3a'),new THREE.Color('#f25a3a')];
+  for(const t of broad[2]){ const R=3.2*t.s; aoList.push({x:t.x,z:t.z,r:R*0.9,k:0.38,c:FLC[0]});
+    for(let k=0;k<(LOW?18:40);k++){ const a=rnd()*6.283, d=Math.sqrt(rnd())*R*1.05, x=t.x+Math.cos(a)*d, z=t.z+Math.sin(a)*d; if(clearance(x,z)<0) continue;
+      flakes.push({x,y:heightAt(x,z)+0.02,z,ry:rnd()*6.28,rx:(rnd()-0.5)*0.4,s:0.8+rnd()*0.6,c:FLC[(rnd()*3)|0]}); } }
+  if(flakes.length){ const fg=new THREE.BufferGeometry(); fg.setAttribute('position',new THREE.Float32BufferAttribute([-0.05,0,-0.035, 0.05,0,-0.035, 0.0,0.012,0.06, -0.05,0,-0.035, 0.0,0.012,0.06, -0.04,0.01,0.02],3)); fg.setAttribute('normal',new THREE.Float32BufferAttribute([0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0],3)); fg.setAttribute('color',new THREE.Float32BufferAttribute(new Array(18).fill(1),3));
+    inst(fg,patchWind(lamb(),{amp:0}),flakes,{}).name='fallenPetals'; }
   const bv=[[],[]]; bananas.forEach((b,i)=>bv[i%2].push(b));
-  bv.forEach((it,i)=>{ if(it.length) inst(G.bananaGeo(i+2),patchWind(std(),{amp:0.4,height:4.5,speed:1.1,flutter:0.06}),it,{cast:TREE_SHADOW}).name='banana'+i; });
+  bv.forEach((it,i)=>{ if(it.length) inst(G.bananaGeo(i+2),patchWind(std(),{amp:0.4,height:4.5,speed:1.1,flutter:0.06,rim:0.25}),it,{cast:TREE_SHADOW}).name='banana'+i; });
 
   // ---------- bushes: 4 variants, clusters of 3-5, squash + hue jitter ----------
   const VAR=['round','tall','flat','flower'], bushes={round:[],tall:[],flat:[],flower:[]};
@@ -113,7 +121,7 @@ export function createVegetation(ctx, terrain, blobs){
   // plaza edge hedge ring
   for(let i=0;i<24;i++){ const a=i/24*6.283+rnd()*0.15, r=15.6+rnd()*0.9, x=Math.cos(a)*r, z=Math.sin(a)*r;
     if(clearance(x,z)<0.6) continue; place(x,z,0.5); addBush(x,z,0.6+rnd()*0.35,i%3===0?'flower':(i%3===1?'round':'flat')); }
-  const bushMat=()=>patchWind(std({roughness:0.9}),{amp:0.1,height:1.2,speed:1.0});
+  const bushMat=()=>patchWind(std(),{amp:0.1,height:1.2,speed:1.0,rim:0.4});
   VAR.forEach((v,i)=>{ if(bushes[v].length) inst(G.bushGeo({variant:v,seed:3+i}),bushMat(),bushes[v],{cast:false}).name='bush_'+v; });
 
   // ---------- clover / ground-cover patches ----------
@@ -129,8 +137,10 @@ export function createVegetation(ctx, terrain, blobs){
   const rocks=[]; let rt=0;
   const pushRock=(x,z,s)=>{ const h=heightAt(x,z); rocks.push({x,y:h-0.1,z,ry:rnd()*6.28,s,sy:s*(0.7+rnd()*0.5),c:new THREE.Color(1,1,1).multiplyScalar(0.85+rnd()*0.25)}); blobs.add(x,z,0.75*s); aoList.push({x,z,r:0.75*s,k:0.35}); if(s>0.9) ctx.colliders.push({x,z,r:0.5*s}); };
   for(let i=0;i<14;i++){ const a=rnd()*6.283, r=POND.r+0.5+rnd()*1.8, x=POND.x+Math.cos(a)*r, z=POND.z+Math.sin(a)*r; pushRock(x,z,0.5+rnd()*0.8); }
-  while(rocks.length<70&&rt++<5000){ const a=rnd()*6.283, r=20+rnd()*42, x=Math.cos(a)*r, z=Math.sin(a)*r;
-    if(clearance(x,z)<1.2) continue; const h=heightAt(x,z); if(h<-0.3) continue; pushRock(x,z,0.5+rnd()*1.3); }
+  let rcl=0;
+  while(rcl<(LOW?7:11)&&rt++<5000){ const a=rnd()*6.283, r=22+rnd()*38, cx=Math.cos(a)*r, cz=Math.sin(a)*r;
+    if(clearance(cx,cz)<2.5||heightAt(cx,cz)<0.2||!okSpacing(cx,cz,1.5)) continue; rcl++; place(cx,cz,1.5);
+    const n=2+((rnd()*2)|0); for(let k=0;k<n;k++){ const x=cx+(rnd()-0.5)*1.8, z=cz+(rnd()-0.5)*1.8; pushRock(x,z,k?0.4+rnd()*0.5:0.9+rnd()*0.7); } }
   inst(G.rockGeo(2),patchWind(lamb(),{amp:0}),rocks,{cast:false}).name='rocks';
 
   // ---------- reeds + lilies at pond ----------

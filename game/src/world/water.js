@@ -44,10 +44,16 @@ void main(){
   // body color by depth
   vec3 body=mix(uShallow,uMid,smoothstep(0.0,1.2,depth)); body=mix(body,uDeep,smoothstep(0.9,4.5,depth));
   body=mix(body,uDeep*vec3(0.75,0.85,1.0),smoothstep(85.0,170.0,rr)*sea);
+  // pond: teal-olive shallows -> deep green-teal centre
+  vec3 pondC=mix(vec3(0.30,0.50,0.36),vec3(0.13,0.36,0.38),smoothstep(0.05,0.9,depth)); pondC=mix(pondC,vec3(0.05,0.2,0.26),smoothstep(0.8,1.6,depth));
+  body=mix(pondC,body,sea);
   body*=uAmb;
   // sky reflection tint
   vec3 sky=mix(uSkyH,uSkyT,clamp(1.0-V.y*0.0+N.y*0.0,0.0,1.0)*0.55);
-  vec3 col=mix(body,sky,(0.06+0.5*fres)*mix(0.6,1.0,sea));
+  vec3 Rf0=reflect(-V,N);
+  // faint treeline reflection on the pond (low reflected rays hit the surrounding greenery)
+  sky=mix(sky,vec3(0.12,0.26,0.12)*uAmb,(1.0-sea)*smoothstep(0.55,0.12,Rf0.y)*0.85);
+  vec3 col=mix(body,sky,(0.06+0.5*fres)*mix(0.75,1.0,sea));
   // sun glint
   vec3 Rf=reflect(-V,N);
   float spec=pow(max(dot(Rf,uSunDir),0.0),260.0)*smoothstep(0.0,0.1,uSunDir.y);
@@ -60,9 +66,9 @@ void main(){
   float band=smoothstep(0.55,0.95,ring)*(1.0-smoothstep(0.12,mix(0.85,1.6,sea),depth))*smoothstep(0.0,0.05,depth);
   float sw0=0.18+0.22*(0.5+0.5*sin(uTime*0.8+wob*6.0)); float swash=sea*smoothstep(sw0-0.12,sw0-0.03,depth)*(1.0-smoothstep(sw0,sw0+0.05,depth))*0.9;
   float foamN=smoothstep(0.35,0.7,fbm(p*3.0+uTime*0.05));
-  float foam=clamp(edge*mix(0.6,0.95,sea)+band*mix(0.4,0.75,sea)*foamN+swash*0.8+crest*0.25,0.0,1.0);
+  float foam=clamp(edge*mix(0.12,0.95,sea)+band*0.75*sea*foamN+swash*0.8+crest*0.25,0.0,1.0);
   col=mix(col,mix(vec3(0.85,0.8,0.65),vec3(1.0),max(sea,smoothstep(0.0,0.12,depth)))*(0.5+0.5*uAmb.r),foam*mix(0.55,0.9,sea));
-  float alpha=mix(0.45,0.94,smoothstep(0.0,1.0,depth));
+  float alpha=mix(mix(0.55,0.45,sea),0.94,smoothstep(0.0,1.0,depth));
   alpha=max(alpha,foam*0.95);
   alpha=max(alpha,fres*0.5);
   gl_FragColor=vec4(col,alpha);
@@ -85,7 +91,7 @@ export function createWater(ctx, heightTex){
     u.uTime.value=t; u.uNight.value=atm.state.night;
     u.uSunDir.value.copy(atm.state.elev>-0.03?atm.state.sunDir:atm.state.moonDir);
     u.uSunCol.value.copy(atm.state.elev>-0.03?k.sun:new THREE.Color('#9db4ff')).multiplyScalar(atm.state.elev>-0.03?1:0.5);
-    u.uSkyH.value.copy(k.hor); u.uSkyT.value.copy(k.mid);
+    u.uSkyH.value.copy(atm.state.fogC||k.hor); u.uSkyT.value.copy(k.mid);
     const amb=0.2+0.8*(1-atm.state.night); u.uAmb.value.setRGB(amb*(0.95+0.1*k.glow.r),amb,amb*1.02);
     u.uAmb.value.lerp(k.hs,0.15);
   }

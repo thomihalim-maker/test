@@ -57,7 +57,7 @@ export async function init(ctx) {
     scene.add(sun); ctx.sun ??= sun; testLights = { hemi, sun };
   }
   const hourParam = qs.has('hour') ? parseFloat(qs.get('hour')) : null;
-  if (hourParam !== null) ctx.hour = hourParam;
+  if (hourParam !== null && standalone) ctx.hour = hourParam; // the world module owns the clock (and reads ?hour itself)
 
   // ---- stage construction ----
   function makeS(n, instant) {
@@ -222,7 +222,6 @@ export async function init(ctx) {
     update(dt, t) {
       anim.update(dt);
       site.update(dt, t);
-      if (hourParam !== null) ctx.hour = hourParam;
       const h = ctx.hour ?? 12;
       nightK = Math.max(sstep(17.2, 19.2, h), 1 - sstep(4.8, 6.4, h));
       glassFlash = Math.max(0, glassFlash - dt * 1.4);

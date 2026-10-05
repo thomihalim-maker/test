@@ -99,8 +99,8 @@ export function createAtmosphere(ctx){
   const fill=new THREE.DirectionalLight(0xbcd8ff,0.35); scene.add(fill); scene.add(fill.target);
 
   const sunDir=new THREE.Vector3(), moonDir=new THREE.Vector3(), L=new THREE.Vector3(), R=new THREE.Vector3(), U=new THREE.Vector3(), T=new THREE.Vector3();
-  const state={ night:0, elev:1, sunDir, moonDir, golden:0, info:null, windDir:new THREE.Vector2(1,0.4).normalize() };
-  const lightTarget=new THREE.Vector3();
+  const lightTarget=new THREE.Vector3(), fogC=new THREE.Color(), _g=new THREE.Color();
+  const state={ night:0, elev:1, sunDir, moonDir, golden:0, info:null, fogC, windDir:new THREE.Vector2(1,0.4).normalize() };
   const step=(2*EXT)/SM;
 
   function update(dt,t,hour,camPos,focus){
@@ -116,7 +116,10 @@ export function createAtmosphere(ctx){
     state.golden=S(0.5,0.25,e)*S(-0.05,0.12,e)*1.0;
     // sky uniforms
     const u=sky.material.uniforms;
-    u.uTop.value.copy(k.top); u.uMid.value.copy(k.mid); u.uHor.value.copy(k.hor);
+    // desaturated horizon for fog + sky horizon (keeps sea blue at golden hour instead of milky pink)
+    const hl=k.hor.r*0.2126+k.hor.g*0.7152+k.hor.b*0.0722;
+    fogC.copy(k.hor).lerp(_g.setRGB(hl,hl,hl),0.12+0.3*state.golden).lerp(k.mid,0.12*state.golden);
+    u.uTop.value.copy(k.top); u.uMid.value.copy(k.mid); u.uHor.value.copy(fogC);
     u.uSunDir.value.copy(sunDir); u.uSunCol.value.copy(k.sun); u.uGlow.value.copy(k.glow); u.uMoonDir.value.copy(moonDir);
     u.uNight.value=state.night; u.uTime.value=t; u.uSunI.value=k.sunI;
     const dayAmt=1-state.night;
@@ -125,28 +128,29 @@ export function createAtmosphere(ctx){
     u.uCover.value=0.47;
     sky.position.copy(camPos);
     // fog
-    scene.fog.color.copy(k.hor); scene.background=null;
-    scene.fog.density=0.0056+0.0010*state.golden+0.0012*state.night;
+    scene.fog.color.copy(fogC); scene.background=null;
+    scene.fog.density=0.0056-0.0016*state.golden+0.0010*state.night;
     // lights
-    const sunLevel=k.sunI*S(-0.04,0.18,e);
+    const g=state.golden;
+    const sunLevel=(k.sunI+(4.0-k.sunI)*g)*S(-0.04,0.18,e);
     const moonLevel=0.9*S(-0.03,-0.3,e);
     const useSun=e>-0.03;
     sun.color.copy(useSun?k.sun:new THREE.Color('#7f9cff'));
     sun.intensity=useSun?sunLevel:moonLevel;
-    L.copy(useSun?sunDir:moonDir); if(L.y<0.16){ L.y=0.16; } L.normalize();
+    L.copy(useSun?sunDir:moonDir); if(L.y<0.22){ const h=Math.hypot(L.x,L.z)||1; L.x*=0.975/h; L.z*=0.975/h; L.y=0.22; } L.normalize();
     // snap focus to shadow texel grid in light space
     R.crossVectors(new THREE.Vector3(0,1,0),L).normalize(); U.crossVectors(L,R).normalize();
     const tr=Math.round(focus.dot(R)/step)*step, tu=Math.round(focus.dot(U)/step)*step, tl=focus.dot(L);
     lightTarget.set(0,0,0).addScaledVector(R,tr).addScaledVector(U,tu).addScaledVector(L,tl);
     sun.target.position.copy(lightTarget); sun.position.copy(lightTarget).addScaledVector(L,90);
     sun.target.updateMatrixWorld();
-    hemi.color.copy(k.hs); hemi.groundColor.copy(k.hg); hemi.intensity=k.hI*(0.95+0.25*state.night);
+    hemi.color.copy(k.hs); hemi.groundColor.copy(k.hg); hemi.intensity=k.hI*(0.95+0.25*state.night); hemi.intensity+= (0.55-hemi.intensity)*g;
     // opposite soft fill tinted by sky
     T.copy(L); T.x*=-1; T.z*=-1; T.y=0.35; T.normalize();
     fill.position.copy(focus).addScaledVector(T,50); fill.target.position.copy(focus);
-    fill.color.copy(k.mid).lerp(new THREE.Color(0.62,0.55,1.0),0.35+0.3*state.golden); fill.intensity=0.4+0.35*state.golden+0.1*state.night;
-    hemi.groundColor.lerp(new THREE.Color('#6a58a0'),0.25+0.25*state.golden); hemi.color.lerp(new THREE.Color('#9a9ae0'),0.12*state.golden);
-    sun.color.lerp(new THREE.Color('#ff8a50'),0.3*state.golden);
+    fill.color.copy(k.mid).lerp(new THREE.Color(0.62,0.55,1.0),0.35+0.3*state.golden); fill.intensity=0.4+(0.3-0.4)*g+0.1*state.night;
+    hemi.groundColor.lerp(_g.set('#6a58a0'),0.25+0.35*g); hemi.color.lerp(_g.set('#9a88e0'),0.5*g);
+    if(useSun) sun.color.lerp(_g.set('#ffb070'),0.3*g);
     ctx.renderer.toneMappingExposure=k.exp;
     return state;
   }
