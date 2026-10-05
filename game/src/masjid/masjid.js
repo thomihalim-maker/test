@@ -104,7 +104,8 @@ export async function init(ctx) {
   let camParam = null;
   if (qs.has('cam')) { const v = qs.get('cam').split(',').map(Number); if (v.length >= 6 && v.every(Number.isFinite)) camParam = v; }
   if (!camParam && standalone) camParam = [20, 11, 30, 0, 4.5, -2];
-  const tmpV = new THREE.Vector3();
+  const prevBR = scene.onBeforeRender;
+  scene.onBeforeRender = function (...a) { prevBR?.apply(this, a); if (camParam) { camera.position.set(camParam[0], camParam[1], camParam[2]); camera.lookAt(camParam[3], camParam[4], camParam[5]); } };
 
   // ---- api ----
   function stageIndex(id) { if (typeof id === 'number') return id; const i = STAGES.findIndex(s => s.id === id); return i < 0 ? (parseInt(id) || -1) : i + 1; }
@@ -174,8 +175,8 @@ export async function init(ctx) {
           if (u < 1) { r.m.visible = true; r.m.scale.setScalar(.8 + u * 2.6); r.m.material.opacity = (1 - u) * .8; r.m.quaternion.copy(camera.quaternion); } else r.m.visible = false;
         }
       }
-      if (testLights) { testLights.sun.intensity = 3 * (1 - .93 * nightK); testLights.hemi.intensity = 1 - .72 * nightK; testLights.sun.color.set(nightK > .5 ? 0x8aa4ff : 0xfff0d0); scene.background.set(nightK > .5 ? 0x0c1230 : 0xbfe3f5); scene.fog.color.copy(scene.background); }
-      if (camParam) { camera.position.set(camParam[0], camParam[1], camParam[2]); camera.lookAt(camParam[3], camParam[4], camParam[5]); }
+      if (testLights) { testLights.sun.intensity = 3 * (1 - .93 * nightK); testLights.hemi.intensity = 1 - .45 * nightK; testLights.sun.color.set(nightK > .5 ? 0x8aa4ff : 0xfff0d0); scene.background.set(nightK > .5 ? 0x0c1230 : 0xbfe3f5); scene.fog.color.copy(scene.background); }
+      if (false) { camera.position.set(camParam[0], camParam[1], camParam[2]); camera.lookAt(camParam[3], camParam[4], camParam[5]); }
     },
   };
   api.api = api;

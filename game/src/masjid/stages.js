@@ -8,7 +8,7 @@ const { rbox, cyl, shade, merge, flat, xf, uvScale, archPlane, archFrame, wallGe
 export const PL = 0.7;            // plinth top
 export const WH = 4.4;            // wall height above plinth
 export const HALL_Z = -2.75;      // hall centre z
-export const MINARET = { x: -11, z: -4 };
+export const MINARET = { x: -11.8, z: -4.5 };
 export const BEDUG = { x: 11, z: -3.5 };
 export const WUDHU = { x: -11, z: 6.5 };
 
@@ -28,20 +28,22 @@ export function makeMaterials(ctx, night) {
     env = pm.fromScene(sc, .04).texture; pm.dispose();
   } catch (e) { env = null; }
   const M = {};
-  M.plasterW = std({ map: rep(tex.plaster(), .5, .5), color: 0xfff6e8, vertexColors: true, roughness: .92 });
+  M.plasterW = std({ map: rep(tex.plaster(), .5, .5), color: 0xfff0d6, vertexColors: true, roughness: .92, emissive: 0x3a2812, emissiveIntensity: .35 });
+  night.push({ m: M.plasterW, day: .35, night: .9, col: 0x3a3a66 });
   M.plaster = std({ map: tex.plaster(), vertexColors: true, roughness: .92 });
   M.marble = std({ map: tex.marble(), vertexColors: true, roughness: .38, metalness: .02, envMap: env, envMapIntensity: .35 });
   M.marbleTint = std({ map: tex.marble(), color: 0xe7efe6, vertexColors: true, roughness: .4 });
-  M.wood = std({ map: tex.wood(), vertexColors: true, roughness: .62 });
+  M.wood = std({ map: tex.wood(), color: 0xe6c09a, vertexColors: true, roughness: .62 });
   M.woodDark = std({ map: tex.wood(), color: 0xb0836a, vertexColors: true, roughness: .55 });
   M.gold = std({ map: tex.gold(), vertexColors: true, roughness: .3, metalness: .75, envMap: env, envMapIntensity: 1.1, emissive: 0x6a4108, emissiveIntensity: .35 });
-  M.roof = std({ map: tex.roofTile(), vertexColors: true, roughness: .62 });
+  M.roof = std({ map: tex.roofTile(), vertexColors: true, roughness: .62, emissive: 0x4a2418, emissiveIntensity: 0 });
+  night.push({ m: M.roof, day: 0, night: .7 });
   M.ridge = std({ map: tex.roofTile(), color: 0xc08a70, vertexColors: true, roughness: .6 });
   M.green = std({ color: 0x2c8a74, vertexColors: true, roughness: .5, metalness: .05 });
   M.arabTeal = std({ map: tex.arabesque('teal'), vertexColors: true, roughness: .45, emissive: 0x0b3d40, emissiveIntensity: .25 });
   M.arabCream = std({ map: tex.arabesque('cream'), vertexColors: true, roughness: .6 });
   M.glass = std({ map: tex.glass(), emissiveMap: tex.glass(), emissive: 0xffffff, emissiveIntensity: .25, roughness: .2, side: THREE.DoubleSide, envMap: env, envMapIntensity: .6 });
-  night.push({ m: M.glass, day: .22, night: 2.3 });
+  night.push({ m: M.glass, day: .22, night: 3.2 });
   M.sajadah = std({ map: tex.sajadah(), roughness: .95 });
   M.carpet = std({ map: tex.carpet(), roughness: .98 });
   M.tile = std({ map: tex.plazaTile(), roughness: .8 });
@@ -91,12 +93,6 @@ function s1(S) {
     const m = mesh(S, shade(uvScale(rbox(s.w, s.h, .62, .04, 2), 2, 1), { lo: .78, hi: 1 }), M.marble); place(m, 0, 0, s.z); G.add(m);
     R.add(m, { delay: 1.0 + (2 - i) * .13, dur: .55, kind: 'grow', amp: .2, fx: i === 2 ? 'dust' : null });
   });
-  for (const sx of [-1, 1]) {
-    const pier = mesh(S, shade(rbox(.5, 1.25, .5, .07, 2), { lo: .6 }), M.plaster); place(pier, sx * 3.5, 0, 9.0);
-    const cap = mesh(S, new THREE.SphereGeometry(.22, 14, 10), M.gold); cap.position.set(sx * 3.5, 1.45, 9.0);
-    G.add(pier, cap); R.add(pier, { delay: 1.45, dur: .5, kind: 'grow' }); R.add(cap, { delay: 1.65, dur: .5, kind: 'pop', fx: 'sparkle' });
-    S.col(sx * 3.5, 9.0, .35);
-  }
   // plaza tiles (instanced, ripple in from the plinth outward)
   const P = 1.62, list = [];
   for (let i = -9; i <= 9; i++) for (let j = -10; j <= 9; j++) {
@@ -147,7 +143,7 @@ function s2(S) {
     grp.add(wm);
     const fr = [], gl = [];
     for (const h of w.holes) {
-      const f = archFrame(h.w, h.h, h.frame ? .2 : .15, T + .14); f.translate(h.u, h.v, 0); fr.push(flat(f, 1));
+      const f = archFrame(h.w, h.h, h.frame ? .26 : .22, T + .14); f.translate(h.u, h.v, 0); fr.push(flat(f, 1));
       if (!h.frame) { const p = archPlane(h.w, h.h); p.translate(h.u, h.v, 0); gl.push(p); }
     }
     grp.add(mesh(S, merge(fr), M.gold, false));
@@ -166,9 +162,9 @@ function s2(S) {
   const bulge = new THREE.Group(); place(bulge, 0, PL, bz);
   const bw = (w, h, d, x, y, z, m = M.plaster) => { const g = shade(rbox(w, h, d, .06), { lo: .7 }); g.translate(x, y, z); return mesh(S, g, m); };
   bulge.add(bw(.4, 4.1, 1.5, -1.6, 0, -.75), bw(.4, 4.1, 1.5, 1.6, 0, -.75), bw(3.6, 4.1, .4, 0, 0, -1.5), bw(3.6, .3, 1.8, 0, 4.0, -.8, M.green));
-  const bcap = mesh(S, merge([flat(new THREE.ConeGeometry(2.1, 1.4, 4).rotateY(Math.PI / 4).translate(0, 4.75, -.8), 1)]), M.roof);
-  bulge.add(bcap); G.add(bulge); R.add(bulge, { delay: 1.15, dur: .8, kind: 'grow', fx: 'dust', fxOff: V3(0, 0, -.8) });
+  const bcap = roofGroup(S, { a0: 2.2, b0: 1.6, a1: .1, b1: .1, h: .9, N: 5 }); bcap.position.set(0, 4.3, -.8); bulge.add(bcap); G.add(bulge); R.add(bulge, { delay: 1.15, dur: .8, kind: 'grow', fx: 'dust', fxOff: V3(0, 0, -.8) });
   colLine(S, -1.7, -9.3, 1.7, -9.3, .8, 1.3);
+  { const ceil = mesh(S, shade(uvScale(rbox(10.2, .3, 9.7, .05, 1), 3, 3), { lo: .85 }), M.ceiling, false); place(ceil, 0, PL + WH - .38, HALL_Z); G.add(ceil); R.add(ceil, { delay: 1.3, dur: .6, kind: 'pop', amp: .1 }); }
   // pilasters at corners
   const pg = [];
   for (const sx of [-1, 1]) for (const [z] of [[-7.75], [2.25]]) {
@@ -183,8 +179,8 @@ function s2(S) {
   const yc = PL + WH - .02;
   beam(cg, 11.5, .3, 1.0, 0, yc - .3, -7.75, .05); beam(cg, 11.5, .3, 1.0, 0, yc - .3, 2.25, .05);
   beam(cg, 1.0, .3, 10.5, -5.25, yc - .3, HALL_Z, .05); beam(cg, 1.0, .3, 10.5, 5.25, yc - .3, HALL_Z, .05);
-  beam(gg, 11.55, .07, 1.05, 0, yc - .33, -7.75, .02); beam(gg, 11.55, .07, 1.05, 0, yc - .33, 2.25, .02);
-  beam(gg, 1.05, .07, 10.6, -5.25, yc - .33, HALL_Z, .02); beam(gg, 1.05, .07, 10.6, 5.25, yc - .33, HALL_Z, .02);
+  beam(gg, 11.55, .11, 1.05, 0, yc - .33, -7.75, .02); beam(gg, 11.55, .11, 1.05, 0, yc - .33, 2.25, .02);
+  beam(gg, 1.05, .11, 10.6, -5.25, yc - .33, HALL_Z, .02); beam(gg, 1.05, .11, 10.6, 5.25, yc - .33, HALL_Z, .02);
   const fy = PL + 3.78, fh = .5, fz = T / 2 + .015;
   const fb = (L, x, z, ry) => { const g = rbox(L, fh, .05, .015, 1); uvScale(g, L / fh, 1); xf(g, x, fy, z, ry); fg.push(flat(g, 1)); };
   fb(10, 0, 2.25 + fz, 0); fb(10, 0, -7.75 - fz, 0); fb(10.5, 5.25 + fz, HALL_Z, Math.PI / 2); fb(10.5, -5.25 - fz, HALL_Z, Math.PI / 2);
@@ -193,9 +189,9 @@ function s2(S) {
   for (const [o, d] of [[cornice, 1.3], [corG, 1.38], [frieze, 1.45]]) R.add(o, { delay: d + .1, dur: .6, kind: 'pop', amp: .15 });
   // skirting band
   const kg = [];
-  const sk = (L, x, z, ry) => { const g = rbox(L, .6, .62, .06, 2); xf(g, x, PL, z, ry); kg.push(shade(g, { lo: .5, hi: .95 })); };
+  const sk = (L, x, z, ry) => { const g = rbox(L, 1.0, .62, .06, 2); xf(g, x, PL, z, ry); kg.push(shade(g, { lo: .8, hi: 1 })); };
   sk(10.9, 0, 2.25, 0); sk(10.9, 0, -7.75, 0); sk(11, 5.25, HALL_Z, Math.PI / 2); sk(11, -5.25, HALL_Z, Math.PI / 2);
-  const skirt = mesh(S, merge(kg), M.marbleTint); G.add(skirt); R.add(skirt, { delay: .7, dur: .7, kind: 'grow' });
+  const skirt = mesh(S, merge(kg), M.stone); G.add(skirt); R.add(skirt, { delay: .7, dur: .7, kind: 'grow' });
   // serambi arcade (veranda): panel with 3 arches + 4 teak columns
   const ar = new THREE.Group(); place(ar, 0, PL, 5.8); G.add(ar);
   const holes = [-4, 0, 4].map(u => ({ u, v: 0, w: 3.2, h: 3.0, arch: true }));
@@ -244,14 +240,11 @@ function finial(S) {
 function s3(S) {
   const { M, G, R } = S;
   const y0 = PL + WH;
-  // coffered ceiling
-  const cg = shade(uvScale(rbox(10.2, .3, 9.7, .05, 1), 3, 3), { lo: .85 }); const ceil = mesh(S, cg, M.ceiling, false); place(ceil, 0, y0 - .38, HALL_Z);
-  G.add(ceil); R.add(ceil, { delay: .1, dur: .6, kind: 'pop', amp: .1 });
   // soko guru: four teak columns with carved gold bands
   const cgeo = [], gg = [];
   for (const sx of [-1, 1]) for (const z of [-4.1, -.9]) {
     const x = sx * 3.1;
-    const c = cyl(.24, .3, 3.75, 16); c.translate(x, PL + .3, z); cgeo.push(shade(c, { lo: .62 }));
+    const c = cyl(.24, .3, 3.75, 16); c.translate(x, PL + .3, z); cgeo.push(shade(c, { lo: .85 }));
     const b = cyl(.5, .6, .3, 8); b.translate(x, PL, z); cgeo.push(shade(b, { lo: .5 }));
     for (const y of [PL + 1.2, PL + 3.2, y0 - .75]) gg.push(flat(new THREE.TorusGeometry(.3, .06, 6, 16).rotateX(Math.PI / 2).translate(x, y, z), 1));
     S.col(x, z, .4);
@@ -261,9 +254,9 @@ function s3(S) {
   R.add(cols, { delay: .3, dur: .8, kind: 'grow', amp: .12, fx: 'dust', fxOff: V3(0, .2, -2.5) }); R.add(cgold, { delay: .9, dur: .5, kind: 'pop' });
   // tiered roofs
   const tiers = [
-    { p: { a0: 7.3, a1: 3.6, h: 2.4, k: 1.7, flick: .3, lift: .6 }, y: y0 - .05, d: 1.1, drum: null },
-    { p: { a0: 4.7, a1: 2.0, h: 2.1, k: 1.7, flick: .25, lift: .4 }, y: y0 + 3.3, d: 2.1, drum: { w: 7.0, h: 1.5, y: y0 + 1.95 } },
-    { p: { a0: 2.8, a1: .14, h: 2.9, k: 1.55, flick: .18, lift: .25 }, y: y0 + 6.0, d: 3.1, drum: { w: 3.6, h: 1.1, y: y0 + 5.1 } },
+    { p: { a0: 7.3, a1: 4.2, h: 1.9, k: 1.3 }, y: y0 - .05, d: 1.1, drum: null },
+    { p: { a0: 5.6, a1: 2.4, h: 1.8, k: 1.3 }, y: y0 + 2.4, d: 2.1, drum: { w: 7.6, h: 1.0, y: y0 + 1.6 } },
+    { p: { a0: 3.4, a1: .14, h: 2.5, k: 1.3 }, y: y0 + 4.6, d: 3.1, drum: { w: 4.4, h: .9, y: y0 + 3.9 } },
   ];
   // drums with vent windows
   tiers.forEach((t, i) => {
@@ -286,88 +279,57 @@ function s3(S) {
     const g = roofGroup(S, t.p); place(g, 0, t.y, HALL_Z); G.add(g);
     R.add(g, { delay: t.d, dur: 1.15, kind: 'drop', drop: 7 - i, amp: .12 + i * .03, fx: 'dust', fxOff: V3(0, 0, 0), snd: 'pop' });
   });
-  const fin = finial(S); place(fin, 0, y0 + 8.85, HALL_Z); G.add(fin);
+  const fin = finial(S); place(fin, 0, y0 + 7.1, HALL_Z); G.add(fin);
   R.add(fin, { delay: 4.0, dur: .9, kind: 'pop', amp: .5, fx: 'sparkle', snd: 'chime', fxOff: V3(0, 2.6, 0) });
   // veranda lean-to roof
-  const vr = roofGroup(S, { a0: 6.9, b0: 2.7, a1: 5.1, b1: .25, h: 1.35, k: 1.5, flick: .22, lift: .35, N: 7 });
-  place(vr, 0, PL + 3.55, 4.3); G.add(vr); R.add(vr, { delay: .6, dur: 1.0, kind: 'drop', drop: 5, fx: 'dust', snd: 'pop' });
+  const vr = roofGroup(S, { a0: 6.9, b0: 2.7, a1: 5.1, b1: .25, h: .75, k: 1.2, N: 6 });
+  place(vr, 0, PL + 3.25, 4.3); G.add(vr); R.add(vr, { delay: .6, dur: 1.0, kind: 'drop', drop: 5, fx: 'dust', snd: 'pop' });
   // finishing flourish
   S.finale(V3(0, 11, HALL_Z), 4.3, 'confetti');
 }
 
-/* ------------------------------------------------------------------ 4: minaret */
+/* ------------------------------------------------------------------ 4: menara (Kudus-style tiered tower with tajug cap) */
 function s4(S) {
   const { M, G, R } = S, { x, z } = MINARET;
   const root = new THREE.Group(); place(root, x, 0, z); G.add(root);
-  let y = 0;
-  const part = (geo, mat, d, o = {}) => { const m = mesh(S, geo, mat, o.cast !== false); root.add(m); R.add(m, { delay: d, dur: o.dur ?? .9, kind: o.kind ?? 'grow', amp: o.amp ?? .14, fx: o.fx, fxOff: o.fxOff, snd: o.snd }); return m; };
-  const oct = (rt, rb, h, yy) => { const g = new THREE.CylinderGeometry(rt, rb, h, 8, 1); g.translate(0, yy + h / 2, 0); return g; };
-  const facePos = (r, k) => { const a = Math.PI / 8 + k * Math.PI / 4; return [Math.sin(a) * r, Math.cos(a) * r, a]; };
-  // base plinth + collar
-  part(shade(uvScale(oct(2.35, 2.5, .45, 0), 2, 1), { lo: .6 }), M.marble, 0, { fx: 'dust', snd: 'pop', fxOff: V3(0, 0, 0) });
-  part(shade(oct(2.0, 2.15, .4, .45), { lo: .8 }), M.marble, .15, {});
-  y = .85;
-  // shaft sections: [rb, rt, h, delay, color]
-  const secs = [[1.7, 1.5, 4.6, .3, M.plasterW], [1.35, 1.2, 3.4, .75, M.plasterW], [1.0, .9, 2.8, 1.2, M.plasterW]];
-  const winSpots = [];
-  secs.forEach(([rb, rt, h, d, mat], i) => {
-    const g = shade(uvScale(oct(rt, rb, h, y), 1.8, h / 2.5), { lo: .66, hi: 1, y0: y, y1: y + h });
-    part(g, mat, d, { fx: i === 0 ? 'dust' : null });
-    winSpots.push({ y: y + h * .52, rb, rt, h, i });
-    { const bd = oct(rb * .98 + .035 + (rt - rb) * .25, rb * .98 + .035 + (rt - rb) * .25, .55, y + .5); uvScale(bd, rb * 2.4 / .55 * 2.6, 1); part(shade(bd, { lo: .9 }), M.arabTeal, d + .25, { dur: .5, kind: 'pop', cast: false }); }
-    // band
-    const bg = flat(oct(rt + .06, rt + .06, .14, y + h - .14), 1); part(bg, M.gold, d + .3, { dur: .5, kind: 'pop', cast: false });
-    const bg2 = flat(oct(rb + .05, rb + .05, .14, y + .02), 1); part(bg2, M.gold, d + .3, { dur: .5, kind: 'pop', cast: false });
-    // balcony after sections 0 and 1
-    if (i < 2) {
-      const br = rt + .65, by = y + h;
-      const bal = shade(oct(br, br - .1, .28, by), { lo: .8 });
-      part(bal, M.marble, d + .45, { dur: .6, kind: 'pop' });
-      const bal2 = shade(oct(br - .12, br - .3, .3, by - .3), { lo: .6 }); part(bal2, M.stone, d + .4, { dur: .5, kind: 'pop' });
-      // railing: posts + top rail
-      const rp = [];
-      for (let k = 0; k < 24; k++) { const a = k / 24 * Math.PI * 2, p = new THREE.CylinderGeometry(.04, .045, .75, 6); p.translate(Math.sin(a) * (br - .1), by + .28 + .375, Math.cos(a) * (br - .1)); rp.push(flat(p, 1)); }
-      const rail = new THREE.TorusGeometry(br - .1, .06, 6, 8); rail.rotateX(Math.PI / 2); rail.translate(0, by + 1.05, 0); rp.push(flat(rail, 1));
-      part(merge(rp), M.gold, d + .6, { dur: .6, kind: 'pop', cast: false });
+  const part = (geo, mat, d, o = {}) => { const m = mesh(S, geo, mat, o.cast !== false); root.add(m); R.add(m, { delay: d, dur: o.dur ?? .9, kind: o.kind ?? 'grow', amp: o.amp ?? .12, fx: o.fx, fxOff: o.fxOff, snd: o.snd }); return m; };
+  const box = (w, h, y, mat, d, o = {}, lo = .7) => { const g = rbox(w, h, w, .08, 2); g.translate(0, y, 0); uvScale(g, w / 2, h / 2.5); return part(shade(g, { lo, hi: 1, y0: y, y1: y + h }), mat, d, o); };
+  const win = (w, h, yc, half, list, fr) => {
+    for (let k = 0; k < 4; k++) {
+      const a = k * Math.PI / 2, m4 = new THREE.Matrix4().makeRotationY(a);
+      const pl = archPlane(w, h); pl.translate(0, yc - h / 2, half + .012); pl.applyMatrix4(m4); list.push(pl);
+      const f = archFrame(w, h, .14, .1); f.translate(0, yc - h / 2, half + .012); f.applyMatrix4(m4); fr.push(flat(f, 1));
     }
-    y += h;
-  });
-  // arched windows on faces (emissive stained glass)
+  };
+  // stepped plinth + brick-like lower tower
+  box(5.0, .5, 0, M.stone, 0, { fx: 'dust', snd: 'pop' }, .6);
+  box(4.4, .4, .5, M.marble, .12, {}, .8);
+  box(3.9, 6.0, .9, M.plasterW, .3, { fx: 'dust' }, .7);
   const gl = [], fr = [];
-  for (const s of winSpots) for (let k = 0; k < 4; k++) {
-    const [px, pz, a] = facePos((s.rb + s.rt) / 2 * .924, k * 2 + (s.i % 2));
-    const w = s.i === 2 ? .38 : .55, h = s.i === 2 ? 1.0 : 1.5;
-    const pl = archPlane(w, h), f = archFrame(w, h, .07, .06);
-    const m4 = new THREE.Matrix4().compose(V3(px, s.y - h / 2, pz), new THREE.Quaternion().setFromAxisAngle(V3(0, 1, 0), a), V3(1, 1, 1));
-    pl.applyMatrix4(m4); f.applyMatrix4(m4); pl.translate(Math.sin(a) * .015, 0, Math.cos(a) * .015); gl.push(pl); fr.push(flat(f, 1));
-  }
-  const gm = new THREE.Mesh(GE.mergeGeometries(gl, false), M.glass); root.add(gm); R.add(gm, { delay: 1.8, dur: .5, kind: 'pop', onLand: () => S.flash(.7) });
-  part(merge(fr), M.gold, 1.8, { dur: .5, kind: 'pop', cast: false });
-  // lantern chamber (muazzin room) with glass faces
-  const ly = y + .35;
-  const lbase = shade(oct(1.0, 1.05, .35, y), { lo: .8 }); part(lbase, M.green, 1.5, { kind: 'pop', dur: .6 });
-  const lant = oct(.85, .85, 1.5, ly); part(flat(lant, 1), M.green, 1.7, { dur: .7, amp: .1 });
-  const lgl = [], lfr = [];
-  for (let k = 0; k < 8; k++) {
-    const a = Math.PI / 8 + k * Math.PI / 4, r = .85 * .924 + .012;
-    const pl = archPlane(.45, 1.15); pl.translate(0, ly + .15, 0);
-    const f = archFrame(.45, 1.15, .06, .05); f.translate(0, ly + .15, 0);
-    const mr = new THREE.Matrix4().compose(V3(Math.sin(a) * r, 0, Math.cos(a) * r), new THREE.Quaternion().setFromAxisAngle(V3(0, 1, 0), a), V3(1, 1, 1));
-    pl.applyMatrix4(mr); f.applyMatrix4(mr); lgl.push(pl); lfr.push(flat(f, 1));
-  }
-  const lg = new THREE.Mesh(GE.mergeGeometries(lgl, false), M.glass); root.add(lg); R.add(lg, { delay: 2.2, dur: .5, kind: 'pop' });
-  part(merge(lfr), M.gold, 2.2, { dur: .5, kind: 'pop', cast: false });
-  // onion dome
-  const prof = [[.01, 0], [.95, .02], [1.12, .22], [1.12, .45], [.95, .8], [.62, 1.22], [.3, 1.6], [.08, 1.95], [.01, 2.05]].map(([r, h]) => new THREE.Vector2(r, h));
-  const dg = new THREE.LatheGeometry(prof, 16); dg.translate(0, ly + 1.5, 0);
-  const dome = part(shade(dg, { lo: .7, hi: 1 }), M.green, 2.5, { kind: 'drop', dur: 1.0, amp: .14, fx: 'dust', snd: 'pop' }); dome.userData.drop = 3;
-  const rg = flat(new THREE.TorusGeometry(1.12, .06, 6, 20).rotateX(Math.PI / 2).translate(0, ly + 1.95, 0), 1);
-  part(rg, M.gold, 3.0, { kind: 'pop', dur: .4, cast: false });
-  const fin = finial(S); fin.scale.setScalar(.75); fin.position.set(0, ly + 3.5, 0); root.add(fin);
-  R.add(fin, { delay: 3.3, dur: .8, kind: 'pop', amp: .5, fx: 'sparkle', snd: 'chime', fxOff: V3(0, 1.8, 0) });
-  root.updateMatrixWorld(true);
-  S.col(x, z, 2.1); S.col(x + .1, z, 2.4);
-  S.finale(V3(x, ly + 5, z), 3.6, 'confetti');
+  win(1.0, 2.0, 3.6, 1.95, gl, fr);
+  // first tajug eave
+  const r1 = roofGroup(S, { a0: 2.9, a1: 2.0, h: .55, k: 1.2, N: 4 }); r1.position.set(0, 6.8, 0); root.add(r1); R.add(r1, { delay: .9, dur: .8, kind: 'drop', drop: 3, fx: 'dust', snd: 'pop' });
+  box(4.1, .5, 6.45, M.arabTeal, 1.0, { kind: 'pop', dur: .5, cast: false }, .9);
+  // upper shaft
+  box(3.1, 4.6, 7.2, M.plasterW, 1.2, {}, .85);
+  win(.8, 1.7, 9.5, 1.55, gl, fr);
+  const r2 = roofGroup(S, { a0: 2.45, a1: 1.8, h: .5, k: 1.2, N: 4 }); r2.position.set(0, 11.7, 0); root.add(r2); R.add(r2, { delay: 1.8, dur: .8, kind: 'drop', drop: 3, fx: 'dust', snd: 'pop' });
+  // open belfry pavilion (bedug-tower style): four posts, rail and glass
+  const posts = [];
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const c = cyl(.17, .19, 2.4, 10); c.translate(sx * 1.2, 11.9, sz * 1.2); posts.push(shade(c, { lo: .8 })); }
+  const bm = []; for (const yy of [11.9, 14.15]) for (const s2 of [-1, 1]) { const a1 = rbox(2.8, .2, .24, .03); a1.translate(0, yy, s2 * 1.2); bm.push(a1); const a2 = rbox(.24, .2, 2.8, .03); a2.translate(s2 * 1.2, yy, 0); bm.push(a2); }
+  part(merge(posts.concat(bm)), M.wood, 2.2, { amp: .08, fx: 'dust' });
+  const lgl = []; for (let k = 0; k < 4; k++) { const pl = archPlane(1.5, 1.7); pl.translate(0, 12.15, 1.2); pl.applyMatrix4(new THREE.Matrix4().makeRotationY(k * Math.PI / 2)); lgl.push(pl); }
+  const rails = []; for (let k = 0; k < 4; k++) { const rl = rbox(2.4, .12, .1, .02); rl.translate(0, 12.55, 1.2); rl.applyMatrix4(new THREE.Matrix4().makeRotationY(k * Math.PI / 2)); rails.push(flat(rl, 1)); }
+  gl.push(...lgl);
+  const gm = new THREE.Mesh(GE.mergeGeometries(gl, false), M.glass); root.add(gm); R.add(gm, { delay: 2.4, dur: .5, kind: 'pop', onLand: () => S.flash(.7) });
+  part(merge(fr.concat(rails)), M.gold, 2.4, { dur: .5, kind: 'pop', cast: false });
+  const r3 = roofGroup(S, { a0: 2.6, a1: .12, h: 1.9, k: 1.25, N: 6 }); r3.position.set(0, 14.25, 0); root.add(r3);
+  R.add(r3, { delay: 2.9, dur: 1.0, kind: 'drop', drop: 5, amp: .13, fx: 'dust', snd: 'pop' });
+  const fin = finial(S); fin.scale.setScalar(.8); fin.position.set(0, 16.1, 0); root.add(fin);
+  R.add(fin, { delay: 3.9, dur: .8, kind: 'pop', amp: .5, fx: 'sparkle', snd: 'chime', fxOff: V3(0, 1.8, 0) });
+  S.col(x, z, 2.6);
+  S.finale(V3(x, 15, z), 4.1, 'confetti');
 }
 
 /* ------------------------------------------------------------------ 5: wudhu fountain / ablution pavilion */
@@ -378,8 +340,9 @@ function s5(S) {
   const oct = (rt, rb, h, y0 = 0, seg = 8) => { const g = new THREE.CylinderGeometry(rt, rb, h, seg, 1); g.translate(0, y0 + h / 2, 0); return g; };
   // floor slab
   part(shade(uvScale(rbox(5.8, .22, 5.8, .08, 2), 2, 2), { lo: .7 }), M.marble, 0, { fx: 'dust', snd: 'pop' });
+  part(shade(uvScale(oct(2.15, 2.2, .45, .22), 6, .5), { lo: .85 }), M.arabTeal, .25, { kind: 'pop', cast: false });
   // octagonal basin
-  part(shade(uvScale(oct(1.75, 1.85, .85, .22), 3, 1), { lo: .6 }), M.marble, .3, { fx: 'dust' });
+  part(shade(uvScale(oct(1.85, 1.95, .95, .22), 3, 1), { lo: .6 }), M.marble, .3, { fx: 'dust' });
   const rim = flat(new THREE.TorusGeometry(1.76, .09, 6, 8).rotateX(Math.PI / 2).translate(0, 1.08, 0), 1);
   part(rim, M.gold, .55, { kind: 'pop', dur: .4, cast: false });
   const water = mesh(S, new THREE.CylinderGeometry(1.6, 1.6, .05, 8).translate(0, .98, 0), M.water, false, false); water.userData.water = true; root.add(water);
@@ -432,8 +395,8 @@ function s6(S) {
   const { M, G, R } = S, { x, z } = BEDUG;
   const root = new THREE.Group(); place(root, x, 0, z); G.add(root);
   const part = (geo, mat, d, o = {}) => { const m = mesh(S, geo, mat, o.cast !== false); root.add(m); R.add(m, { delay: d, dur: o.dur ?? .8, kind: o.kind ?? 'grow', amp: o.amp ?? .15, fx: o.fx, fxOff: o.fxOff, snd: o.snd }); return m; };
-  part(shade(uvScale(rbox(5.0, .5, 5.0, .08, 2), 2, 2), { lo: .6 }), M.stone, 0, { fx: 'dust', snd: 'pop' });
-  part(shade(uvScale(rbox(4.5, .2, 4.5, .05, 2), 2, 2), { lo: .85 }), M.woodDark, .25, { kind: 'pop', fx: 'dust' });
+  part(shade(uvScale(rbox(5.0, .5, 5.0, .08, 2), 3, 3), { lo: .75 }), M.roof, 0, { fx: 'dust', snd: 'pop' });
+  part(shade(uvScale(rbox(4.5, .2, 4.5, .05, 2), 2, 2), { lo: .85 }), M.wood, .25, { kind: 'pop', fx: 'dust' });
   const posts = [], gg = [];
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     const px = sx * 1.9, pz = sz * 1.9;
@@ -516,7 +479,7 @@ function s7(S) {
   mh.add(mesh(S, merge(mc), M.gold, false));
   R.add(mh, { delay: .8, dur: .9, kind: 'pop', amp: .15, onLand: () => S.flash(1) });
   // mimbar (pulpit)
-  const mb = new THREE.Group(); place(mb, 2.75, PL, -6.7); G.add(mb);
+  const mb = new THREE.Group(); place(mb, 2.6, PL, -6.3); mb.scale.setScalar(1.3); G.add(mb);
   const pg = [], gg = [];
   const bx = (arr, w, h, d, px, py, pz, r = .04) => { const g = rbox(w, h, d, r, 1); g.translate(px, py, pz); arr.push(arr === gg ? flat(g, 1) : shade(g, { lo: .7 })); };
   bx(pg, .2, 1.8, 2.4, -.55, 0, 0); bx(pg, .2, 1.8, 2.4, .55, 0, 0); bx(pg, 1.3, 1.6, .15, 0, 0, -1.2);
@@ -620,11 +583,7 @@ function s8(S) {
   fInst.forEach((f, i) => { mm.compose(f.p, f.q, V3(f.s, f.s, f.s)); fi2.setMatrixAt(i, mm); });
   G.add(fi2); R.addInst(fi2, { delayFn: (i) => 1.4 + (i % 10) * .05 + Math.floor(i / 10) * .1, dur: .7, kind: 'pop', amp: .4 });
   // lantern posts (instanced pole + glowing paper lantern)
-  const lpos = [];
-  for (const sx of [-1, 1]) for (let k = 0; k < 4; k++) lpos.push([sx * 2.5, 11.2 + k * 3.4]);
-  for (let k = 0; k < 8; k++) { const a = -.1 + (k / 7) * (Math.PI + .2); const r = 12.9; lpos.push([Math.cos(a + Math.PI) * r * -1, -Math.sin(a) * r + 0]); }
-  lpos.length = 8; for (let k = 0; k < 10; k++) { const a = Math.PI * (.12 + k * .1); const x = Math.cos(a) * 12.9 * (k % 2 ? 1 : 1), z = Math.sin(a) * 12.9; if (Math.abs(x) > 3.6 && Math.abs(x) < 10.5) lpos.push([x, z]); }
-  for (const sx of [-1, 1]) for (const z of [-9.5, -3, 4]) lpos.push([sx * 9.3, z]);
+  const lpos = [[-1.9, 15.5], [1.9, 15.5], [-1.9, 19.5], [1.9, 19.5], [-9.5, 12], [9.5, 12], [-12.5, -9], [12.5, -9.5]];
   const pole = new THREE.CylinderGeometry(.06, .09, 2.6, 8).translate(0, 1.3, 0); const arm = new THREE.CylinderGeometry(.035, .035, .5, 6).rotateZ(Math.PI / 2).translate(.25, 2.55, 0);
   const pg = merge([flat(pole, 1), flat(arm, 1), flat(new THREE.SphereGeometry(.12, 8, 6).translate(0, 0, 0), 1), flat(new THREE.ConeGeometry(.15, .2, 6).translate(.5, 2.52, 0), 1)]);
   const lanternG = new THREE.CylinderGeometry(.19, .15, .36, 8).translate(.5, 2.25, 0);

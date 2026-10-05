@@ -25,7 +25,7 @@ export function archPlane(w, h) {
   return g;
 }
 /** Arch-shaped frame ring (gold trim), depth along z, centred on z=0 */
-export function archFrame(w, h, t = .16, depth = .62) {
+export function archFrame(w, h, t = .22, depth = .62) {
   const s = archShape(w, h, t); s.holes.push(archPath(w, h));
   const g = new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: true, bevelThickness: .03, bevelSize: .03, bevelSegments: 2, curveSegments: 10 });
   g.translate(0, 0, -depth / 2); return g;
@@ -79,7 +79,7 @@ export function merge(list) { list.forEach(ensureColor); return mergeGeometries(
  * Curved tajug roof frustum, local origin at centre of eave line (y=0 eave, y=h top).
  * Concave swoop with upturned corners. Returns { tiles, wood, trim, ridge } geometries.
  */
-export function tajugRoof({ a0, b0 = a0, a1 = .15, b1 = a1, h, k = 1.75, flick = .35, lift = .55, tile = 1.7, N = 9, M = 8, ridgeR = .13 }) {
+export function tajugRoof({ a0, b0 = a0, a1 = .15, b1 = a1, h, k = 1.25, flick = .12, lift = .2, tile = 1.7, N = 9, M = 8, ridgeR = .13 }) {
   const Y = (t, xn) => h * Math.pow(t, k) + flick * Math.pow(1 - t, 4) + lift * Math.pow(xn, 5) * Math.pow(1 - t, 1.6);
   const faces = [];
   const faceDefs = [
@@ -135,11 +135,10 @@ export function tajugRoof({ a0, b0 = a0, a1 = .15, b1 = a1, h, k = 1.75, flick =
   const bx = (arr, w, hh, d, x, yy, z, r = .05) => { const g = rbox(w, hh, d, r); g.translate(x, yy, z); arr.push(shade(g, { lo: .7, hi: 1 })); };
   bx(wood, 2 * a0 + T, Hh, T, 0, y - Hh + .12, b0); bx(wood, 2 * a0 + T, Hh, T, 0, y - Hh + .12, -b0);
   bx(wood, T, Hh, 2 * b0 + T, a0, y - Hh + .12, 0); bx(wood, T, Hh, 2 * b0 + T, -a0, y - Hh + .12, 0);
-  const tz = .07;
+  const tz = .11;
   bx(trim, 2 * a0 + T + .08, tz, T + .06, 0, y - Hh + .1, b0, .02); bx(trim, 2 * a0 + T + .08, tz, T + .06, 0, y - Hh + .1, -b0, .02);
   bx(trim, T + .06, tz, 2 * b0 + T + .08, a0, y - Hh + .1, 0, .02); bx(trim, T + .06, tz, 2 * b0 + T + .08, -a0, y - Hh + .1, 0, .02);
   // little gold corner finials (tips)
-  for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) { const g = new THREE.ConeGeometry(.12, .42, 6); g.translate(sx * (a0 + .12), Y(0, 1) + .2, sz * (b0 + .12)); trim.push(flat(g, 1)); }
   const soffitS = new THREE.Shape([V2(-a0, -b0), V2(a0, -b0), V2(a0, b0), V2(-a0, b0)]);
   const ia = Math.max(.1, a0 * .3), ib = Math.max(.1, b0 * .3);
   const soffit = new THREE.ShapeGeometry(soffitS); soffit.rotateX(Math.PI / 2); soffit.translate(0, y - .02, 0);
