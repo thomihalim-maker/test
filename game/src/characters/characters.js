@@ -1,17 +1,25 @@
 // CHARACTERS module: player marbot, input, NPC jamaah visitors.
 import * as THREE from 'three';
 import { Person, People, makePalette } from './rig.js';
+import { OUTLINE_U } from './toon.js';
 import { ACTS } from './anims.js';
 import { createInput } from './input.js';
 import { makeProps, updateProps } from './props.js';
 import { createBubbles } from './bubbles.js';
 import { createVisitors } from './visitors.js';
 
-const DEFAULT_LOOK = { skin:0xf0c08c, koko:0xf8f3e6, sarong:0x2f7d6c, peci:0x1c1c20, shoe:0x6b4a2e };
+const DEFAULT_LOOK = { skin:0xf0c08c, koko:0xf8f3e6, sarong:0x1f7a63, peci:0x18181c, shoe:0x6b4a2e, trim:0xd4a84a, hair:0x5a3820 };
+// tools: id -> {icon, anim, animal tool name for animals.interact}
 const TOOLS = {
-  feed:{ icon:'🌾', label:'Beri Makan', anim:'feed' }, water:{ icon:'💧', label:'Beri Minum', anim:'water' },
-  wash:{ icon:'🧼', label:'Mandikan', anim:'wash' }, pet:{ icon:'🤍', label:'Elus', anim:'pet' }
+  feed:{ icon:'🌾', anim:'feed', item:'hay' }, water:{ icon:'💧', anim:'water', item:'water' },
+  wash:{ icon:'🧼', anim:'wash', item:'soap' }, treat:{ icon:'🥕', anim:'treat', item:'treat' }, pet:{ icon:'🤍', anim:'pet', item:'pet' }
 };
+const ITEM2TOOL = { hay:'feed', water:'water', soap:'wash', treat:'treat', pet:'pet' };
+const L10N = {
+  id:{ feed:'Beri Makan', water:'Beri Minum', wash:'Mandikan', treat:'Beri Camilan', pet:'Elus', fillFeed:'Isi Jerami', fillWater:'Isi Air', fillWash:'Isi Bak Cuci', bedug:'Tabuh Bedug', greet:'Sapa', act:'Aksi' },
+  en:{ feed:'Feed', water:'Give Water', wash:'Wash', treat:'Give Treat', pet:'Pet', fillFeed:'Fill Hay', fillWater:'Fill Water', fillWash:'Fill Wash Tub', bedug:'Beat Bedug', greet:'Greet', act:'Action' }
+};
+const PEN = { x:26, z:6, r:11 };
 const angLerp=(a,b,k)=>{ const d=((b-a+Math.PI)%(Math.PI*2)+Math.PI*2)%(Math.PI*2)-Math.PI; return a+d*k; };
 const hexOf = (v)=> typeof v==='string'? new THREE.Color(v).getHex() : v;
 
@@ -19,6 +27,7 @@ export async function init(ctx){
   const q = new URLSearchParams(location.search);
   const scene = ctx.scene, camera = ctx.camera;
   ctx.interactables ??= [];
+  const tr = (k)=>{ const lang = ctx.state?.settings?.lang==='en'?'en':'id'; return L10N[lang][k]||L10N.id[k]||k; };
 
   // ---------- dev scaffolding when world module is absent ----------
   let dev = null;
@@ -26,21 +35,24 @@ export async function init(ctx){
 
   // ---------- player ----------
   const look = ()=>({ ...DEFAULT_LOOK, ...(ctx.state.look||{}) });
-  const specFromLook = (l)=>({ kind:'player', size:1, headScale:1, torso:'koko', bottom:'sarong', hat:'peci', gender:'m',
-    colors:{ skin:hexOf(l.skin), top:hexOf(l.koko), bot:hexOf(l.sarong), head:hexOf(l.peci), shoe:hexOf(l.shoe) } });
+  const specFromLook = (l)=>({ kind:'player', size:1, headScale:1, limb:1, eyeScale:1.04, torso:'koko', bottom:'sarong', hat:'peci', gender:'m', eyes:0, head:0, acc:[], sash:false,
+    colors:{ skin:hexOf(l.skin), top:hexOf(l.koko), bot:hexOf(l.sarong), head:hexOf(l.peci), shoe:hexOf(l.shoe), acc:hexOf(l.trim), hair:hexOf(l.hair) } });
   let lookKey = JSON.stringify(look());
   const player = new Person(specFromLook(look()));
-  player.wantHands = true; player.size = 1.2;
+  player.wantHands = true; player.size = 1.18;
   const at = (q.get('at')||'6,10').split(',').map(Number);
   player.pos.set(at[0], 0, at[1]); player.pos.y = ctx.groundHeight(at[0],at[1]);
   player.yaw = at[2]!==undefined&&!isNaN(at[2]) ? at[2]*Math.PI/180 : Math.atan2(-at[0],-at[1]);
 
-  const people = new People(scene, 4);            // player (hi-res, casts shadows)
-  const crowdPeople = new People(scene, 64);        // visitors (instanced)
+  const LOW = ctx.quality==='low' || q.get('quality')==='low';
+  const people = new People(scene, {max:2, D:1, cast:true, name:'player'});
+  const crowdHi = new People(scene, {max:LOW?6:24, D:.75, cast:!LOW, name:'crowdHi'});
+  const NEAR = LOW ? 8 : 15;
+  const crowdLo = new People(scene, {max:64, D:.5, cast:false, name:'crowdLo'});
   const props = makeProps(scene);
   const bubbles = createBubbles(scene, 14);
   const input = createInput(ctx); ctx.input = input;
-  const visitors = createVisitors(ctx, crowdPeople, {});
+  const visitors = createVisitors(ctx, {max:60});
   const pcol = { r:.4 };
 
   player.onStep = (p,side)=>{
@@ -52,7 +64,7 @@ export async function init(ctx){
   const vel = new THREE.Vector3(), pvel = new THREE.Vector3(), tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
   const fwd = new THREE.Vector3(), rgt = new THREE.Vector3();
   let act = null;               // {name,t,dur,hit,fired,target,kind,data,yaw}
-  let tool = null, toolAuto = true, ctxInfo = null, ctxTimer = 0, idleT = 0, accXs = 0, accZs = 0;
+  let ctxInfo = null, ctxTimer = 0, idleT = 0, accXs = 0, accZs = 0, explicitCarry = null;
 
   // ---------- API ----------
   function emote(person, type, dur){ bubbles.emote(person||player, type, dur); }
@@ -73,58 +85,61 @@ export async function init(ctx){
     return true;
   }
   function fireInteract(a){
-    const c = a.data||{}; const payload = { kind:a.kind, animal:c.animal||null, target:c.target||c.animal||null, station:c.station||null, pos:player.pos.clone(), tool:a.kind };
-    if(a.kind==='greet' || a.name==='wave'){ if(c.visitor){ c.visitor.person.play('wave',1.4); bubbles.emote(c.visitor.person,'heart'); } }
+    const c = a.data||{}; const payload = { kind:a.kind, animal:c.animal||null, target:c.target||c.animal||null, station:c.station||null, stationType:c.stationType||null, pos:player.pos.clone(), tool:a.kind };
+    if(a.kind==='greet'){ if(c.visitor){ c.visitor.person.play('wave',1.4); bubbles.emote(c.visitor.person,'heart'); ctx.emit('visitor:greet',{id:c.visitor.id}); } }
     const A = ctx.modules.animals; let handled = false;
     try{
-      if(c.animal && A?.interact) handled = !!A.interact(c.animal, {feed:'hay',water:'water',wash:'soap',pet:'pet'}[a.kind]||'pet');
-      else if(c.station && A?.fillStation) handled = !!A.fillStation(a.kind==='water'?'water':'feed');
+      if(c.animal && A?.interact) handled = !!A.interact(c.animal, TOOLS[a.kind]?.item||'pet');
+      else if(c.stationType && A?.fillStation) handled = !!A.fillStation(c.stationType);
     }catch(e){ console.warn('characters: interact failed',e); }
     payload.handled = handled;
     ctx.emit('interact', payload);
   }
-  function setTool(id){ tool=id; toolAuto=false; refreshContext(true); }
-  input.cycleTool = ()=>{ const ids=Object.keys(TOOLS); tool = ids[(ids.indexOf(tool)+1)%ids.length]; toolAuto=false; refreshContext(true); ctx.modules.audio?.play?.('ui_tap',{vol:.4}); };
-
-  const needOf = (a)=>{ // lowest stat -> which tool is most useful (assumes stat higher = better, 0..1 or 0..100)
-    const s=a.stats||{}; const c=[['feed',s.hunger],['water',s.thirst],['wash',s.clean]].filter(x=>typeof x[1]==='number');
-    if(!c.length) return 'pet'; c.sort((x,y)=>x[1]-y[1]); const lim = Math.max(...c.map(x=>x[1]))>1.5?60:.6; return c[0][1]<lim?c[0][0]:'pet';
+  // hotbar tool (UI owns selection in ctx.state.tool; Q cycles it)
+  const curTool = ()=>ITEM2TOOL[ctx.state?.tool] || null;
+  ctx.on('tool:select',(id)=>{ if(ctx.state) ctx.state.tool = id; ctxTimer = 0; });
+  input.cycleTool = ()=>{
+    const items=['hay','water','soap','treat']; const i=items.indexOf(ctx.state?.tool);
+    const id = items[(i+1)%items.length]; if(ctx.state) ctx.state.tool = id;
+    ctx.emit('tool:select', id); ctx.emit('inventory:change', ctx.state?.inventory);
+    ctx.modules.audio?.play?.('ui_tap',{vol:.4}); ctxTimer = 0;
   };
-  function stationsOf(){ const A=ctx.modules.animals; return A?.stations || A?.pen?.stations || null; }
+
+  const statOf = (a,k)=>{ const s=a.stats||{}; return k==='feed'?s.hunger:k==='water'?s.thirst:k==='wash'?s.clean:1; };
+  const needOf = (a)=>{ // lowest stat (0..1, higher = better)
+    const c=['feed','water','wash'].map(k=>[k,statOf(a,k)]).filter(x=>typeof x[1]==='number');
+    if(!c.length) return 'pet'; c.sort((x,y)=>x[1]-y[1]); return c[0][1]<.6?c[0][0]:'pet';
+  };
 
   function resolveContext(){
     const pos = player.pos; let best=null, bd=1e9;
     const consider=(c,d)=>{ if(d<bd){ bd=d; best=c; } };
-    for(const it of ctx.interactables){ const p=it.pos||it; const d=Math.hypot(p.x-pos.x,p.z-pos.z); if(d<(it.r||2.5) && (!it.enabled||it.enabled())) consider({kind:it.kind||'interact',label:it.label||'Aksi',icon:it.icon||'✋',pos:p,anim:it.anim,data:it}, d-(it.priority||0)); }
+    for(const it of ctx.interactables){ const p=it.pos||it; const d=Math.hypot(p.x-pos.x,p.z-pos.z); if(d<(it.r||2.5) && (!it.enabled||it.enabled())) consider({kind:it.kind||'interact',label:it.label||tr('act'),icon:it.icon||'✋',pos:p,anim:it.anim,data:it}, d-(it.priority||0)); }
     const M = ctx.modules.masjid;
-    if(M?.bedugPos && (M.stage|0)>=6){ const d=Math.hypot(M.bedugPos.x-pos.x,M.bedugPos.z-pos.z); if(d<3.4) consider({kind:'bedug',label:'Tabuh Bedug',icon:'🥁',pos:M.bedugPos},d-1); }
-    const st = stationsOf();
-    if(st){
-      for(const f of st.feed||[]){ const d=Math.hypot(f.pos.x-pos.x,f.pos.z-pos.z); if(d<2.6) consider({kind:'feed',label:'Isi Jerami',icon:'🌾',pos:f.pos,station:f,anim:'feed'},d-.5); }
-      if(st.water){ const d=Math.hypot(st.water.pos.x-pos.x,st.water.pos.z-pos.z); if(d<2.6) consider({kind:'water',label:'Isi Air',icon:'💧',pos:st.water.pos,station:st.water,anim:'water'},d-.5); }
-    }
-    // animals take priority when close (tool selection)
-    const A = ctx.modules.animals; let animal=null;
+    if(M?.bedugPos && (M.stage|0)>=6){ const d=Math.hypot(M.bedugPos.x-pos.x,M.bedugPos.z-pos.z); if(d<3.4) consider({kind:'bedug',label:tr('bedug'),icon:'🥁',pos:M.bedugPos},d-1); }
+    const A = ctx.modules.animals;
+    try{
+      const ns = A?.nearestStation?.(pos, 2.4);
+      if(ns){ const ty=ns.type, k = ty==='water'?'fillWater':ty==='wash'?'fillWash':'fillFeed';
+        consider({kind:ty==='water'?'water':ty==='wash'?'wash':'feed', label:tr(k), icon:ty==='water'?'💧':ty==='wash'?'🧼':'🌾', pos:ns.st.pos, station:ns.st, stationType:ty, anim:ty==='water'?'water':ty==='wash'?'wash':'feed'}, ns.d-.4); }
+    }catch(e){}
+    let animal=null;
     try{ animal = A?.nearest?.(pos, 3.4) || null; }catch(e){}
     if(animal){
       const ap = animal.pos || animal.mesh?.position || animal.group?.position;
-      if(ap){ const k = toolAuto||!tool ? needOf(animal) : tool; const T=TOOLS[k];
-        const d=Math.hypot(ap.x-pos.x,ap.z-pos.z); consider({kind:k,label:T.label,icon:T.icon,pos:ap,animal,target:animal,tools:true},d-1.5); }
+      if(ap){
+        let k = curTool() || needOf(animal);
+        if(k!=='treat' && k!=='pet' && (statOf(animal,k)??0)>.92) k='pet';
+        const d=Math.hypot(ap.x-pos.x,ap.z-pos.z); consider({kind:k,label:tr(k),icon:TOOLS[k].icon,pos:ap,animal,target:animal},d-1.5); }
     }
-    // visitors
     if(!best || best.kind==='greet'){
-      for(const v of visitors.list){ if(v.state==='pray') continue; const d=Math.hypot(v.person.pos.x-pos.x,v.person.pos.z-pos.z); if(d<2.4) consider({kind:'greet',label:'Sapa',icon:'👋',pos:v.person.pos,visitor:v,anim:'wave'},d+.8); }
+      for(const v of visitors.list){ if(v.state==='pray') continue; const d=Math.hypot(v.person.pos.x-pos.x,v.person.pos.z-pos.z); if(d<2.4) consider({kind:'greet',label:tr('greet'),icon:'👋',pos:v.person.pos,visitor:v,anim:'wave'},d+.8); }
     }
     return best;
   }
-  let toolsShown=false;
-  function refreshContext(force){
+  function refreshContext(){
     const c = resolveContext();
-    const sig = c? c.kind+(c.animal?'a':''):'';
-    ctxInfo = c; input.setContext(c?{icon:c.icon,label:c.label}:null);
-    const showTools = !!(c&&c.tools);
-    if(showTools){ if(tool==null) tool=c.kind; if(toolAuto) tool=c.kind; input.setTools(Object.entries(TOOLS).map(([id,t])=>({id,icon:t.icon})), c.kind, setTool); toolsShown=true; }
-    else if(toolsShown){ input.setTools(null); toolsShown=false; toolAuto=true; }
+    ctxInfo = c; input.setContext(c?{icon:c.icon,label:c.label}:null, tr('act'));
   }
 
   // ---------- events ----------
@@ -134,12 +149,12 @@ export async function init(ctx){
   ctx.on('animal:fed',()=>{ emote(player,'smile',1.4); });
   ctx.on('player:anim',(d)=>{ if(d?.name) startAct(d.name,{dur:d.dur,emit:false}); });
   ctx.on('player:look',(d)=>{ Object.assign(ctx.state.look ??= {}, d); });
-  ctx.on('player:carry',(c)=>{ player.carry = c||null; });
+  ctx.on('player:carry',(c)=>{ explicitCarry = c||null; });
   ctx.on('visitor:donate',(d)=>{ if(d?.pos && Math.hypot(d.pos.x-player.pos.x,d.pos.z-player.pos.z)<8) emote(player,'coin',1.2); });
 
   // ---------- test params ----------
   const forceAnim = q.get('anim'); let forceCarry = q.get('carry');
-  if(forceCarry) player.carry = forceCarry;
+  if(forceCarry) explicitCarry = forceCarry;
   if(forceAnim){ player.anim = forceAnim; player.actEnd=false; if(forceAnim==='jump') startAct('jump'); }
   const camParam = q.has('cam') ? q.get('cam').split(',').map(Number) : null;
   const crowdN = q.has('crowd') ? parseInt(q.get('crowd'))||0 : 0;
@@ -149,6 +164,9 @@ export async function init(ctx){
   const LOOPACT = q.get('act');
   const AUTO = q.has('autowalk') ? q.get('autowalk').split(',').map(Number) : null;
   const rig = ()=>ctx.cameraRig;
+  const renderer = ctx.renderer, hiList = [], loList = [], playerList = [player];
+  const uiBlocked = ()=>{ try{ return !!ctx.modules.ui?.overlayOpen?.(); }catch(e){ return false; } };
+  input.isBlocked = uiBlocked;
   const _grd = new THREE.Vector3();
 
   // ---------- update ----------
@@ -156,6 +174,11 @@ export async function init(ctx){
     // look hot-reload
     if((t*2|0)!==((t-dt)*2|0)){ const k=JSON.stringify(look()); if(k!==lookKey){ lookKey=k; const sp=specFromLook(look()); player.spec.colors=sp.colors; player.pal=makePalette(sp.colors); } }
     input.update();
+    const blocked = uiBlocked();
+    if(blocked){ input.move.set(0,0); input.consume(); }
+    // carried prop follows the selected hotbar tool while working in/near the pen
+    { const tl = ctx.state?.tool, inv = ctx.state?.inventory||{}; const nearPen = Math.hypot(player.pos.x-PEN.x, player.pos.z-PEN.z) < PEN.r;
+      player.carry = explicitCarry || (nearPen && (inv[tl]??1)>0 ? (tl==='hay'?'hay':tl==='water'?'bucket':null) : null); }
     if(LOOPACT && !act) startAct(LOOPACT,{emit:false,cancel:false});
     if(AUTO){ input.move.set(AUTO[0],AUTO[1]); if(AUTO[2]) input.run=true; }
     const mv = input.move;
@@ -234,17 +257,21 @@ export async function init(ctx){
     }
     visitors.update(dt,t);
 
-    // render people
-    const list=[player]; for(const v of visitors.list) list.push(v.person);
-    people.render([player]); crowdPeople.setCast(visitors.list.length<=18); crowdPeople.render(list.slice(1));
+    // render people (visitors split into near hi-detail / far low-detail LOD)
+    hiList.length = 0; loList.length = 0;
+    const cx = camera.position.x, cz = camera.position.z;
+    for(const v of visitors.list){ const p=v.person; const d=Math.hypot(p.pos.x-cx,p.pos.z-cz);
+      const near = (p._hi ? d<NEAR+2 : d<NEAR) && hiList.length<crowdHi.max; p._hi = near; (near?hiList:loList).push(p); }
+    people.render(playerList); crowdHi.render(hiList); crowdLo.render(loList);
+    renderer.getDrawingBufferSize(OUTLINE_U.uRes.value); OUTLINE_U.uDpr.value = renderer.getPixelRatio();
     updateProps(props, player, t, dt);
     bubbles.update(dt);
     dev?.update(dt);
     if(camParam && camParam.length>=6){ camera.position.set(camParam[0],camParam[1],camParam[2]); camera.lookAt(camParam[3],camParam[4],camParam[5]); }
   }
 
-  const api = { update, player, people, crowdPeople, visitors, input, emote, startAct, doInteract, props,
-    setCarry(c){ player.carry = c||null; }, setLook(l){ Object.assign(ctx.state.look ??= {}, l); }, play(name,o){ return startAct(name,o); },
+  const api = { update, player, people, crowdHi, crowdLo, visitors, input, emote, startAct, doInteract, props,
+    setCarry(c){ explicitCarry = c||null; }, setLook(l){ Object.assign(ctx.state.look ??= {}, l); }, play(name,o){ return startAct(name,o); },
     get pos(){ return player.pos; }, get position(){ return player.pos; }, get yaw(){ return player.yaw; }, get nearestContext(){ return ctxInfo; } };
   return api;
 }

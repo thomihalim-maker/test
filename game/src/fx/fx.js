@@ -69,11 +69,13 @@ export async function init(ctx){
   ctx.on('animal:washed',d=>{ const p=d?.pos||d?.animal?.pos; if(p) burst('water',p,12); });
 
   // ---- ambient emitters around the camera target: pollen/motes (day), fireflies (night), drifting leaves ----
-  let ambOn=true, acc={pol:0,ff:0,lf:0}; const tmp=new THREE.Vector3();
+  let ambOn=true, rainOn=false, acc={pol:0,ff:0,lf:0,rn:0}; const tmp=new THREE.Vector3();
   function ambient(dt,t){
     const rig=ctx.cameraRig; const c=rig?.target; if(!c) return; const h=ctx.hour??12;
     const day=Math.max(0,Math.min(1,Math.sin((h-6)/12*Math.PI)*1.6)), night=1-day;
-    acc.pol+=dt*6*day; acc.ff+=dt*5*night; acc.lf+=dt*0.7*day;
+    acc.pol+=dt*6*day*(rainOn?0:1); acc.ff+=dt*5*night*(rainOn?.2:1); acc.lf+=dt*0.7*day;
+    if(rainOn){ acc.rn+=dt*110; while(acc.rn>=1){ acc.rn--; const a=R(0,6.28),r=Math.sqrt(Math.random())*16, x=c.x+Math.cos(a)*r, z=c.z+Math.sin(a)*r, gy=ctx.groundHeight?.(x,z)||0, y=gy+R(6,11);
+      nrm.spawn({x,y,z,vx:-1.2,vy:-15,vz:0,life:(y-gy)/15,drag:0,size:R(.07,.11),alpha:.55,r:.75,g:.86,b:1}); if(Math.random()<.12) nrm.spawn({x,y:gy+.05,z,vx:R(-.6,.6),vy:R(1,2),vz:R(-.6,.6),life:.3,grav:9,drag:.3,size:.09,alpha:.5,r:.85,g:.93,b:1}); } }
     while(acc.pol>=1){ acc.pol--; const a=R(0,6.28),r=R(2,22); add.spawn({x:c.x+Math.cos(a)*r,y:(ctx.groundHeight?.(c.x+Math.cos(a)*r,c.z+Math.sin(a)*r)||0)+R(.5,4),z:c.z+Math.sin(a)*r,vx:R(-.3,.3),vy:R(.05,.3),vz:R(-.3,.3),life:R(4,7),drag:.2,size:R(.12,.22),alpha:.5,sway:.4,twinkle:R(2,4),r:1,g:.95,b:.7}); }
     while(acc.ff>=1){ acc.ff--; const a=R(0,6.28),r=R(2,20); add.spawn({x:c.x+Math.cos(a)*r,y:(ctx.groundHeight?.(c.x+Math.cos(a)*r,c.z+Math.sin(a)*r)||0)+R(.4,2.6),z:c.z+Math.sin(a)*r,vx:R(-.2,.2),vy:R(0,.2),vz:R(-.2,.2),life:R(5,9),drag:.1,size:R(.3,.5),alpha:.9,sway:.7,twinkle:R(3,6),r:.75,g:1,b:.35}); }
     while(acc.lf>=1){ acc.lf--; const a=R(0,6.28),r=R(6,22),cc=P('leaf'); nrm.spawn({x:c.x+Math.cos(a)*r,y:R(5,9),z:c.z+Math.sin(a)*r,vx:R(.5,1.2),vy:0,vz:R(-.3,.3),life:R(6,9),grav:.35,drag:.5,size:R(.3,.45),type:2,spin:R(-2,2),rot:R(0,6),sway:1.1,alpha:.9,r:cc.r,g:cc.g,b:cc.b}); }
@@ -82,7 +84,7 @@ export async function init(ctx){
     burst, kinds:Object.keys(kinds),
     // continuous / custom helpers
     sparkleAt:(p,n)=>burst('sparkle',p,n), confettiRain(center,n=120,radius=8){ for(let i=0;i<n;i++){ const a=R(0,6.28),r=Math.sqrt(Math.random())*radius,c=P('confetti'); nrm.spawn({x:center.x+Math.cos(a)*r,y:center.y+R(8,14),z:center.z+Math.sin(a)*r,vx:R(-.5,.5),vy:R(-1,0),vz:R(-.5,.5),life:R(3,5),grav:1.5,drag:.8,size:R(.25,.42),type:4,spin:R(-7,7),rot:R(0,6),sway:1.4,r:c.r,g:c.g,b:c.b}); } },
-    setAmbient(on){ ambOn=!!on; }, ambient:{ get enabled(){return ambOn;}, set enabled(v){ambOn=!!v;} },
+    setAmbient(on){ ambOn=!!on; }, setRain(on){ rainOn=!!on; }, get raining(){ return rainOn; }, ambient:{ get enabled(){return ambOn;}, set enabled(v){ambOn=!!v;} },
     update(dt,t){
       const h=ctx.renderer.domElement.height||720; const sc=h/(2*Math.tan(ctx.camera.fov*Math.PI/360)); add.mat.uniforms.scale.value=nrm.mat.uniforms.scale.value=sc;
       if(ambOn) ambient(dt,t); add.step(dt,t); nrm.step(dt,t);

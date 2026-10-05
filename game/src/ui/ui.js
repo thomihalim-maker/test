@@ -22,6 +22,16 @@ const D={ // key: [id, en]
  h3:['Buka menu Bangun untuk membangun masjid!','Open Build to start the masjid!'], h4:['Selesaikan tugas harian sebelum Idul Adha tiba.','Finish daily tasks before Eid arrives.'],
  q_feed:['Beri makan 3 kambing','Feed 3 goats'], q_wash:['Mandikan sapi','Wash a cow'], q_water:['Beri minum 2 hewan','Water 2 animals'], q_happy:['Buat 2 hewan senang','Make 2 animals happy'], q_build:['Bangun 1 bagian masjid','Build 1 masjid part'], q_vis:['Sambut 2 jamaah','Welcome 2 visitors'],
  build_ok:['Masjid bertambah indah!','The masjid grows!'], q_done:['Tugas selesai!','Task complete!'], newday:['Hari baru dimulai','A new day begins'], eidSoon:['Idul Adha sebentar lagi!','Eid is almost here!'], masjidDone:['Masjid selesai dibangun!','Masjid complete!'],
+ allDone:['Semua tugas beres!','All tasks done!'], special:['Permintaan Tamu','Guest request'], streak:['Rajin {n} hari berturut-turut!','{n}-day streak!'], streak0:['Besok semangat lagi, ya!','Fresh start tomorrow!'], streakHint:['Selesaikan hampir semua tugas untuk bonus rajin','Finish (almost) all tasks for a streak bonus'],
+ tasksDone:['Tugas selesai','Tasks done'], autoClaim:['Hadiah tugas otomatis diambil','Task rewards auto-collected'], tomorrow:['Besok','Next'], toEidBtn:['Sambut Idul Adha!','Welcome Eid!'],
+ berkah:['Berkah','Blessing'], lv:['Level','Level'], book:['Buku','Book'], bookTitle:['Buku Marbot','Marbot Book'], tabBerkah:['Berkah','Blessing'], tabStickers:['Stiker','Stickers'], tabOutfit:['Baju','Outfits'],
+ nextLv:['{n} pahala lagi ke Level {l}','{n} more pahala to Level {l}'], maxLv:['Level tertinggi! Masya Allah','Top level! Masha Allah'], unlockAt:['Level {l}','Level {l}'], wear:['Pakai','Wear'], wearing:['Dipakai','Wearing'],
+ stickerNew:['Stiker baru','New sticker'], lvUp:['Berkah Naik!','Blessing Up!'], lvUpSub:['Level {l}: hadiah baru terbuka','Level {l}: new rewards unlocked'], yay:['Asyik!','Yay!'], moreSoon:['Terus berbuat baik!','Keep doing good!'],
+ tabSupply:['Perlengkapan','Supplies'], tabAnimal:['Hewan','Animals'], tabDecor:['Hiasan','Decor'], put:['Pasang','Place'], store:['Simpan satu','Store one'], onPlaza:['Terpasang','Placed'], sale:['Hari pasar: perlengkapan diskon 25%!','Market day: supplies 25% off!'],
+ placeHint:['Ketuk lingkaran bercahaya untuk memasang {k}','Tap a glowing circle to place {k}'], auto:['Dekat saya','Near me'], cancel:['Batal','Cancel'], noSlot:['Tidak ada tempat kosong','No free spot'],
+ goatD:['Lincah dan suka jerami','Lively, loves hay'], sheepD:['Berbulu lembut','Soft and woolly'], cowD:['Besar dan sabar','Big and patient'],
+ thanks:['Terima kasih, {names}! Kalian membawa kebahagiaan untuk banyak keluarga.','Thank you, {names}! You brought joy to many families.'], rewardEid:['Hadiah Idul Adha','Eid rewards'],
+ newBatch:['Hewan-hewan baru telah tiba di kandang','A new group of animals has arrived'], eidCarry:['Berkah, hiasan, dan masjidmu tetap tersimpan.','Your blessings, decorations and masjid carry over.'], nextYearBtn:['Sambut Tahun Baru','Welcome the New Year'],
 };
 const PARTS=[ // fallback list if masjid module has none
  {id:'pondasi',name:['Pondasi & Lantai','Foundation & Floor'],cost:40,desc:['Dasar yang kokoh','A solid base']},
@@ -34,15 +44,6 @@ const PARTS=[ // fallback list if masjid module has none
  {id:'bedug',name:['Bedug Besar','Great Bedug'],cost:55,desc:['Dentum penanda waktu','A drum to mark time']},
 ];
 const SHOP=[ {id:'hay',qty:5,price:10,icon:'hay'},{id:'water',qty:5,price:8,icon:'water'},{id:'soap',qty:1,price:15,icon:'soap'},{id:'treat',qty:3,price:18,icon:'treat'} ];
-const QUESTS=[
- {id:'feed',key:'q_feed',icon:'hay',stat:'fed',goal:3,coins:30,pahala:5},
- {id:'water',key:'q_water',icon:'water',stat:'watered',goal:2,coins:20,pahala:4},
- {id:'wash',key:'q_wash',icon:'soap',stat:'washed',goal:1,coins:25,pahala:5},
- {id:'happy',key:'q_happy',icon:'heart',stat:'happy',goal:2,coins:20,pahala:4},
- {id:'build',key:'q_build',icon:'dome',stat:'placed',goal:1,coins:35,pahala:8},
- {id:'vis',key:'q_vis',icon:'people',stat:'visitors',goal:2,coins:20,pahala:6},
-];
-
 export async function init(ctx){
   const root=document.getElementById('ui')||document.body.appendChild(Object.assign(document.createElement('div'),{id:'ui'}));
   const S=ctx.state; const Q=new URLSearchParams(location.search);
@@ -62,11 +63,11 @@ export async function init(ctx){
   const hud=el('div'); hud.id='hud';
   hud.innerHTML=`
   <div id="topbar">
-    <div class="tb-left"><div class="pill clay daypill" id="daypill"><div class="dico" id="dico"></div><div class="dtxt"><b id="dayN"></b><small id="clock"></small></div></div></div>
+    <div class="tb-left"><div class="pill clay daypill" id="daypill"><div class="dico" id="dico"></div><div class="dtxt"><b id="dayN"></b><small id="clock"></small></div><span class="evb" id="evb"></span></div></div>
     <div class="eid clay gold" id="eidpill"><div class="moon">${ic('calendar')}</div><div><div class="h" id="eidH"></div><small id="eidS"></small></div></div>
     <div class="tb-wallet">
       <div class="pill clay coinpill" id="coinpill">${ic('coin')}<b id="coinN">0</b></div>
-      <div class="pill clay pahpill" id="pahpill">${ic('pahala')}<b id="pahN">0</b></div>
+      <div class="pill clay pahpill" id="pahpill">${ic('pahala')}<b id="pahN">0</b><span class="lvb" id="lvb"></span></div>
     </div>
     <button class="iconbtn clay" id="setBtn" aria-label="Settings">${ic('gear')}</button>
   </div>
@@ -76,8 +77,10 @@ export async function init(ctx){
     <button class="dbtn clay" id="dQ" style="position:relative">${ic('scroll')}<span data-t="quests"></span><span class="badge" id="qBadge"></span></button>
     <button class="dbtn clay" id="dS">${ic('bag')}<span data-t="shop"></span></button>
     <button class="dbtn clay teal" id="dB">${ic('dome')}<span data-t="build"></span></button>
+    <button class="dbtn clay" id="dK" style="position:relative">${ic('book')}<span data-t="book"></span><span class="badge" id="kBadge"></span></button>
   </div>
   <div id="toasts"></div>
+  <div id="placebar" class="clay hidden"></div>
   <div id="hint" class="clay hidden"><div class="av">${ic('marbot')}</div><div class="tx" id="hintTx"></div><button class="x" id="hintX" aria-label="Close">${ic('close')}</button></div>
   <div id="hotbar" class="clay"></div>`;
   root.appendChild(hud);
@@ -89,7 +92,7 @@ export async function init(ctx){
   function applyLang(r=root){ r.querySelectorAll('[data-t]').forEach(n=>n.textContent=t(n.dataset.t)); document.documentElement.lang=S.lang; }
 
   // ---------------- tap sound + press feedback ----------------
-  root.addEventListener('pointerdown',e=>{ const b=e.target.closest('button,.btn,.hb,#tracker,.eid'); if(b){ sfx('ui_tap'); } },{passive:true});
+  root.addEventListener('pointerdown',e=>{ const b=e.target.closest('button,.btn,.hb,#tracker,.eid,#daypill,#pahpill'); if(b){ sfx('ui_tap'); } },{passive:true});
 
   // ---------------- economy ----------------
   const D0=()=>S.daily;
@@ -125,8 +128,9 @@ export async function init(ctx){
   function measureTop(){ const b=tbEl()?.getBoundingClientRect(); if(b&&b.height) hud.style.setProperty('--tb',Math.ceil(b.bottom)+'px'); }
   function renderClock(){
     const h=ctx.hour??8, hh=Math.floor(h)%24, mm=Math.floor((h%1)*60/10)*10; const s=String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
-    const night=h<5.5||h>=18.5; const key=s+night+S.day+S.daysToEid+S.lang+S.eidDone; if(key===lastClock) return; lastClock=key;
-    $('#clock').textContent=s+' · '+(night?(S.lang==='en'?'Night':'Malam'):h<11?(S.lang==='en'?'Morning':'Pagi'):h<15?(S.lang==='en'?'Noon':'Siang'):(S.lang==='en'?'Evening':'Sore'));
+    const night=h<5.5||h>=18.5; const key=s+night+S.day+S.daysToEid+S.lang+S.eidDone+S.pahala+(S.event?.id||''); if(key===lastClock) return; lastClock=key;
+    const pr=ctx.modules.progress, wd=pr?.WEEKDAYS?.[pr.weekday(S.day)], ev=pr?.event?.();
+    $('#clock').textContent=(wd?L(wd)+' · ':'')+s; $('#evb').innerHTML=ev&&ev.id!=='cerah'?ic(ev.icon):''; $('#lvb').textContent=pr?'Lv '+pr.level():'';
     $('#dayN').textContent=t('day')+' '+S.day; $('#dico').innerHTML=ic(night?'moon':'sun'); $('#daypill').classList.toggle('night',night);
     const e=S.daysToEid; $('#eidH').textContent=e<=0?t('eidToday'):t('daysLeft',{n:e}); $('#eidS').textContent=e<=0?t('eidSub'):t('toEid'); $('#eidpill').classList.toggle('soon',e<=2);
   }
@@ -139,73 +143,97 @@ export async function init(ctx){
   }
   ctx.on('inventory:change',renderHotbar);
 
-  // ---------------- quests ----------------
-  const qlist=$('#qlist');
-  const qProg=q=>Math.min(q.goal,D0()[q.stat]||0);
-  const notified=new Set(); let qOpen=false;
-  const qDone=q=>qProg(q)>=q.goal, qClaimable=q=>qDone(q)&&!S.quests.claimed[q.id];
+  // ---------------- quests (logic lives in game/progress) ----------------
+  const P=()=>ctx.modules.progress;
+  const qlist=$('#qlist'); let qOpen=false;
+  const qTitle=q=>L(q.title).replace('{n}',q.goal);
+  const qs=()=>P()?.quests?.()||[];
   function renderTracker(){
-    qlist.innerHTML='';
-    for(const q of QUESTS){ const p=qProg(q), done=p>=q.goal;
-      qlist.appendChild(el('div','q'+(done?' done':''),`<div class="chk">${ic('check')}</div><div class="qt">${t(q.key)}<div class="bar"><i style="width:${p/q.goal*100}%"></i></div></div><div class="cnt">${p}/${q.goal}</div>`)); }
-    const cl=QUESTS.filter(qClaimable), cur=cl[0]||QUESTS.find(q=>!qDone(q));
-    const tr=$('#tracker'); tr.classList.toggle('claim',!!cl.length); tr.classList.toggle('open',qOpen);
-    $('#qchip').innerHTML=cur?`${ic(cl.length?'check':cur.icon)}<span class="qt">${cl.length?t('claim')+': ':''}${t(cur.key)}</span><span class="cnt">${qProg(cur)}/${cur.goal}</span>${ic('chev','chev')}`:`${ic('check')}<span class="qt">${t('q_done')}</span>${ic('chev','chev')}`;
-    const b=$('#qBadge'); b.textContent=cl.length||'';
+    const list=qs(); qlist.innerHTML='';
+    for(const q of list) qlist.appendChild(el('div','q'+(q.done?' done':'')+(q.special?' sp':''),`<div class="chk">${ic(q.done?'check':q.icon)}</div><div class="qt">${q.special?ic('star','spi'):''}${qTitle(q)}<div class="bar"><i style="width:${q.prog/q.goal*100}%"></i></div></div><div class="cnt">${q.prog}/${q.goal}</div>`));
+    const cl=list.filter(q=>q.done&&!q.claimed), cur=cl[0]||list.find(q=>!q.done);
+    const tr=$('#tracker'); tr.classList.toggle('claim',!!cl.length); tr.classList.toggle('open',qOpen); tr.style.display=list.length?'':'none';
+    $('#qchip').innerHTML=cur?`${ic(cl.length?'check':cur.icon)}<span class="qt">${cl.length?t('claim')+': ':''}${qTitle(cur)}</span><span class="cnt">${cur.prog}/${cur.goal}</span>${ic('chev','chev')}`:`${ic('check')}<span class="qt">${t('allDone')}</span>${ic('chev','chev')}`;
+    $('#qBadge').textContent=cl.length||'';
   }
-  function claim(id){ const q=QUESTS.find(x=>x.id===id); if(!q||!qClaimable(q)) return; S.quests.claimed[id]=true; addCoins(q.coins); addPahala(q.pahala); sfx('coin'); const c=camTarget(); fx()?.burst('sparkle',{x:c.x,y:c.y+2.2,z:c.z},18); renderTracker(); if(panel==='quest') renderPanel(); }
-  function checkQuests(){
-    for(const q of QUESTS){ if(qDone(q)&&!notified.has(q.id)){ notified.add(q.id); if(!S.quests.claimed[q.id]){ toast(t('doneTap'),'check','good'); sfx('chime'); } } }
-    renderTracker(); if(panel==='quest') renderPanel();
-  }
-  const q_done=()=>'q_done';
-  function stat(k,n=1){ D0()[k]=(D0()[k]||0)+n; if(S.stats[k]!==undefined) S.stats[k]+=n; checkQuests(); }
-  function dayReset(){ S.daily={fed:0,watered:0,washed:0,happy:0,placed:0,visitors:0,coins:0,pahala:0}; S.quests={day:S.day,claimed:{}}; notified.clear(); }
-  ctx.on('animal:fed',()=>stat('fed')); ctx.on('animal:watered',()=>stat('watered')); ctx.on('animal:washed',()=>stat('washed'));
-  ctx.on('animal:happy',d=>{ stat('happy'); addPahala(d?.reason==='cared'?3:1); });
+  function claim(id){ const q=P()?.claim(id); if(q){ renderTracker(); if(panel==='quest') renderPanel(); } }
+  ctx.on('quest:done',q=>{ toast(t('doneTap'),'check','good'); sfx('chime'); });
+  ctx.on('quest:update',()=>{ renderTracker(); if(panel==='quest') renderPanel(); });
+  ctx.on('animal:happy',d=>{ addPahala(d?.reason==='cared'?3:1,'animal:happy'); });
   ctx.on('animal:sick',d=>toast((d?.animal?.name?d.animal.name+' ':'')+t('sick'),'heart','bad'));
   ctx.on('animal:recovered',d=>toast((d?.animal?.name?d.animal.name+' ':'')+t('recovered'),'heart','good'));
-  ctx.on('build:placed',()=>{ stat('placed'); S.stats.built++; if(panel==='build') renderPanel(); });
+  ctx.on('build:placed',()=>{ S.stats.built++; if(panel==='build') renderPanel(); });
   ctx.on('build:complete',()=>{ toast(t('masjidDone'),'dome','good'); sfx('bedug'); sfx('chime'); });
-  ctx.on('visitor:arrive',()=>{ stat('visitors'); });
   ctx.on('coins:change',()=>{ syncLedger(); if(panel==='shop'||panel==='build') renderPanel(); });
+  ctx.on('sticker:new',s=>{ toast(`${t('stickerNew')}: ${L(s.name)}`,s.icon,'good'); bookNew++; renderBookBadge(); const c=camTarget(); fx()?.burst('sparkle',{x:c.x,y:c.y+2,z:c.z},16); if(panel==='book') renderPanel(); });
+  ctx.on('berkah:level',d=>{ bookNew++; renderBookBadge(); lastClock=''; queueCard(()=>showLevelUp(d)); });
+  ctx.on('decor:change',()=>{ if(panel==='shop') renderPanel(); });
+  ctx.on('year:new',()=>{ lastClock=''; renderAll(); });
+  let bookNew=0; function renderBookBadge(){ $('#kBadge').textContent=bookNew?'!':''; }
 
   // ---------------- panels ----------------
-  let panel=null;
-  const ribbons={shop:['bag','shopTitle'],build:['dome','buildTitle'],quest:['scroll','questTitle'],settings:['gear','setTitle']};
+  let panel=null, shopTab='supply', bookTab='berkah';
+  const ribbons={shop:['bag','shopTitle'],build:['dome','buildTitle'],quest:['scroll','questTitle'],settings:['gear','setTitle'],book:['book','bookTitle']};
   function openPanel(name){
-    panel=name; modal.classList.add('on'); renderPanel(true); if(name==='build') tutDone('build');
+    if(!ribbons[name]) return; P()?.stopPlace?.();
+    panel=name; modal.classList.add('on'); renderPanel(true); if(name==='build') tutDone('build'); if(name==='book'){ bookNew=0; renderBookBadge(); }
   }
   function closePanel(){ panel=null; modal.classList.remove('on'); modal.innerHTML=''; }
   modal.addEventListener('pointerdown',e=>{ if(e.target===modal) closePanel(); });
   function renderPanel(fresh){
     if(!panel) return; const [icon,tk]=ribbons[panel]; const scroll=$('.body',modal)?.scrollTop||0;
-    let body='';
-    if(panel==='shop') body=shopHTML(); else if(panel==='build') body=buildHTML(); else if(panel==='quest') body=questHTML(); else body=settingsHTML();
+    const body={shop:shopHTML,build:buildHTML,quest:questHTML,settings:settingsHTML,book:bookHTML}[panel]();
     modal.innerHTML=`<div class="sheet clay" style="${fresh?'':'animation:none'}"><div class="ribbon clay teal">${ic(icon)}${t(tk)}</div><button class="x clay gold" id="pX" aria-label="${t('close')}">${ic('close')}</button><div class="body">${body}</div></div>`;
-    $('.body',modal).scrollTop=scroll; $('#pX',modal).onclick=closePanel; bindPanel();
+    if(!fresh) $('.body',modal).scrollTop=scroll; $('#pX',modal).onclick=closePanel; bindPanel();
   }
-  const coinSub=()=>`<div class="sub"><span>${t('coins')}</span><span class="pill clay" style="padding:.25em .8em .25em .4em">${ic('coin')}<b>${fmt(S.coins)}</b></span></div>`;
+  const coinChip=()=>`<span class="pill clay" style="padding:.25em .8em .25em .4em">${ic('coin')}<b>${fmt(S.coins)}</b></span>`;
+  const tabs=(cur,list,attr)=>`<div class="seg tabs">${list.map(([id,k])=>`<button data-${attr}="${id}" class="${cur===id?'on':''}">${t(k)}</button>`).join('')}</div>`;
+  const price=(n,old)=>`<span class="price">${ic('coin')}${old&&old!==n?`<s>${old}</s>`:''}${n}</span>`;
   function shopHTML(){
-    const an=ctx.modules.animals; let zoo='';
-    if(an?.price){ zoo=`<h5 class="sec">${t('shopAnimals')}</h5><div class="grid">`+['goat','sheep','cow'].map(k=>{ const p=an.price(k), ok=an.canAdd?an.canAdd(k):true, bp=Math.round(p*.5);
-      return `<div class="card"><div class="big">${ic(k==='cow'?'cow':'goat')}</div><h5>${t(k==='goat'?'goats':k==='sheep'?'sheeps':'cows')}</h5><div class="duo"><button class="btn gold ${ok&&S.coins>=p?'':'off'}" data-animal="${k}"><span class="price">${ic('coin')}${p}</span></button><button class="btn teal ${ok&&S.coins>=bp?'':'off'}" data-animal="${k}:baby"><span class="price">${ic('coin')}${bp}</span> ${t('baby')}</button></div></div>`; }).join('')+'</div>'+zoo; }
-    return coinSub()+(zoo?`<h5 class="sec">${t('shopGear')}</h5>`:'')+'<div class="grid">'+SHOP.map(it=>`<div class="card"><div class="big">${ic(it.icon)}</div><h5>${t(it.id)} ×${it.qty}</h5><p>${t(it.id+'D')}</p><span class="own">${t('owned')} ${S.inventory[it.id]||0}</span><button class="btn gold" data-buy="${it.id}"><span class="price">${ic('coin')}${it.price}</span> ${t('buy')}</button></div>`).join('')+'</div>'+zoo;
+    const an=ctx.modules.animals, pr=P(), mul=pr?.priceMul?.('supply')??1;
+    let body='';
+    if(shopTab==='supply') body=(mul<1?`<div class="sale">${ic('bag')}${t('sale')}</div>`:'')+'<div class="grid">'+SHOP.map(it=>{ const p=Math.round(it.price*mul); return `<div class="card"><div class="big">${ic(it.icon)}</div><h5>${t(it.id)} ×${it.qty}</h5><p>${t(it.id+'D')}</p><span class="own">${t('owned')} ${S.inventory[it.id]||0}</span><button class="btn gold ${S.coins>=p?'':'off'}" data-buy="${it.id}">${price(p,it.price)} ${t('buy')}</button></div>`; }).join('')+'</div>';
+    else if(shopTab==='animal'&&an?.price) body='<div class="grid">'+['goat','sheep','cow'].map(k=>{ const p=an.price(k), ok=an.canAdd?an.canAdd(k):true, bp=Math.round(p*.5);
+      return `<div class="card"><div class="big">${ic(k==='cow'?'cow':'goat')}</div><h5>${t(k==='goat'?'goats':k==='sheep'?'sheeps':'cows')}</h5><p>${t(k+'D')}</p><div class="duo"><button class="btn gold ${ok&&S.coins>=p?'':'off'}" data-animal="${k}">${price(p)}</button><button class="btn teal ${ok&&S.coins>=bp?'':'off'}" data-animal="${k}:baby">${price(bp)} ${t('baby')}</button></div></div>`; }).join('')+'</div>';
+    else if(shopTab==='decor'&&pr) body='<div class="grid">'+pr.decorKinds().map(k=>{
+      if(!k.unlocked) return `<div class="card lockd"><div class="big">${ic(k.icon)}</div><h5>${L(k.name)}</h5><p>${L(k.desc)}</p><span class="own lk">${ic('lock')}${t('unlockAt',{l:k.lv})}</span></div>`;
+      return `<div class="card"><div class="big">${ic(k.icon)}</div><h5>${L(k.name)}</h5><p>${L(k.desc)}</p><span class="own">${t('owned')} ${k.owned} · ${t('onPlaza')} ${k.placed}</span><div class="duo"><button class="btn gold ${S.coins>=k.price?'':'off'}" data-dbuy="${k.id}">${price(k.price)}</button><button class="btn teal ${k.owned?'':'off'}" data-dput="${k.id}">${t('put')}</button></div>${k.placed?`<button class="btn link small" data-dstore="${k.id}">${t('store')}</button>`:''}</div>`; }).join('')+'</div>';
+    return `<div class="sub">${tabs(shopTab,[['supply','tabSupply'],...(an?.price?[['animal','tabAnimal']]:[]),...(pr?[['decor','tabDecor']]:[])],'stab')}${coinChip()}</div>`+body;
   }
   function parts(){
     const m=ctx.modules.masjid; const st=m?.stages;
-    if(Array.isArray(st)&&st.length) return st.map((s,i)=>{ const f=PARTS.find(p=>p.id===(s.id??s.name)); return {id:s.id??s.name??i,name:s.name||s.label||s.id||('#'+(i+1)),cost:s.cost??s.price??f?.cost??40,desc:s.desc||s.description||(f?L(f.desc):''),raw:true}; });
+    if(Array.isArray(st)&&st.length) return st.map((s,i)=>{ const f=PARTS.find(p=>p.id===(s.id??s.name)); return {id:s.id??s.name??i,name:(S.lang==='en'&&s.nameEn)||s.name||s.label||s.id||('#'+(i+1)),cost:s.cost??s.price??f?.cost??40,desc:(S.lang==='en'&&s.descEn)||s.desc||s.description||(f?L(f.desc):''),raw:true}; });
     return PARTS.map(p=>({id:p.id,name:L(p.name),cost:p.cost,desc:L(p.desc)}));
   }
   const mStage=()=>{ const m=ctx.modules.masjid; return m&&typeof m.stage==='number'?m.stage:(S.masjid.stage|0); };
   function buildHTML(){
     const ps=parts(), st=Math.min(mStage(),ps.length);
-    return `<div class="sub"><div style="display:flex;gap:.6em;align-items:center;flex:1"><span>${t('mosque')} ${st}/${ps.length}</span><div class="prog"><i style="width:${st/ps.length*100}%"></i></div></div><span class="pill clay" style="padding:.25em .8em .25em .4em">${ic('coin')}<b>${fmt(S.coins)}</b></span></div><div class="grid">`+
+    return `<div class="sub"><div style="display:flex;gap:.6em;align-items:center;flex:1"><span>${t('mosque')} ${st}/${ps.length}</span><div class="prog"><i style="width:${st/ps.length*100}%"></i></div></div>${coinChip()}</div><div class="grid">`+
       ps.map((p,i)=>{ const dn=i<st, lk=i>st, can=!lk&&S.coins>=p.cost;
-        return `<div class="card ${dn?'done':''}"><div class="big">${ic(dn?'check':lk?'lock':i%3==0?'dome':i%3==1?'flag':'hammer')}</div><h5>${p.name}</h5><p>${p.desc||''}</p>${dn?`<span class="own">${t('built')}</span>`:lk?`<span class="own" style="background:rgba(150,100,30,.15);color:var(--ink2)">${t('locked')}</span>`:`<button class="btn cl ${can?'teal':''} ${can?'':'off'}" data-place="${p.id}"><span class="price">${ic('coin')}${p.cost}</span> ${t('place')}</button>`}</div>`; }).join('')+'</div>';
+        return `<div class="card ${dn?'done':''}"><div class="big">${ic(dn?'check':lk?'lock':i%3==0?'dome':i%3==1?'flag':'hammer')}</div><h5>${p.name}</h5><p>${p.desc||''}</p>${dn?`<span class="own">${t('built')}</span>`:lk?`<span class="own lk">${t('locked')}</span>`:`<button class="btn cl ${can?'teal':''} ${can?'':'off'}" data-place="${p.id}">${price(p.cost)} ${t('place')}</button>`}</div>`; }).join('')+'</div>';
   }
   function questHTML(){
-    return `<div class="sub"><span>${t('day')} ${S.day}</span><span style="display:flex;gap:.4em;align-items:center">${ic('calendar')}${t('daysLeft',{n:Math.max(0,S.daysToEid)})}</span></div>`+QUESTS.map(q=>{ const p=qProg(q),dn=p>=q.goal,cd=S.quests.claimed[q.id]; return `<div class="qrow ${dn?'done':''}"><div class="qi">${ic(dn?'check':q.icon)}</div><div class="mid"><b>${t(q.key)}</b><div style="display:flex;gap:.6em;align-items:center"><div class="prog" style="height:.7em"><i style="width:${p/q.goal*100}%"></i></div><small>${p}/${q.goal}</small></div></div><div class="rw"><span>${ic('coin')}${q.coins}</span><span>${ic('pahala')}${q.pahala}</span></div>${dn&&!cd?`<button class="btn teal claim" data-claim="${q.id}">${t('claim')}</button>`:cd?`<div class="got">${ic('check')}${t('claimed')}</div>`:''}</div>`; }).join('');
+    const pr=P(), ev=pr?.event?.(), wd=pr?.WEEKDAYS?.[pr.weekday(S.day)];
+    return `<div class="sub"><span>${t('day')} ${S.day}${wd?' · '+L(wd):''}</span><span style="display:flex;gap:.4em;align-items:center">${ic('calendar')}${t('daysLeft',{n:Math.max(0,S.daysToEid)})}</span></div>`+
+      (ev?`<div class="evcard">${ic(ev.icon)}<div><b>${L(ev.name)}</b><small>${L(ev.desc)}</small></div></div>`:'')+
+      qs().map(q=>`<div class="qrow ${q.done?'done':''} ${q.special?'sp':''}"><div class="qi">${ic(q.done?'check':q.icon)}</div><div class="mid">${q.special?`<em class="tagsp">${ic('star')}${t('special')}</em>`:''}<b>${qTitle(q)}</b><div style="display:flex;gap:.6em;align-items:center"><div class="prog" style="height:.7em"><i style="width:${q.prog/q.goal*100}%"></i></div><small>${q.prog}/${q.goal}</small></div></div><div class="rw"><span>${ic('coin')}${q.coins}</span><span>${ic('pahala')}${q.pahala}</span></div>${q.done&&!q.claimed?`<button class="btn teal claim" data-claim="${q.id}">${t('claim')}</button>`:q.claimed?`<div class="got">${ic('check')}${t('claimed')}</div>`:''}</div>`).join('')+
+      `<div class="streakline">${ic('flame')}${S.streak?t('streak',{n:S.streak}):t('streakHint')}</div>`;
+  }
+  function bookHTML(){
+    const pr=P(); if(!pr) return '';
+    const li=pr.levelInfo(); let body='';
+    if(bookTab==='berkah'){
+      body=`<div class="lvhead"><div class="lvbig">${ic('pahala')}<b>${li.lv}</b></div><div style="flex:1"><b>${t('berkah')} ${t('lv')} ${li.lv}</b><div class="prog"><i style="width:${li.pct*100}%"></i></div><small>${li.next?t('nextLv',{n:li.next-li.pahala,l:li.lv+1}):t('maxLv')}</small></div></div><div class="lvlist">`+
+        pr.LEVELS.map((_,i)=>{ const l=i+1, u=pr.unlocksAt(l); if(!u.length) return ''; const got=li.lv>=l;
+          return `<div class="lvrow ${got?'got':''}"><span class="lvn">${l}</span><div class="chips">${u.map(x=>`<span class="uchip">${ic(x.icon)}${L(x.name)}</span>`).join('')}</div>${got?ic('check'):ic('lock')}</div>`; }).join('')+'</div>';
+    } else if(bookTab==='stickers'){
+      const st=pr.stickers(), n=st.filter(s=>s.got).length;
+      body=`<div class="sub"><span>${n}/${st.length}</span><div class="prog"><i style="width:${n/st.length*100}%"></i></div></div><div class="stk">`+st.map(s=>`<div class="sticker ${s.got?'got':''}" style="--rim:${s.rim}"><div class="disc">${s.got?ic(s.icon):'<span class="q">?</span>'}</div><small>${s.got?L(s.name):'???'}</small></div>`).join('')+'</div>';
+    } else {
+      body='<div class="grid outfits">'+pr.outfits().map(o=>{ const hx=n=>'#'+n.toString(16).padStart(6,'0');
+        return `<div class="card ${o.worn?'done':''} ${o.unlocked?'':'lockd'}"><div class="big swatch"><svg viewBox="0 0 48 48" class="ic"><path d="M16 5l-11 7 4 9 5-3v25h20V18l5 3 4-9-11-7c-1 4-4 6-8 6s-7-2-8-6z" fill="${hx(o.look.koko)}" stroke="#7a4a22" stroke-width="2.4"/><rect x="14" y="32" width="20" height="11" fill="${hx(o.look.sarong)}" stroke="#7a4a22" stroke-width="2"/><path d="M17 4h14v4H17z" fill="${hx(o.look.peci)}"/></svg></div><h5>${L(o.name)}</h5>${o.worn?`<span class="own">${t('wearing')}</span>`:o.unlocked?`<button class="btn teal" data-outfit="${o.id}">${t('wear')}</button>`:`<span class="own lk">${ic('lock')}${t('unlockAt',{l:o.lv})}</span>`}</div>`; }).join('')+'</div>';
+    }
+    return `<div class="sub">${tabs(bookTab,[['berkah','tabBerkah'],['stickers','tabStickers'],['outfit','tabOutfit']],'btab')}</div>`+body;
   }
   function settingsHTML(){
     const m=audio()?.muted??S.settings.mute;
@@ -215,18 +243,26 @@ export async function init(ctx){
     <div class="set"><span>${t('lang')}</span><div class="seg"><button data-lang="id" class="${S.lang==='id'?'on':''}">Indonesia</button><button data-lang="en" class="${S.lang==='en'?'on':''}">English</button></div></div>
     <div class="danger"><div class="set"><span>${t('danger')}</span><button class="hold" id="bReset"><i></i><span>${t('holdReset')}</span></button></div></div>`;
   }
+  const noCoins=b=>{ toast(t('noCoins'),'coin','bad'); b.classList.add('shake'); setTimeout(()=>b.classList.remove('shake'),400); };
   function bindPanel(){
-    modal.querySelectorAll('[data-animal]').forEach(b=>b.onclick=()=>{ const [k,bb]=b.dataset.animal.split(':'); const an=ctx.modules.animals; if(!an) return; if(an.canAdd&&!an.canAdd(k)){ toast(t('penFull'),'goat','bad'); return; }
-      const p=Math.round(an.price(k)*(bb?.5:1)); if(!spend(p)){ toast(t('noCoins'),'coin','bad'); return; } const r=bb?an.add(k,{baby:true}):an.add(k); if(r===false){ addCoins(p); toast(t('penFull'),'goat','bad'); return; } sfx('coin'); sfx('pop'); renderPanel(); });
-    modal.querySelectorAll('[data-claim]').forEach(b=>b.onclick=()=>claim(b.dataset.claim));
-    modal.querySelectorAll('[data-buy]').forEach(b=>b.onclick=()=>{ const it=SHOP.find(i=>i.id===b.dataset.buy); if(!spend(it.price)){ toast(t('noCoins'),'coin','bad'); b.classList.add('shake'); setTimeout(()=>b.classList.remove('shake'),400); return; }
+    const on=(sel,fn)=>modal.querySelectorAll(sel).forEach(b=>b.onclick=()=>fn(b));
+    on('[data-stab]',b=>{ shopTab=b.dataset.stab; renderPanel(); });
+    on('[data-btab]',b=>{ bookTab=b.dataset.btab; renderPanel(); });
+    on('[data-animal]',b=>{ const [k,bb]=b.dataset.animal.split(':'); const an=ctx.modules.animals; if(!an) return; if(an.canAdd&&!an.canAdd(k)){ toast(t('penFull'),'goat','bad'); return; }
+      const p=Math.round(an.price(k)*(bb?.5:1)); if(!spend(p)) return noCoins(b); const r=bb?an.add(k,{baby:true}):an.add(k); if(!r){ addCoins(p,'refund'); toast(t('penFull'),'goat','bad'); return; } sfx('coin'); sfx('pop'); renderPanel(); });
+    on('[data-claim]',b=>claim(b.dataset.claim));
+    on('[data-buy]',b=>{ const it=SHOP.find(i=>i.id===b.dataset.buy), p=Math.round(it.price*(P()?.priceMul?.('supply')??1)); if(!spend(p)) return noCoins(b);
       S.inventory[it.id]=(S.inventory[it.id]||0)+it.qty; ctx.emit('inventory:change',S.inventory); sfx('coin'); sfx('pop'); renderHotbar(); renderPanel(); });
-    modal.querySelectorAll('[data-place]').forEach(b=>b.onclick=()=>{ const p=parts().find(x=>String(x.id)===b.dataset.place); placePart(p); });
+    on('[data-dbuy]',b=>{ if(!P().buyDecor(b.dataset.dbuy)) return noCoins(b); sfx('pop'); renderPanel(); });
+    on('[data-dput]',b=>{ if(P().startPlace(b.dataset.dput)) closePanel(); });
+    on('[data-dstore]',b=>{ P().storeDecor(b.dataset.dstore); renderPanel(); });
+    on('[data-outfit]',b=>{ if(P().setOutfit(b.dataset.outfit)) renderPanel(); });
+    on('[data-place]',b=>{ const p=parts().find(x=>String(x.id)===b.dataset.place); placePart(p); });
     $('#swMute',modal)&&($('#swMute',modal).onclick=()=>{ const a=audio(); const m=!(a?.muted??S.settings.mute); S.settings.mute=m; a?.setMuted?.(m); if(!m) sfx('chime'); renderPanel(); });
     $('#rMus',modal)&&($('#rMus',modal).oninput=e=>{ S.settings.music=+e.target.value; audio()?.setMusic?.(S.settings.music); });
     $('#rSfx',modal)&&($('#rSfx',modal).oninput=e=>{ S.settings.sfx=+e.target.value; audio()?.setSfx?.(S.settings.sfx); });
     for(const id of ['#rMus','#rSfx']) $(id,modal)&&($(id,modal).onchange=()=>sfx('pop'));
-    modal.querySelectorAll('[data-lang]').forEach(b=>b.onclick=()=>{ S.lang=b.dataset.lang; applyLang(); lastClock=''; renderAll(); renderPanel(); });
+    on('[data-lang]',b=>{ S.lang=b.dataset.lang; applyLang(); lastClock=''; renderAll(); renderPanel(); });
     const r=$('#bReset',modal); if(r){ let t0=0,raf=0; const bar=r.querySelector('i'); const stop=()=>{ cancelAnimationFrame(raf); t0=0; bar.style.width='0'; };
       const tick=()=>{ const p=(performance.now()-t0)/1200; bar.style.width=Math.min(100,p*100)+'%'; if(p>=1){ reset(); location.reload(); } else raf=requestAnimationFrame(tick); };
       r.addEventListener('pointerdown',e=>{ e.preventDefault(); t0=performance.now(); raf=requestAnimationFrame(tick); }); for(const ev of ['pointerup','pointerleave','pointercancel']) r.addEventListener(ev,stop); }
@@ -234,13 +270,20 @@ export async function init(ctx){
   function placePart(p){
     if(!p||S.coins<p.cost) return; const m=ctx.modules.masjid; const fn=m?.place||m?.api?.place;
     if(fn){ let ok; try{ ok=fn.call(m?.api&&m.api.place===fn?m.api:m,p.id); }catch(e){ console.warn(e); ok=false; } if(ok===false){ return; } } // masjid charges coins/pahala and emits build:placed itself
-    else { // standalone fallback (no masjid module)
-      if(!spend(p.cost)) return; S.masjid.parts[p.id]=true; S.masjid.stage=(S.masjid.stage|0)+1; ctx.emit('build:placed',{id:p.id}); if(S.masjid.stage>=parts().length) ctx.emit('build:complete',{});
-    }
+    else { if(!spend(p.cost)) return; S.masjid.parts[p.id]=true; S.masjid.stage=(S.masjid.stage|0)+1; ctx.emit('build:placed',{id:p.id}); if(S.masjid.stage>=parts().length) ctx.emit('build:complete',{}); }
     sfx('build'); const c=camTarget(); fx()?.burst('dust',{x:c.x,y:c.y,z:c.z},12); renderPanel();
   }
-  $('#dQ').onclick=()=>openPanel('quest'); $('#tracker').onclick=()=>{ const q=QUESTS.find(qClaimable); if(q){ claim(q.id); return; } qOpen=!qOpen; renderTracker(); }; $('#dS').onclick=()=>openPanel('shop'); $('#dB').onclick=()=>openPanel('build'); $('#setBtn').onclick=()=>openPanel('settings');
-  addEventListener('keydown',e=>{ if(e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return; if(e.key==='Escape') closePanel(); const k={t:'quest',b:'build',p:'shop'}[e.key.toLowerCase()]; if(k&&!e.repeat&&started&&!summary.classList.contains('on')&&!eidOv.classList.contains('on')) (panel===k?closePanel():openPanel(k)); });
+  // decoration placement bar
+  const placebar=$('#placebar');
+  ctx.on('decor:placing',d=>{
+    if(!d){ placebar.classList.add('hidden'); return; } const k=P()?.DECOR_KINDS.find(x=>x.id===d.kind);
+    placebar.innerHTML=`${ic(k?.icon||'pot')}<span class="tx">${t('placeHint',{k:k?L(k.name):''})}</span><button class="btn teal" id="plAuto">${t('auto')}</button><button class="x" id="plX" aria-label="${t('cancel')}">${ic('close')}</button>`;
+    placebar.classList.remove('hidden'); $('#plAuto').onclick=()=>{ if(!P().placeAuto()) toast(t('noSlot'),'pot','bad'); }; $('#plX').onclick=()=>P().stopPlace();
+  });
+  $('#dQ').onclick=()=>openPanel('quest'); $('#tracker').onclick=()=>{ const q=qs().find(q=>q.done&&!q.claimed); if(q){ claim(q.id); return; } qOpen=!qOpen; renderTracker(); };
+  $('#dS').onclick=()=>openPanel('shop'); $('#dB').onclick=()=>openPanel('build'); $('#dK').onclick=()=>openPanel('book'); $('#setBtn').onclick=()=>openPanel('settings'); $('#pahpill').onclick=()=>{ bookTab='berkah'; openPanel('book'); };
+  $('#daypill').onclick=()=>{ const ev=P()?.event?.(); if(ev) toast(`${L(ev.name)} · ${L(ev.desc)}`,ev.icon); };
+  addEventListener('keydown',e=>{ if(e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return; if(e.key==='Escape'){ closePanel(); P()?.stopPlace?.(); } const k={t:'quest',b:'build',p:'shop',k:'book'}[e.key.toLowerCase()]; if(k&&!e.repeat&&started&&!cardOpen()) (panel===k?closePanel():openPanel(k)); });
 
   // ---------------- tutorial hints ----------------
   const hint=$('#hint'), ptr=$('#ptr'); const hintSteps=[['h1','move'],['h2','fed'],['h3','build'],['h4','end']]; let hStep=0, hTimer=0, moveT=0;
@@ -253,48 +296,54 @@ export async function init(ctx){
   $('#hintX').onclick=()=>{ S.tutDone=true; hint.classList.add('hidden'); ptr.style.display='none'; };
   ctx.on('animal:fed',()=>tutDone('fed'));
 
-  // ---------------- day cycle ----------------
-  let prevHour=ctx.hour??8, lastDayT=-99, pendingEid=false;
-  function newDay(){
-    if(ctx.time-lastDayT<1.5) return; lastDayT=ctx.time;
-    const s={...D0()}; const doneDay=S.day;
-    S.day++; if(S.daysToEid>0) S.daysToEid--; dayReset(); save(S);
-    lastClock=''; renderAll(); if(S.daysToEid===3) toast(t('eidSoon'),'crescent','good');
-    pendingEid=S.daysToEid<=0 && !S.eidDone;
-    showSummary(doneDay,s);
-  }
-  ctx.on('day:new',newDay);
+  // ---------------- cards: day summary, level-up, Eid (queued so they never stack) ----------------
+  const cardQ=[];
+  const cardOpen=()=>summary.classList.contains('on')||eidOv.classList.contains('on');
+  function queueCard(fn){ if(cardOpen()||!started) cardQ.push(fn); else fn(); }
+  function closeCard(o){ o.classList.remove('on'); sfx('pop'); setTimeout(()=>{ if(!cardOpen()&&cardQ.length) cardQ.shift()(); },250); }
   function statHTML(icon,val,label,i){ return `<div class="stat" style="animation-delay:${.12*i+.2}s">${ic(icon)}<div><b>${val}</b><small>${label}</small></div></div>`; }
-  function showSummary(n,s){
-    summary.innerHTML=`<div class="sumcard clay"><div class="moonbig">${ic(S.daysToEid<=0?'crescent':'sun')}</div><h2>${t('sumTitle',{n})}</h2><div class="sm">${t('sumSub')} · ${S.daysToEid>0?t('daysLeft',{n:S.daysToEid}):t('eidToday')}</div>
-      <div class="stats">${statHTML('hay',s.fed||0,t('fed'),0)}${statHTML('soap',s.washed||0,t('washed'),1)}${statHTML('heart',s.happy||0,t('happy'),2)}${statHTML('dome',s.placed||0,t('placed'),3)}${statHTML('coin',s.coins||0,t('earned'),4)}${statHTML('pahala',s.pahala||0,t('pahalaE'),5)}</div>
-      <button class="btn teal" id="sumGo" style="font-size:1.1em">${t('next',{n:S.day})}</button></div>`;
+  ctx.on('day:summary',d=>{ lastClock=''; renderAll(); if(S.daysToEid===3) toast(t('eidSoon'),'crescent','good'); queueCard(()=>showSummary(d)); });
+  function showSummary(d){
+    const s=d.stats||{}, pr=P(), ev=pr?.event?.(), wd=pr?.WEEKDAYS?.[d.weekday??0];
+    summary.innerHTML=`<div class="sumcard clay"><div class="moonbig">${ic(d.eid?'crescent':'sun')}</div><h2>${t('sumTitle',{n:d.day})}</h2><div class="sm">${t('sumSub')}</div>
+      <div class="stats">${statHTML('scroll',`${d.doneN||0}/${d.total||0}`,t('tasksDone'),0)}${statHTML('hay',s.fed||0,t('fed'),1)}${statHTML('heart',s.happy||0,t('happy'),2)}${statHTML('people',s.visitors||0,t('visitors'),3)}${statHTML('coin',s.coins||0,t('earned'),4)}${statHTML('pahala',s.pahala||0,t('pahalaE'),5)}</div>
+      <div class="streakline big ${d.streak?'':'zero'}">${ic('flame')}<span>${d.streak?t('streak',{n:d.streak}):t('streak0')}</span>${d.streakBonus?`<em>+${d.streakBonus} ${ic('coin')}</em>`:''}</div>
+      ${d.autoCoins?`<div class="autoc">${ic('check')}${t('autoClaim')} (+${d.autoCoins})</div>`:''}
+      ${ev?`<div class="evcard"><small class="evday">${t('tomorrow')}: ${t('day')} ${S.day}${wd?' · '+L(wd):''}</small>${ic(ev.icon)}<div><b>${L(ev.name)}</b><small>${L(ev.desc)}</small></div></div>`:''}
+      <div class="sm">${S.daysToEid>0?t('daysLeft',{n:S.daysToEid})+' '+t('toEid'):t('eidToday')}</div>
+      <button class="btn teal" id="sumGo" style="font-size:1.1em">${d.eid?t('toEidBtn'):t('next',{n:S.day})}</button></div>`;
     summary.classList.add('on'); sfx('chime'); const c=camTarget(); fx()?.burst('sparkle',{x:c.x,y:c.y+2,z:c.z},24);
-    $('#sumGo').onclick=()=>{ summary.classList.remove('on'); sfx('pop'); if(pendingEid){ pendingEid=false; showEid(); } else toast(t('newday')+' · '+t('day')+' '+S.day,'sun'); };
+    $('#sumGo').onclick=()=>{ closeCard(summary); if(d.eid) cardQ.unshift(showEid); else toast(t('newday')+' · '+t('day')+' '+S.day,'sun'); };
+  }
+  function showLevelUp(d){
+    summary.innerHTML=`<div class="sumcard clay lvup"><div class="moonbig">${ic('pahala')}</div><h2>${t('lvUp')}</h2><div class="sm">${t('lvUpSub',{l:d.lv})}</div>
+      <div class="lvbig center">${ic('pahala')}<b>${d.lv}</b></div>
+      <div class="chips center">${(d.unlocks||[]).map((u,i)=>`<span class="uchip big" style="animation-delay:${.3+i*.15}s">${ic(u.icon)}${L(u.name)}</span>`).join('')||`<span class="uchip">${ic('star')}${t('moreSoon')}</span>`}</div>
+      <button class="btn gold" id="lvGo" style="font-size:1.1em">${t('yay')}</button></div>`;
+    summary.classList.add('on'); sfx('chime'); const c=camTarget(); fx()?.burst('sparkle',{x:c.x,y:c.y+2.2,z:c.z},30);
+    $('#lvGo').onclick=()=>closeCard(summary);
   }
   const KG={goat:30,sheep:35,cow:280};
-  function eidAnimals(){
-    const l=ctx.modules.animals?.list; const arr=Array.isArray(l)?l:[]; const out=[];
-    for(const a of arr){ const k=String(a.kind||'goat').toLowerCase(); const kind=k.includes('cow')?'cow':k.includes('sheep')?'sheep':'goat'; const w=Number.isFinite(a.weight)?a.weight:KG[kind]; const s=a.stats||{}; const q=((s.happy??.7)*2+(s.hunger??.7)+(s.thirst??.7)+(s.clean??.7))/5;
-      out.push({kind,name:a.name||'',w,stars:q>.82?3:q>.6?2:1,packs:Math.max(1,Math.round(w*0.45/0.5))}); }
-    if(!out.length) for(const [kind,n] of [['goat',3],['sheep',2],['cow',1]]) for(let i=0;i<n;i++) out.push({kind,name:'',w:KG[kind],stars:2,packs:Math.round(KG[kind]*.45/.5),sample:true});
-    return out;
-  }
   let eidTimer=0;
-  const starsHTML=n=>'<span class="stars">'+[1,2,3].map(i=>`<svg class="ic" style="width:1.1em;height:1.1em;opacity:${i<=n?1:.25}"><use href="#i-pahala"/></svg>`).join('')+'</span>';
+  const starsHTML=n=>'<span class="stars">'+[1,2,3].map(i=>`<svg class="ic" style="width:1.15em;height:1.15em;opacity:${i<=n?1:.25}"><use href="#i-star"/></svg>`).join('')+'</span>';
   function showEid(){
-    const an=eidAnimals(); const total=an.reduce((s,a)=>s+a.packs,0); const third=Math.round(total/3);
-    const nm={goat:t('goats'),sheep:t('sheeps'),cow:t('cows')};
-    eidOv.innerHTML=`<div class="eidcard clay"><div class="moonbig">${ic('crescent')}</div><h1>${t('eidTitle')}</h1><div class="gr">${t('eidGreet')}<small>${t('eidGloss')}</small></div><div class="sm" style="color:var(--ink2);margin-bottom:.6em">${t('eidSum')}</div>
-      <div class="dist">${[['people',t('dFam')],['dome',t('dNeigh')],['heart',t('dPoor')]].map(([i,l],k)=>`<div class="stat" style="animation-delay:${.5+k*.2}s">${ic(i)}<b>${third}</b><small>${t('packs')}<br>${l}</small></div>`).join('')}</div>
-      <div class="alist">${an.map(a=>`<div class="arow">${ic(a.kind==='cow'?'cow':'goat')}<span class="an">${a.name||nm[a.kind]}</span><span class="aw">${Math.round(a.w)} kg</span>${starsHTML(a.stars)}</div>`).join('')}</div>
-      <div class="btnrow"><button class="btn gold" id="eKeep">${t('keep')}</button></div></div>`;
-    eidOv.classList.add('on'); S.eidDone=true; addPahala(50); save(S);
-    $('#eKeep').onclick=()=>{ eidOv.classList.remove('on'); eidTimer=0; S.eidDone=false; S.daysToEid=10; S.stats.years++; lastClock=''; sfx('chime'); renderAll(); save(S); toast(t('nextYear'),'calendar','good'); };
+    const pr=P(); let R=pr?.celebrateEid?.();
+    if(!R){ const an=[['goat',3],['sheep',2],['cow',1]].flatMap(([k,n])=>Array.from({length:n},()=>({kind:k,name:'',w:KG[k],stars:2,packs:Math.round(KG[k]*.9)}))); const packs=an.reduce((s,a)=>s+a.packs,0); R={animals:an,packs,third:Math.round(packs/3),coins:0,pahala:0}; }
+    const nm={goat:t('goats'),sheep:t('sheeps'),cow:t('cows')}, names=R.animals.map(a=>a.name).filter(Boolean);
+    const nameStr=names.length>3?names.slice(0,3).join(', ')+' …':names.join(', ')||t('animals');
+    eidOv.innerHTML=`<div class="eidcard clay"><div class="moonbig">${ic('crescent')}</div><h1>${t('eidTitle')}</h1><div class="gr">${t('eidGreet')}<small>${t('eidGloss')}</small></div>
+      <div class="thanks">${ic('heart')}<span>${t('thanks',{names:nameStr})}</span></div>
+      <div class="dist">${[['people',t('dFam')],['dome',t('dNeigh')],['heart',t('dPoor')]].map(([i,l],k)=>`<div class="stat" style="animation-delay:${.5+k*.2}s">${ic(i)}<b>${R.third}</b><small>${t('packs')}<br>${l}</small></div>`).join('')}</div>
+      <div class="alist">${R.animals.map(a=>`<div class="arow">${ic(a.kind==='cow'?'cow':'goat')}<span class="an">${a.name||nm[a.kind]}</span><span class="aw">${Math.round(a.w)} kg</span>${starsHTML(a.stars)}</div>`).join('')}</div>
+      ${R.coins||R.pahala?`<div class="rwrow"><span>${t('rewardEid')}</span><b>${ic('coin')}+${R.coins}</b><b>${ic('pahala')}+${R.pahala}</b></div>`:''}
+      <div class="sm carry">${t('eidCarry')}</div>
+      <div class="btnrow"><button class="btn gold" id="eKeep">${t('nextYearBtn')}</button></div></div>`;
+    eidOv.classList.add('on'); save(S);
+    $('#eKeep').onclick=()=>{ closeCard(eidOv); eidTimer=0; if(pr?.newYear) pr.newYear(); else { S.eidDone=false; S.daysToEid=10; S.stats.years++; } lastClock=''; sfx('chime'); renderAll(); save(S); toast(t('newBatch'),'goat','good'); setTimeout(()=>toast(t('nextYear'),'calendar','good'),1200); };
     sfx('bedug'); setTimeout(()=>sfx('chime'),900); setTimeout(()=>sfx('bedug'),1600); eidTimer=0.01; confettiWave();
   }
   function confettiWave(){ const c=camTarget(); fx()?.confettiRain?.({x:c.x,y:c.y,z:c.z},140,10); fx()?.burst('confetti',{x:c.x,y:c.y,z:c.z},80); }
-  const overlayOpen=()=>!started||summary.classList.contains('on')||eidOv.classList.contains('on')||!!panel;
+  const overlayOpen=()=>!started||cardOpen()||!!panel;
 
   // ---------------- title screen ----------------
   let started=false; const hasSave=S.day>1||S.pahala>0;
@@ -340,26 +389,28 @@ export async function init(ctx){
   function renderAll(){ applyLang(); renderTop(1); renderClock(); renderHotbar(); renderTracker(); }
 
   // ---------------- init ----------------
-  if(S.quests.day!==S.day){ dayReset(); }
-  if(S.daysToEid<=0&&S.eidDone){ S.daysToEid=10; S.eidDone=false; }
   if(Number.isFinite(S.hour)) ctx.hour=S.hour;
-  buildTitle(); renderAll();
-  if(Q.has('nt')||Q.has('skip')){ started=true; title.remove(); }
-  if(Q.has('hint')){ started=true; title.remove(); setTimeout(showHint,300); }
-  const demo=Q.get('panel'); if(demo){ started=true; title.remove(); setTimeout(()=>openPanel(demo),200); }
-  const show=Q.get('show'); if(show==='eid'){ started=true; title.remove(); setTimeout(showEid,300); } if(show==='summary'){ started=true; title.remove(); S.daysToEid=7; S.day=4; setTimeout(()=>showSummary(3,{fed:5,washed:2,happy:4,placed:2,coins:140,pahala:23}),300); }
-  if(Q.has('demo')){ S.coins=340; S.pahala=128; S.daily={...S.daily,fed:2,washed:1,happy:2}; S.daysToEid=7; renderAll(); tween.coins=S.coins; tween.pahala=S.pahala; }
+  buildTitle(); renderAll(); renderBookBadge();
+  const skip=()=>{ started=true; title.remove(); };
+  if(Q.has('nt')||Q.has('skip')) skip();
+  if(Q.has('hint')){ skip(); setTimeout(showHint,300); }
+  const demo=Q.get('panel'); if(demo){ skip(); if(Q.get('tab')){ shopTab=bookTab=Q.get('tab'); } setTimeout(()=>openPanel(demo),200); }
+  const show=Q.get('show'); if(show){ skip();
+    if(show==='eid') setTimeout(showEid,300);
+    if(show==='summary') setTimeout(()=>showSummary({day:S.day,stats:{fed:5,washed:2,happy:4,visitors:6,placed:1,coins:140,pahala:23},doneN:3,total:4,streak:2,streakBonus:10,autoCoins:25,weekday:P()?.weekday?.(S.day)}),300);
+    if(show==='level') setTimeout(()=>showLevelUp({lv:3,unlocks:P()?.unlocksAt?.(3)||[]}),300); }
+  if(Q.has('demo')){ S.coins=340; S.pahala=Math.max(S.pahala,128); S.daily={...S.daily,fed:2,washed:1,happy:2}; renderAll(); tween.coins=S.coins; tween.pahala=S.pahala; lastPah=S.pahala; lastCoins=S.coins; }
+  // an Eid that was due before a reload still gets celebrated once the player is in
+  if(P()?.pendingEid) queueCard(showEid);
 
   let acc=0, measureT=0;
   return {
-    toast, openPanel, closePanel, overlayOpen, addCoins, addPahala, spend, showSummary, showEid, startGame, t,
+    toast, openPanel, closePanel, overlayOpen, addCoins, addPahala, spend, showSummary, showEid, showLevelUp, startGame, t, get started(){ return started; },
     update(dt){
-      // day tick: fallback clock if no world module drives ctx.hour
-      if(started && !ctx.modules.world && !overlayOpen()) ctx.hour=((ctx.hour??8)+dt*24/420)%24;
-      const h=ctx.hour??8; if(h<prevHour-6) ctx.emit('day:new'); prevHour=h;
       renderTop(dt); acc+=dt; if(acc>.5){ acc=0; renderClock(); S.hour=ctx.hour; syncLedger(); }
       if(eidTimer>0){ eidTimer+=dt; if(eidTimer>5){ eidTimer=0.01; if(eidOv.classList.contains('on')) confettiWave(); else eidTimer=0; } }
-      // tutorial: detect movement / auto-advance
+      if(started&&cardQ.length&&!cardOpen()) cardQ.shift()();
+      // tutorial: advance only on real actions
       if(started&&!S.tutDone&&!hint.classList.contains('hidden')){ hTimer+=dt; const m=ctx.input?.move; const s=hintSteps[hStep]?.[1];
         if(s==='move'){ if(m&&(Math.abs(m.x)+Math.abs(m.y)>.3)) moveT+=dt; if(moveT>.8) tutDone('move'); }
         else if(s==='end'&&hTimer>6) tutDone('end'); placePtr(); }

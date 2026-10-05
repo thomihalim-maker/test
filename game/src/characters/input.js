@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 
 const CSS = `
-#mb-input{position:fixed;inset:0;pointer-events:none;z-index:20;user-select:none;-webkit-user-select:none;touch-action:none}
+#mb-input{position:fixed;inset:0;pointer-events:none;z-index:40;user-select:none;-webkit-user-select:none;touch-action:none}
 #mb-joy{position:absolute;left:calc(env(safe-area-inset-left,0px) + 22px);bottom:calc(env(safe-area-inset-bottom,0px) + 26px);width:132px;height:132px;pointer-events:auto;touch-action:none;display:none}
 #mb-joy.on{display:block}
 #mb-joy .base{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 50% 40%,rgba(255,255,255,.28),rgba(255,248,225,.14));border:3px solid rgba(255,255,255,.55);box-shadow:0 6px 18px rgba(60,40,10,.25),inset 0 0 18px rgba(255,255,255,.25)}
@@ -11,16 +11,12 @@ const CSS = `
   background:radial-gradient(circle at 35% 28%,#fff6c9,#ffd45e 55%,#f0a62c);border:4px solid #fff;box-shadow:0 8px 20px rgba(90,55,0,.4),inset 0 -6px 10px rgba(200,110,0,.35);
   display:flex;flex-direction:column;align-items:center;justify-content:center;font:800 14px/1.1 ui-rounded,system-ui,sans-serif;color:#5a3300;cursor:pointer;transition:transform .12s,opacity .2s,filter .2s}
 #mb-act .ic{width:38px;height:38px;line-height:1;filter:drop-shadow(0 2px 0 rgba(255,255,255,.5))}
-#mb-act .ic svg,#mb-tool svg{width:100%;height:100%;display:block}
+#mb-act .ic svg{width:100%;height:100%;display:block}
 #mb-act .lb{margin-top:2px;text-shadow:0 1px 0 rgba(255,255,255,.6)}
 #mb-act.idle{filter:saturate(.9);opacity:.95}
 #mb-act.down{transform:scale(.9)}
 #mb-act.ready{animation:mbpulse 1.1s ease-in-out infinite}
 @keyframes mbpulse{50%{transform:scale(1.07)}}
-#mb-tool{position:absolute;right:calc(env(safe-area-inset-right,0px) + 14px);bottom:calc(env(safe-area-inset-bottom,0px) + 132px);display:none;gap:6px;pointer-events:auto}
-#mb-tool.on{display:flex}
-#mb-tool button{width:46px;height:46px;border-radius:50%;border:3px solid rgba(255,255,255,.8);background:rgba(255,246,214,.78);padding:6px!important;box-shadow:0 4px 10px rgba(60,40,0,.3);padding:0;cursor:pointer;opacity:.7}
-#mb-tool button.sel{opacity:1;background:#fff;transform:scale(1.14);border-color:#ffc94a}
 `;
 
 // emoji -> clay SVG icon from the UI sprite (#i-*), falls back to the emoji text
@@ -31,10 +27,9 @@ export function createInput(ctx){
   const style = document.createElement('style'); style.textContent = CSS; document.head.appendChild(style);
   const root = document.createElement('div'); root.id='mb-input';
   root.innerHTML = `<div id="mb-joy"><div class="base"></div><div class="knob"></div></div>
-    <div id="mb-tool"></div>
     <div id="mb-act" class="idle"><div class="ic">${icoSvg("✋")}</div><div class="lb">Aksi</div></div>`;
-  (document.getElementById('ui')||document.body).appendChild(root);
-  const joy = root.querySelector('#mb-joy'), knob = joy.querySelector('.knob'), act = root.querySelector('#mb-act'), toolBox = root.querySelector('#mb-tool');
+  document.body.appendChild(root);
+  const joy = root.querySelector('#mb-joy'), knob = joy.querySelector('.knob'), act = root.querySelector('#mb-act');
   const q = new URLSearchParams(location.search);
   const coarse = matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window || q.has('joy');
   if(coarse){ joy.classList.add('on'); input.touch = true; }
@@ -60,6 +55,7 @@ export function createInput(ctx){
   const norm = k=>k.length===1?k.toLowerCase():k;
   addEventListener('keydown',e=>{
     if(e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+    if(input.isBlocked?.()){ keys.clear(); return; }
     const k=norm(e.key); keys.add(k);
     if((k===' '||k==='e'||k==='Enter') && !e.repeat){ press(); e.preventDefault(); }
     if(k==='Tab'||k==='q'){ if(!e.repeat){ input.cycleTool?.(); e.preventDefault(); } }
@@ -86,15 +82,12 @@ export function createInput(ctx){
   input.consume = ()=>{ const v=jp; jp=false; return v; };
 
   // contextual UI
-  input.setContext = (c)=>{ // {icon,label} or null
-    if(c){ act.classList.remove('idle'); act.classList.add('ready'); act.querySelector('.ic').innerHTML=icoSvg(c.icon); act.querySelector('.lb').textContent=c.label; }
-    else { act.classList.add('idle'); act.classList.remove('ready'); act.querySelector('.ic').innerHTML=icoSvg('✋'); act.querySelector('.lb').textContent='Aksi'; }
-  };
-  input.setTools = (tools, sel, onPick)=>{ // tools:[{id,icon}] or null
-    toolBox.innerHTML=''; if(!tools){ toolBox.classList.remove('on'); return; }
-    toolBox.classList.add('on');
-    for(const t of tools){ const b=document.createElement('button'); b.innerHTML=icoSvg(t.icon); if(t.id===sel) b.className='sel';
-      b.addEventListener('pointerdown',e=>{ e.stopPropagation(); onPick(t.id); e.preventDefault(); }); toolBox.appendChild(b); }
+  let lastIc=null;
+  input.setContext = (c, idleLabel='Aksi')=>{ // {icon,label} or null
+    const ic=act.querySelector('.ic'), lb=act.querySelector('.lb'); const icon=c?c.icon:'✋', label=c?c.label:idleLabel;
+    act.classList.toggle('idle',!c); act.classList.toggle('ready',!!c);
+    if(icon!==lastIc){ ic.innerHTML=icoSvg(icon); lastIc=icon; }
+    if(lb.textContent!==label) lb.textContent=label;
   };
   input.dispose = ()=>root.remove();
   return input;

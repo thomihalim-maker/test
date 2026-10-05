@@ -57,7 +57,7 @@ const BLUSH = 0xff8f86, IRIS = 0x3a2116, IRIS2 = 0x7b4a2c, WHITE = 0xfffaf3, DAR
 // ---------------- head (head-centre space) ----------------
 export function buildHead(variant=0, D=1){
   const { sph } = makeKit(D); const b = new GB(); const R=.34;
-  b.add(sph(R,26,18), {scale:[1.07,.98,1.0], slot:SKIN});
+  b.add(sph(R,24,16), {scale:[1.07,.98,1.0], slot:SKIN});
   for(const s of[-1,1]) b.add(sph(.065,8,6), {pos:[s*.358,-.03,-.01], scale:[.55,1,.85], slot:SKIN, tone:.95});
   if(variant===0) b.add(sph(.026,8,6), {pos:[0,-.075,.336], scale:[1.1,.8,.8], slot:SKIN, tone:.9});
   else b.add(sph(.042,10,8), {pos:[0,-.07,.33], scale:[1.15,.85,.8], slot:SKIN, tone:.9});
@@ -70,9 +70,9 @@ export function buildEyes(shape=0, D=1){
   for(const s of[-1,1]){
     const x=s*.122;
     if(shape===0){
-      b.add(sph(1,14,10), {pos:[x,y0,.296], scale:[.074,.088,.03], color:WHITE});
-      b.add(sph(1,12,10), {pos:[x+s*-.004,y0-.008,.305], scale:[.06,.074,.026], color:IRIS});
-      b.add(sph(1,10,8), {pos:[x+s*-.004,y0-.03,.318], scale:[.042,.036,.014], color:IRIS2});
+      b.add(sph(1,12,9), {pos:[x,y0,.296], scale:[.074,.088,.03], color:WHITE});
+      b.add(sph(1,10,8), {pos:[x+s*-.004,y0-.008,.305], scale:[.06,.074,.026], color:IRIS});
+      if(D>.7) b.add(sph(1,8,6), {pos:[x+s*-.004,y0-.03,.318], scale:[.042,.036,.014], color:IRIS2});
       b.add(caps(.0095,.07,1,4), {pos:[x,y0+.125,.305], rot:[0,0,Math.PI/2-s*.18], slot:HAIR});
     } else if(shape===1){
       b.add(sph(1,14,10), {pos:[x,y0,.296], scale:[.06,.094,.03], color:WHITE});
@@ -86,7 +86,7 @@ export function buildEyes(shape=0, D=1){
       b.add(caps(.012,.07,1,4), {pos:[x,y0+.115,.305], rot:[0,0,Math.PI/2+s*.06], slot:HAIR});
     }
     b.add(sph(.024,6,5), {pos:[x+s*.02,y0+.028,.325], scale:[1,1,.45], color:0xffffff});
-    b.add(sph(.011,5,4), {pos:[x-s*.022,y0-.04,.326], scale:[1,1,.45], color:0xffffff});
+    if(D>.7) b.add(sph(.011,5,4), {pos:[x-s*.022,y0-.04,.326], scale:[1,1,.45], color:0xffffff});
   }
   return b.build();
 }
@@ -138,17 +138,16 @@ export function buildTorso(kind, D=1){
     // hem band (piping)
     b.add(lathe([[.24,-.045],[.244,-.03],[.24,-.015]],20,0,Math.PI*2,false),{scale:[1,1,zs], slot:ACC});
     // side slits (dark notches)
-    for(const s of[-1,1]) b.add(caps(.007,.05,1,4),{pos:[s*.238,-.005,0], slot:TOP, tone:.45});
+    if(D>.7) for(const s of[-1,1]) b.add(caps(.007,.05,1,4),{pos:[s*.238,-.005,0], slot:TOP, tone:.45});
     // mandarin collar + piping
     b.add(lathe([[.094,.39],[.099,.42],[.09,.455],[.072,.46]],16),{scale:[1,1,.92], slot:TOP, tone:.95});
     b.add(tor(.086,.008,4,18),{pos:[0,.456,0], rot:[Math.PI/2,0,0], scale:[1,.92,1], slot:ACC});
     // placket + piping + gold buttons
     b.add(caps(.022,.25,1,5),{pos:[0,.25,.172], scale:[1,1,.35], slot:TOP, tone:.93});
-    for(const s of[-1,1]) b.add(caps(.0055,.25,1,4),{pos:[s*.021,.25,.176], slot:ACC});
     for(let i=0;i<3;i++) b.add(sph(.016,6,5),{pos:[0,.36-i*.075,.182], color:GOLD});
     // chest pocket
-    b.add(caps(.04,.02,1,6),{pos:[-.1,.23,.168], rot:[0,0,Math.PI/2], scale:[1,.9,.22], slot:TOP, tone:.9});
-    b.add(caps(.004,.065,1,4),{pos:[-.1,.258,.174], rot:[0,0,Math.PI/2], slot:ACC});
+    if(D>.7) b.add(caps(.04,.02,1,6),{pos:[-.1,.23,.168], rot:[0,0,Math.PI/2], scale:[1,.9,.22], slot:TOP, tone:.9});
+    if(D>.7) b.add(caps(.004,.065,1,4),{pos:[-.1,.258,.174], rot:[0,0,Math.PI/2], slot:ACC});
   } else { // gamis top (long tunic to hips, belt)
     b.add(lathe([[.002,-.04],[.23,-.04],[.215,.02],[.18,.12],[.2,.22],[.212,.29],[.195,.36],[.12,.405],[.08,.42],[.002,.425]],20),{scale:[1,1,zs], slot:TOP});
     b.add(lathe([[.18,.1],[.19,.115],[.19,.14],[.18,.155]],20,0,Math.PI*2,false),{scale:[1.04,1,zs*1.04], slot:ACC});
@@ -195,7 +194,7 @@ export function buildSarong(D=1){
   b.add(lathe([[.215,.04],[.219,0],[.236,-.1],[.258,-.2],[.274,-.272]],3,.12,.3),{slot:BOT, tone:.88, flex, scale:[1,1,.93]});
   b.add(new THREE.CircleGeometry(.21,Math.max(6,Math.round(16*D))).rotateX(-Math.PI/2),{pos:[0,.06,0], scale:[1,1,.93], slot:BOT, tone:.8});
   // rolled waistband
-  b.add(tor(.214,.03,5,22),{pos:[0,.05,0], rot:[Math.PI/2,0,0], scale:[1,.93,1], slot:BOT, tone:.78});
+  b.add(tor(.214,.03,5,22),{pos:[0,.05,0], rot:[Math.PI/2,0,0], scale:[1,.93,1], slot:BOT, tone:.95});
   return b.build();
 }
 export function buildSkirt(D=1){
@@ -211,18 +210,18 @@ export function buildSkirt(D=1){
 function hairBack(b, D, R, slot){
   const { S } = makeKit(D);
   // back + sides down to nape, front left open for the face
-  b.add(new THREE.SphereGeometry(R*1.045,S(18),S(12),Math.PI/2+1.0,Math.PI*2-2.0,0,Math.PI*.66),{scale:[1.08,1.0,1.03], pos:[0,0,-.012], slot});
+  b.add(new THREE.SphereGeometry(R*1.045,S(18),S(12),Math.PI/2+1.3,Math.PI*2-2.6,0,Math.PI*.64),{scale:[1.08,1.0,1.03], pos:[0,0,-.012], slot});
+  b.add(new THREE.SphereGeometry(R*1.045,S(18),S(6),0,Math.PI*2,0,Math.PI*.3),{scale:[1.08,1.0,1.03], pos:[0,0,-.012], slot});
 }
 export function buildHat(kind, D=1){
   const { S, sph, lathe, tor } = makeKit(D); const b = new GB(); const R=.34;
   if(kind==='peci'){
     hairBack(b,D,R,HAIR);
     for(const s of[-1,1]) b.add(sph(.06,6,5),{pos:[s*.33,.03,.06], scale:[.5,1.2,.9], slot:HAIR}); // sideburns
-    // straight-sided, slightly tapered flat-top songkok, back tilt
-    const pts=[[.302,.135],[.3,.15],[.276,.335],[.268,.348],[.24,.352],[.002,.352]].map(p=>new THREE.Vector2(p[0],p[1]));
-    b.add(new THREE.LatheGeometry(pts,S(24)),{rot:[-.1,0,0], pos:[0,-.005,-.01], scale:[1.06,1,1.0], slot:HEAD});
-    b.add(new THREE.LatheGeometry([[.002,.1],[.29,.1],[.302,.135]].map(p=>new THREE.Vector2(p[0],p[1])),S(24)),{rot:[-.1,0,0], pos:[0,-.005,-.01], scale:[1.06,1,1.0], slot:HEAD, tone:.7});
-    b.add(tor(.3,.006,3,S(24)),{rot:[Math.PI/2-.1,0,0], pos:[0,.163,-.025], scale:[1.06,1,1], slot:HEAD, tone:1.6});
+    // straight-sided, slightly tapered flat-top songkok, slight back tilt
+    const pts=[[.326,.07],[.33,.1],[.304,.335],[.298,.346],[.284,.352],[.002,.354]].map(p=>new THREE.Vector2(p[0],p[1]));
+    b.add(new THREE.LatheGeometry(pts,S(26)),{rot:[-.09,0,0], pos:[0,0,-.012], scale:[1.06,1,1.0], slot:HEAD});
+    b.add(tor(.33,.008,3,S(26)),{rot:[Math.PI/2-.09,0,0], pos:[0,.1,-.003], scale:[1.06,1,1], slot:HEAD, tone:1.9});
   } else if(kind==='kopiah'){
     hairBack(b,D,R,HAIR);
     b.add(new THREE.SphereGeometry(R*1.05,S(20),S(9),0,Math.PI*2,0,Math.PI*.46),{scale:[1.07,.9,1.04],pos:[0,.06,-.012], rot:[-.08,0,0], slot:HEAD});
@@ -233,10 +232,10 @@ export function buildHat(kind, D=1){
     const p = g.attributes.position;
     for(let i=0;i<p.count;i++){ const x=p.getX(i), y=p.getY(i), z=p.getZ(i);
       const e = (x/.245)**2 + ((y+.045)/.255)**2;
-      if(z>0 && e<1.0){ const k=.55; p.setXYZ(i,x*k,y*k,z*k); } }
+      if(z>0 && e<1.0){ const k=.31/Math.hypot(x,y,z); p.setXYZ(i,x*k,y*k,z*k); } }
     b.add(g,{scale:[1.08,1.03,1.05], slot:HEAD});
     // undercap face frame (ciput) softens the cut
-    b.add(tor(.25,.03,6,S(30)),{pos:[0,-.045,.255], scale:[1.0,1.04,1], rot:[-.06,0,0], slot:ACC});
+    b.add(tor(.236,.02,5,S(30)),{pos:[0,-.045,.305], scale:[1.0,1.08,1], rot:[-.08,0,0], slot:ACC});
     // drape over shoulders/chest
     b.add(lathe([[.24,-.22],[.31,-.3],[.335,-.42],[.31,-.54],[.22,-.6],[.002,-.61]],20),{scale:[.7,1,.66], slot:HEAD, tone:.97});
     b.add(sph(.09,8,6),{pos:[0,-.3,.24], scale:[1.6,.7,.5], slot:HEAD, tone:.95}); // chin wrap

@@ -47,7 +47,7 @@ void main(){
   body*=uAmb;
   // sky reflection tint
   vec3 sky=mix(uSkyH,uSkyT,clamp(1.0-V.y*0.0+N.y*0.0,0.0,1.0)*0.55);
-  vec3 col=mix(body,sky,0.1+0.6*fres);
+  vec3 col=mix(body,sky,(0.06+0.5*fres)*mix(0.6,1.0,sea));
   // sun glint
   vec3 Rf=reflect(-V,N);
   float spec=pow(max(dot(Rf,uSunDir),0.0),260.0)*smoothstep(0.0,0.1,uSunDir.y);
@@ -55,14 +55,14 @@ void main(){
   col+=uSunCol*(spec*3.0+spark*0.9);
   // soft foam at shorelines
   float wob=fbm(p*0.8+uTime*0.03);
-  float edge=1.0-smoothstep(0.0,0.1+wob*0.1,depth);
+  float edge=1.0-smoothstep(0.0,mix(0.1,0.22,sea)+wob*0.1,depth);
   float ring=sin(depth*mix(9.0,5.0,sea)-uTime*mix(0.9,1.3,sea)+wob*5.0);
   float band=smoothstep(0.55,0.95,ring)*(1.0-smoothstep(0.12,mix(0.85,1.6,sea),depth))*smoothstep(0.0,0.05,depth);
-  float swash=sea*(1.0-smoothstep(0.0,0.06+0.12*(0.5+0.5*sin(uTime*0.8+wob*6.0)),depth));
+  float sw0=0.18+0.22*(0.5+0.5*sin(uTime*0.8+wob*6.0)); float swash=sea*smoothstep(sw0-0.12,sw0-0.03,depth)*(1.0-smoothstep(sw0,sw0+0.05,depth))*0.9;
   float foamN=smoothstep(0.35,0.7,fbm(p*3.0+uTime*0.05));
   float foam=clamp(edge*mix(0.6,0.95,sea)+band*mix(0.4,0.75,sea)*foamN+swash*0.8+crest*0.25,0.0,1.0);
-  col=mix(col,mix(vec3(0.85,0.8,0.65),vec3(1.0),smoothstep(0.0,0.12,depth))*(0.5+0.5*uAmb.r),foam*0.55);
-  float alpha=mix(0.35,0.92,smoothstep(0.0,1.1,depth));
+  col=mix(col,mix(vec3(0.85,0.8,0.65),vec3(1.0),max(sea,smoothstep(0.0,0.12,depth)))*(0.5+0.5*uAmb.r),foam*mix(0.55,0.9,sea));
+  float alpha=mix(0.45,0.94,smoothstep(0.0,1.0,depth));
   alpha=max(alpha,foam*0.95);
   alpha=max(alpha,fres*0.5);
   gl_FragColor=vec4(col,alpha);

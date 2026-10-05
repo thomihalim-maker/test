@@ -100,7 +100,7 @@ export function createVegetation(ctx, terrain, blobs){
     bushes[v].push({x,y:h-0.06,z,ry:rnd()*6.28,s,sx:s*(0.85+rnd()*0.35),sy:s*sq,sz:s*(0.85+rnd()*0.35),c:hueJit()});
     blobs.add(x,z,1.05*s); aoList.push({x,z,r:1.0*s,k:0.38}); };
   let clusters=0, bt=0;
-  while(clusters<58&&bt++<6000){
+  while(clusters<(LOW?34:58)&&bt++<6000){
     const a=rnd()*6.283, r=15.8+Math.sqrt(rnd())*44, cx=Math.cos(a)*r, cz=Math.sin(a)*r;
     if(clearance(cx,cz)<1.6) continue; const h=heightAt(cx,cz); if(h<0.45||slopeAt(cx,cz)>0.45) continue;
     if(!okSpacing(cx,cz,1.4)) continue; clusters++;

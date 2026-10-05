@@ -22,12 +22,14 @@ export function makeProps(scene){
   const water = new THREE.Mesh(new THREE.CircleGeometry(.12,20).rotateX(-Math.PI/2), new THREE.MeshToonMaterial({color:0x5cc8f2,gradientMap:null})); water.position.y=-.1; bucket.add(water);
   const handle = part(new THREE.TorusGeometry(.115,.011,6,18,Math.PI),0x4d4d55,{pos:[0,-.085,0],rot:[0,0,0],outline:.008}); bucket.add(handle);
   bucket.userData.water = water;
-  // hay armful: origin = between hands
+  // hay armful: origin = between hands; long axis across the chest
   const hay = new THREE.Group(); hay.visible=false;
-  hay.add(part(new THREE.SphereGeometry(.2,14,10),0xe6c35a,{scale:[1.25,.75,.85],pos:[0,.05,.1]}));
-  const strawM = [0xf0d472,0xd9ae45,0xf4dc86];
-  for(let i=0;i<12;i++){ const a=i/12*Math.PI*2; hay.add(part(new THREE.CapsuleGeometry(.014,.2,3,5),strawM[i%3],{pos:[Math.cos(a)*.13,.07+Math.sin(i*2.1)*.05,.1+Math.sin(a)*.08],rot:[Math.sin(i)*.6,0,Math.PI/2+Math.cos(i*1.7)*.5],outline:0})); }
-  hay.add(part(new THREE.TorusGeometry(.17,.014,5,16).rotateY(Math.PI/2),0xa05a2c,{pos:[0,.05,.1],outline:0}));
+  hay.add(part(new THREE.CapsuleGeometry(.15,.2,4,10).rotateZ(Math.PI/2),0xe9c75e,{scale:[1,.82,.9],pos:[0,.06,.12]}));
+  const strawM = [0xf3d97a,0xd6a944,0xf7e396,0xc99a3a];
+  for(let i=0;i<18;i++){ const a=i/18*Math.PI*2, side=i%2?1:-1;
+    hay.add(part(new THREE.CapsuleGeometry(.012,.16,2,4),strawM[i%4],{pos:[side*(.2+Math.sin(i*3.1)*.04),.06+Math.cos(a)*.08,.12+Math.sin(a)*.08],rot:[Math.sin(i*1.7)*.5,0,Math.PI/2+side*(.25+Math.cos(i*2.3)*.35)],outline:0})); }
+  for(let i=0;i<8;i++){ const a=i/8*Math.PI*2; hay.add(part(new THREE.CapsuleGeometry(.01,.24,2,4),strawM[(i+1)%4],{pos:[0,.06+Math.cos(a)*.125,.12+Math.sin(a)*.11],rot:[0,0,Math.PI/2+Math.sin(i)*.12],outline:0})); }
+  for(const x of[-.09,.09]) hay.add(part(new THREE.TorusGeometry(.13,.014,5,16).rotateY(Math.PI/2),0x9a5528,{pos:[x,.06,.12],scale:[1,1,.95],outline:0}));
   // hammer: origin at grip
   const hammer = new THREE.Group(); hammer.visible=false;
   hammer.add(part(new THREE.CapsuleGeometry(.032,.34,4,8),0x8a5a33,{pos:[0,.12,0],outline:.01}));

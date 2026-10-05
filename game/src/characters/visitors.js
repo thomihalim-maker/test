@@ -5,27 +5,48 @@ import { ACTS } from './anims.js';
 
 const R = (a,b)=>a+Math.random()*(b-a);
 const pick = (a)=>a[(Math.random()*a.length)|0];
-const SKIN = [0xf6d1a8,0xe9b98a,0xd9a06b,0xc68642,0xa86b3f,0x8d5a34,0xf0c8a0];
-const KOKO = [0xf7f2e4,0xfbf6ea,0xcfe8f5,0xc9ebd8,0xe9dcc0,0xf6d3c3,0xdcd0f0,0xbfe0d0,0xf3e3a3,0xa8cde8,0x9ac9b0];
-const SARONG = [0x2e7d6b,0x2a5d9f,0x7a2e3b,0xc0692c,0x5b3a8c,0x1e6f8f,0x8a6a1f,0x3b6b3b,0xb23a48,0x35557a];
-const PECI = [0x1b1b1f,0x1b1b1f,0x1b1b1f,0x2a1d17,0x1d2438];
-const HAIR = [0x2a1d17,0x1b1410,0x3b2a1e];
-const HIJAB = [0xf2a0b6,0xcdb4e8,0x4fb3a7,0xe8b34a,0xfaf4ea,0xf6b99b,0xa83d56,0x93b88a,0x8ec5ea,0xe58a8a];
-const GAMIS = [0xf6e1ec,0xd6ecf2,0xbfe3cf,0xf3dd9d,0xe4d3f0,0xf4c7bf,0x9fd0c9,0xc7d7f2,0xffffff,0xe9c6a0];
-const SHOE = [0x6b4a2e,0x3b2a20,0x8a6a3a,0x2a2a30];
+const SKIN = [0xf6d1a8,0xeec193,0xe0a878,0xcf9260,0xb87a4e,0x9a6440,0xf3cfae,0xd8a070];
+const KOKO = [0xf7f2e4,0xfbf6ea,0xbfe0f5,0xbfe8cf,0xeadbb8,0xf8cbb8,0xd8cbf2,0xa9d8c2,0xf6df8f,0x93c3ea,0x7fc2a6,0xf0b9c8,0xc9d6e8];
+const SARONG = [0x1f7a63,0x24539c,0x8a2335,0xc8611e,0x5a3696,0x13708f,0x8d6a14,0x2f6f33,0xb8293f,0x2d4b80,0x6b2a6e];
+const PECI = [0x18181c,0x18181c,0x18181c,0x3a1418,0x172036,0x1d3324,0x2c1f17];
+const HAIR = [0x2a1d17,0x1b1410,0x3b2a1e,0x4a2f1c,0x5b3a22,0x241a2c];
+const HIJAB = [0xf06292,0xa77bdb,0x26a69a,0xf2b233,0xfaf4ea,0xff8a65,0xb71c4a,0x7cb342,0x42a5f5,0xec407a,0x5c6bc0,0x00897b,0xffb300];
+const GAMIS = [0xfbe1ec,0xd3ecf6,0xc4ebd5,0xf7e3a1,0xe6d6f6,0xf8cfc4,0xa6dcd2,0xc9d8f6,0xffffff,0xeccba6,0xf3b6c8,0xb9c6ef];
+const ACC = [0xe8c060,0xd94a3a,0x2e9e6a,0x3a6fd0,0xf08a30,0x8a4ac8,0xe05c8a,0x1f8f9a];
+const SAJADAH = [0xb2283c,0x1f6e52,0x274b9c,0x7b2d8e,0xc0782a];
+const SHOE = [0x6b4a2e,0x3b2a20,0x8a6a3a,0x2a2a30,0x7a3b2a];
 
 export function randomSpec(kind){
   kind = kind || pick(['man','man','man','woman','woman','boy','girl','elder','elderW']);
-  const sk = pick(SKIN);
-  const s = { kind, size:1, headScale:1, stoop:0, torso:'koko', bottom:'sarong', hat:'peci', gender:'m', speed:1,
-    colors:{ skin:sk, top:pick(KOKO), bot:pick(SARONG), head:pick(PECI), shoe:pick(SHOE) } };
+  const s = { kind, size:1, headScale:1, stoop:0, limb:1, eyeScale:1, torso:'koko', bottom:'sarong', hat:'peci', gender:'m', speed:1,
+    eyes:(Math.random()*3)|0, head:Math.random()<.35?1:0, acc:[], sash:false,
+    colors:{ skin:pick(SKIN), top:pick(KOKO), bot:pick(SARONG), head:pick(PECI), shoe:pick(SHOE), acc:pick(ACC), hair:pick(HAIR) } };
+  const c = s.colors;
   switch(kind){
-    case 'man': s.size=R(.98,1.06); s.hat = pick(['peci','peci','peci','kopiah','hair']); if(s.hat==='kopiah') s.colors.head=0xf6f2e8; if(s.hat==='hair') s.colors.head=pick(HAIR); break;
-    case 'boy': s.size=R(.72,.82); s.headScale=1.13; s.hat=pick(['peci','hair','hair']); if(s.hat==='hair') s.colors.head=pick(HAIR); s.speed=1.15; break;
-    case 'elder': s.size=.97; s.stoop=.13; s.hat='kopiahBeard'; s.colors.head=0xf4f1ea; s.colors.top=pick([0xf7f2e4,0xe9dcc0,0xcdd7c0]); s.speed=.6; break;
-    case 'woman': s.size=R(.96,1.0); s.gender='f'; s.torso='gamis'; s.bottom='skirt'; s.hat='hijab'; s.colors.head=pick(HIJAB); s.colors.top=pick(GAMIS); break;
-    case 'girl': s.size=R(.72,.8); s.headScale=1.13; s.gender='f'; s.torso='gamis'; s.bottom='skirt'; s.hat='hijab'; s.colors.head=pick(HIJAB); s.colors.top=pick(GAMIS); s.speed=1.15; break;
-    case 'elderW': s.size=.94; s.gender='f'; s.stoop=.14; s.torso='gamis'; s.bottom='skirt'; s.hat='hijab'; s.colors.head=pick([0xfaf4ea,0xcfd8dc,0xb9a7c9]); s.colors.top=pick([0xd9c7a8,0xb8c9d6,0xc9b5c9]); s.speed=.6; break;
+    case 'man':
+      s.size=R(.98,1.06); s.hat = pick(['peci','peci','peci','kopiah','hairShort']);
+      if(s.hat==='kopiah') c.head=pick([0xf6f2e8,0xf6f2e8,0xe8dcc0]);
+      if(Math.random()<.45){ s.sash=true; c.acc=pick(SAJADAH); }
+      if(Math.random()<.3) s.acc.push('moustache'); else if(Math.random()<.15) s.acc.push('goatee');
+      if(Math.random()<.12) s.acc.push('glasses');
+      break;
+    case 'boy':
+      s.size=R(.74,.82); s.headScale=1.14; s.limb=.82; s.eyeScale=1.16; s.eyes=pick([0,1]); s.hat=pick(['peci','hairKid','hairKid']); s.speed=1.15;
+      if(Math.random()<.3) s.acc.push('freckles'); break;
+    case 'elder':
+      s.size=.97; s.stoop=.13; s.hat=pick(['kopiah','kopiah','peci']); c.head = s.hat==='kopiah'?0xf4f1ea:pick(PECI); c.hair=pick([0xe8e4dc,0xcfc9bf,0xb8b2a8]);
+      s.acc.push('beard','moustache'); if(Math.random()<.5) s.acc.push('glasses'); s.eyes=2;
+      c.top=pick([0xf7f2e4,0xe9dcc0,0xcdd7c0,0xd8e2ea]); s.speed=.6; if(Math.random()<.5){ s.sash=true; c.acc=pick(SAJADAH); } break;
+    case 'woman':
+      s.size=R(.96,1.0); s.gender='f'; s.torso='gamis'; s.bottom='skirt'; s.hat='hijab'; c.head=pick(HIJAB); c.top=pick(GAMIS); c.bot=c.top;
+      c.acc=pick([0xffffff,0xfff3d6,0xffffff]); if(Math.random()<.2) s.acc.push('freckles'); if(Math.random()<.1) s.acc.push('glasses'); break;
+    case 'girl':
+      s.size=R(.74,.8); s.headScale=1.14; s.limb=.82; s.eyeScale=1.16; s.eyes=pick([0,1]); s.gender='f'; s.torso='gamis'; s.bottom='skirt'; s.hat='hijab';
+      c.head=pick(HIJAB); c.top=pick(GAMIS); c.bot=c.top; c.acc=pick([0xffffff,0xfff3d6]); s.speed=1.15; if(Math.random()<.3) s.acc.push('freckles'); break;
+    case 'elderW':
+      s.size=.94; s.gender='f'; s.stoop=.14; s.torso='gamis'; s.bottom='skirt'; s.hat='hijab'; s.eyes=2;
+      c.head=pick([0xfaf4ea,0x8d6e63,0x6a5acd,0x2e7d6b,0x9e3c5a]); c.top=pick([0xd9c7a8,0xb8c9d6,0xc9b5c9,0xa9c3b0]); c.bot=c.top; c.acc=0xffffff; c.hair=0xd8d4cc;
+      s.speed=.6; if(Math.random()<.5) s.acc.push('glasses'); break;
   }
   return s;
 }
@@ -39,24 +60,25 @@ const FULL = (()=>{ // [pose, seconds]
 const FULL_T = FULL.reduce((a,b)=>a+b[1],0);
 function poseAt(t){ if(t<0) return 'qiyam'; for(const [n,d] of FULL){ if(t<d) return n; t-=d; } return 'salam'; }
 
-export function createVisitors(ctx, people, env){
+export function createVisitors(ctx, opts={}){
+  const MAXV = opts.max||60;
   const scene = ctx.scene, V = [];
   const q = new URLSearchParams(location.search);
-  const PRAY = { x:0, z:3.9, ...(ctx.modules.masjid?.prayerArea||{}) };
+  const PRAY = { x:0, z:3.2, ...(ctx.modules.masjid?.prayerArea||{}) };
   // slots
   const mk = (cols,rows,x0,dx,z0,dz)=>{ const a=[]; for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) a.push({x:PRAY.x+x0+c*dx, z:PRAY.z+z0+r*dz, row:r, used:null}); return a; };
   const AISLE = .3;
   const byFar = (a)=>{ const out=[]; for(let r=0;r<4;r++){ const row=a.filter(s=>s.row===r).sort((p,q)=>Math.abs(q.x-AISLE)-Math.abs(p.x-AISLE)); out.push(...row);} return out; };
-  const slotsM = byFar(mk(6,4,-6.9,1.1,0,1.25)), slotsF = byFar(mk(4,4,1.8,1.1,0,1.25));
+  const slotsM = byFar(mk(6,3,-6.8,1.08,0,1.05)), slotsF = byFar(mk(4,3,1.7,1.08,0,1.05));
   // sajadah mats (instanced)
   const MAXM = slotsM.length+slotsF.length;
-  const matGeo = new THREE.PlaneGeometry(.62,1.15).rotateX(-Math.PI/2);
+  const matGeo = new THREE.PlaneGeometry(.6,1.0).rotateX(-Math.PI/2);
   const matMesh = new THREE.InstancedMesh(matGeo, new THREE.MeshToonMaterial({color:0xffffff}), MAXM); matMesh.count=0; matMesh.receiveShadow=true; matMesh.frustumCulled=false; scene.add(matMesh);
   const matCols=[0x3f8f6a,0x9a3b4a,0x3e6fb0,0x8a5db0,0xc58a3a].map(h=>new THREE.Color(h));
   const _m=new THREE.Matrix4(), _q=new THREE.Quaternion(), _p=new THREE.Vector3(), _s=new THREE.Vector3(1,1,1), _e=new THREE.Euler();
   function refreshMats(){
     let n=0; for(const sl of [...slotsM,...slotsF]){ if(!sl.used) continue;
-      _p.set(sl.x, ctx.groundHeight(sl.x,sl.z)+.02, sl.z-.12); _q.setFromEuler(_e.set(0,0,0)); _s.set(1,1,1); _m.compose(_p,_q,_s); matMesh.setMatrixAt(n,_m); matMesh.setColorAt(n,matCols[(sl.row*2+Math.round(sl.x))&3 % 4]); n++; }
+      _p.set(sl.x, ctx.groundHeight(sl.x,sl.z)+.02, sl.z-.1); _q.setFromEuler(_e.set(0,0,0)); _s.set(1,1,1); _m.compose(_p,_q,_s); matMesh.setMatrixAt(n,_m); matMesh.setColorAt(n,matCols[(sl.row*2+Math.round(sl.x))&3 % 4]); n++; }
     matMesh.count=n; matMesh.instanceMatrix.needsUpdate=true; if(matMesh.instanceColor) matMesh.instanceColor.needsUpdate=true;
   }
   const GATHER = [ {x:-1.5,z:17}, {x:1.5,z:19}, {x:-4.5,z:16}, {x:4.5,z:17.5}, {x:0,z:21}, {x:-7,z:19}, {x:7,z:20} ];
@@ -70,7 +92,7 @@ export function createVisitors(ctx, people, env){
     const st = ctx.state?.masjid?.stage|0; return st<=0 ? 2 : Math.min(40, 4+st*5);
   }
   function spawn(opts={}){
-    if(V.length>=people.max-2) return null;
+    if(V.length>=MAXV) return null;
     const spec = randomSpec(opts.kind);
     const p = new Person(spec);
     const x = R(-2.5,2.5);
@@ -135,8 +157,9 @@ export function createVisitors(ctx, people, env){
   function donate(v){
     if(v.donated) return; v.donated=true;
     const st = ctx.state?.masjid?.stage|0; const amt = Math.round((3+Math.random()*8)*(1+st*.35));
-    if(ctx.state){ ctx.state.coins = (ctx.state.coins||0)+amt; }
-    ctx.emit('coins:change',{coins:ctx.state?.coins, total:ctx.state?.coins, delta:amt, source:'visitor', id:v.id});
+    const ui = ctx.modules.ui;
+    if(ui?.addCoins) ui.addCoins(amt,'visitor');
+    else { if(ctx.state) ctx.state.coins = (ctx.state.coins||0)+amt; ctx.emit('coins:change',{coins:ctx.state?.coins, total:ctx.state?.coins, delta:amt, source:'visitor'}); }
     ctx.emit('visitor:donate',{id:v.id,amount:amt,pos:v.person.pos.clone()});
     const pos = v.person.pos.clone(); pos.y+=1.4;
     ctx.modules.fx?.burst?.('coin',pos); ctx.modules.audio?.play?.('coin',{pos,vol:.5});

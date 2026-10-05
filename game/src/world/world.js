@@ -76,7 +76,7 @@ export async function init(ctx){
     ctx.composer.insertPass(grade, Math.max(1, ctx.composer.passes.length - 1));
   }
   let lastHourInt = Math.floor(ctx.hour);
-  const focus = new THREE.Vector3();
+  const focus = new THREE.Vector3(), _gf = new THREE.Vector3();
   const updateAll = (dt, t) => {
     const sm = cam.update(dt, t);
     focus.copy(sm); focus.y = Math.max(0, focus.y);
@@ -84,7 +84,7 @@ export async function init(ctx){
     ctx.night = atm.state.night;
     windU.uTime.value = t;
     water.update(t, atm);
-    grassField.update(focus);
+    _gf.copy(ctx.camera.position).sub(focus).multiplyScalar(0.45).add(focus); grassField.update(_gf);
     lamps.update(t, atm.state.night, focus);
     parts.update(dt, t, atm, focus);
     if (grade) { grade.uniforms.uWarm.value = atm.state.golden; grade.uniforms.uNight.value = atm.state.night; }
