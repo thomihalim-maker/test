@@ -61,6 +61,10 @@ export function makeMaterials(ctx, night) {
   M.petal = std({ color: 0xffffff, roughness: .6 });
   M.stone = std({ map: tex.marble(), color: 0xd9c7aa, vertexColors: true, roughness: .8 });
   M.vent = std({ color: 0x28363a, vertexColors: true, roughness: .8 });
+  M.brick = std({ map: tex.brick(), vertexColors: true, roughness: .85 });
+  M.paint = std({ color: 0xffffff, vertexColors: true, roughness: .7 });
+  M.sign = std({ map: tex.sign(), roughness: .8 });
+  M.contact = new THREE.MeshBasicMaterial({ color: 0x000000, vertexColors: true, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   return M;
 }
 
@@ -69,6 +73,20 @@ function mesh(S, geo, mat, cast = true, recv = true) {
   const m = new THREE.Mesh(geo, mat); m.castShadow = cast; m.receiveShadow = recv; return m;
 }
 const place = (o, x = 0, y = 0, z = 0, ry = 0) => { o.position.set(x, y, z); o.rotation.y = ry; return o; };
+/** Soft contact-shadow frame around a rectangular footprint (vertex alpha fades outward). */
+export function contactBand(S, hw, hd, x, z, spread = 1.2, alpha = .42, y = .105) {
+  const o = [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]], O = [[-hw - spread, -hd - spread], [hw + spread, -hd - spread], [hw + spread, hd + spread], [-hw - spread, hd + spread]];
+  const pos = [], col = [], idx = [];
+  for (const [px, pz] of o) { pos.push(px, 0, pz); col.push(0, 0, 0, alpha); }
+  for (const [px, pz] of O) { pos.push(px, 0, pz); col.push(0, 0, 0, 0); }
+  for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; idx.push(i, j + 4, i + 4, i, j, j + 4); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 4));
+  g.setIndex(idx); g.computeVertexNormals(); if (g.attributes.normal.getY(0) < 0) { const r = []; for (let q = 0; q < idx.length; q += 3) r.push(idx[q], idx[q + 2], idx[q + 1]); g.setIndex(r); g.computeVertexNormals(); }
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(16), 2));
+  const m = new THREE.Mesh(g, S.M.contact); m.position.set(x, y, z); m.renderOrder = 1; m.castShadow = false; m.receiveShadow = false; return m;
+}
+/** Cylinder bar between two points (for rails) */
+function bar(a, b, r, seg = 6) { const d = new THREE.Vector3().subVectors(b, a), L = d.length(); const g = new THREE.CylinderGeometry(r, r, L, seg); g.translate(0, L / 2, 0); g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize())); g.translate(a.x, a.y, a.z); return flat(g, 1); }
 function colLine(S, x0, z0, x1, z1, r, step = 1.1) { const n = Math.max(1, Math.round(Math.hypot(x1 - x0, z1 - z0) / step)); for (let i = 0; i <= n; i++) S.col(x0 + (x1 - x0) * i / n, z0 + (z1 - z0) * i / n, r); }
 
 /* ------------------------------------------------------------------ 1: foundation + plaza */
@@ -114,6 +132,13 @@ function s1(S) {
   const disc = mesh(S, shade(cyl(1.75, 1.8, .12, 40), { lo: .9 }), M.arabTeal); const ring = mesh(S, cyl(2.0, 2.05, .09, 40), M.gold);
   const ring2 = mesh(S, cyl(1.9, 1.95, .1, 40), M.marble);
   med.add(ring, ring2, disc); G.add(med); R.add(med, { delay: 1.1, dur: .8, kind: 'pop', fx: 'sparkle', amp: .3 });
+  // grounding: rough stone curb at the plinth foot + soft contact shadow
+  const kb = [];
+  const curb = (w, d, x, z) => { const g = rbox(w, .18, d, .06, 2); g.translate(x, 0, z); uvScale(g, Math.max(w, d) / 1.5, 1); kb.push(shade(g, { lo: .5, hi: .95 })); };
+  curb(18.6, .5, 0, -11.25); curb(.5, 20.5, -9.05, -1); curb(.5, 20.5, 9.05, -1);
+  curb(5.4, .5, -6.55, 9.25); curb(5.4, .5, 6.55, 9.25); curb(.5, 1.5, -3.95, 9.9); curb(.5, 1.5, 3.95, 9.9);
+  const curbM = mesh(S, merge(kb), M.stone); G.add(curbM); R.add(curbM, { delay: .5, dur: .6, kind: 'pop', amp: .2 });
+  const cb = contactBand(S, 9.3, 10.5, 0, -1, 1.4, .38); G.add(cb); R.add(cb, { delay: .6, dur: .5, kind: 'fade' });
   S.finale(V3(0, 1.5, 4), 1.9);
   // walkable plinth: smooth step-up height profile
   S.heightAt = (x, z) => {
@@ -211,6 +236,38 @@ function s2(S) {
   const cols = mesh(S, merge(cgeo), M.wood); ar.add(cols);
   const ringg = []; for (const x of [-6, -2, 2, 6]) for (const y of [.55, 3.2]) ringg.push(flat(new THREE.TorusGeometry(.27, .045, 6, 14).rotateX(Math.PI / 2).translate(x, y, .3), 1));
   ar.add(mesh(S, merge(ringg), M.gold, false));
+  // paduraksa gate (hero feature): brick piers, carved teak lintel, stepped pediment, small tajug crown, double teak doors
+  const gate = new THREE.Group(); place(gate, 0, PL, 7.7); G.add(gate);
+  const br = [], ps = [], wd = [], gdd = [], tl = [], cv = [];
+  const gb = (arr, w, h, d, x, y, z, r = .05, lo = .7) => { const g = rbox(w, h, d, r, 2); g.translate(x, y, z); arr.push(arr === gdd || arr === cv || arr === tl ? flat(g, 1) : shade(g, { lo, hi: 1, y0: 0, y1: 4 })); return g; };
+  for (const sx of [-1, 1]) {
+    const px = sx * 2.15;
+    gb(ps, 1.45, .36, 1.35, px, 0, 0, .06, .6);
+    uvScale(gb(br, 1.05, 3.3, 1.0, px, .36, 0, .04), 1, 2.5);
+    for (const [y, w] of [[3.66, 1.25], [3.88, 1.02], [4.1, .76]]) uvScale(gb(br, w, .22, w * .96, px, y, 0, .04, .85), 1, .3);
+    for (const y of [1.3, 2.55]) for (const fz of [-1, 1]) { const d = new THREE.CylinderGeometry(.2, .2, .04, 20).rotateX(Math.PI / 2).translate(px, y, fz * .51); tl.push(flat(d, 1)); }
+    gdd.push(flat(new THREE.SphereGeometry(.15, 12, 9).translate(px, 4.47, 0), 1), flat(new THREE.ConeGeometry(.08, .32, 8).translate(px, 4.74, 0), 1));
+    S.col(px, 7.7, .8);
+  }
+  gb(wd, 5.5, .56, .72, 0, 3.08, 0, .05, .8);
+  for (const fz of [-1, 1]) uvScale(gb(cv, 3.1, .38, .04, 0, 3.17, fz * .37, .015), 7.6, 1);
+  gb(gdd, 5.6, .07, .78, 0, 3.05, 0, .02); gb(gdd, 5.6, .07, .78, 0, 3.6, 0, .02);
+  uvScale(gb(br, 3.5, .34, .62, 0, 3.66, 0, .04, .85), 3, .4); uvScale(gb(br, 2.7, .3, .56, 0, 4.0, 0, .04, .9), 2.4, .35);
+  // doors (open inward)
+  for (const sx of [-1, 1]) {
+    const leaf = new THREE.Group(); leaf.position.set(sx * 1.6, .02, 0); leaf.rotation.y = -sx * 1.15;
+    const lw = [], lc = [], lg = [];
+    const lb = (arr, w, h, d, x, y, z) => { const g = rbox(w, h, d, .025, 1); g.translate(x, y, z); arr.push(arr === lw ? shade(g, { lo: .75 }) : flat(g, 1)); return g; };
+    lb(lw, 1.56, 2.78, .1, -sx * .79, 0, 0);
+    for (const y of [.35, 1.5]) for (const fz of [-1, 1]) uvScale(lb(lc, 1.06, .95, .025, -sx * .79, y, fz * .055), 1.1, 1);
+    for (const fz of [-1, 1]) lg.push(flat(new THREE.TorusGeometry(.09, .022, 6, 14).translate(-sx * 1.38, 1.4, fz * .08), 1));
+    leaf.add(mesh(S, merge(lw), M.wood), mesh(S, merge(lc), M.arabCream, false), mesh(S, merge(lg), M.gold, false));
+    gate.add(leaf);
+  }
+  gate.add(mesh(S, merge(br), M.brick), mesh(S, merge(ps), M.stone), mesh(S, merge(wd), M.wood), mesh(S, merge(gdd), M.gold, false), mesh(S, merge(tl), M.arabTeal, false), mesh(S, merge(cv), M.arabCream, false));
+  const gr = roofGroup(S, { a0: 2.0, b0: 1.0, a1: .55, b1: .12, h: .85, k: 1.2, N: 5 }); gr.position.set(0, 4.42, 0); gate.add(gr);
+  const gf = finial(S); gf.scale.setScalar(.42); gf.position.set(0, 5.27, 0); gate.add(gf);
+  R.add(gate, { delay: 2.0, dur: 1.0, kind: 'grow', amp: .12, fx: 'dust', snd: 'pop', fxOff: V3(0, 0, .6) });
   S.finale(V3(0, 3, 0), 2.3);
 }
 
@@ -329,6 +386,7 @@ function s4(S) {
   const fin = finial(S); fin.scale.setScalar(.8); fin.position.set(0, 16.1, 0); root.add(fin);
   R.add(fin, { delay: 3.9, dur: .8, kind: 'pop', amp: .5, fx: 'sparkle', snd: 'chime', fxOff: V3(0, 1.8, 0) });
   S.col(x, z, 2.6);
+  { const cb = contactBand(S, 2.5, 2.5, x, z, 1.0, .4); G.add(cb); R.add(cb, { delay: .2, dur: .4, kind: 'fade' }); }
   S.finale(V3(x, 15, z), 4.1, 'confetti');
 }
 
@@ -379,6 +437,7 @@ function s5(S) {
     const stool = rbox(.34, .32, .34, .05); stool.translate(1.35, 0, zz); bg.push(shade(stool, { lo: .6 }));
   }
   wall.add(mesh(S, merge(tg), M.gold, false), mesh(S, merge(bg), M.marble));
+  { const cb = contactBand(S, 2.9, 2.9, x, z, .9, .38); G.add(cb); R.add(cb, { delay: .2, dur: .4, kind: 'fade' }); }
   S.col(x - 3.5, z, 2.2); S.col(x - 3.5, z + 2.5, .9); S.col(x - 3.5, z - 2.5, .9); S.col(x, z, 1.9);
   // water droplets (instanced, animated in update)
   const dg = new THREE.SphereGeometry(.05, 6, 5); dg.scale(1, 1.5, 1);
@@ -416,7 +475,8 @@ function s6(S) {
   const fin = finial(S); fin.scale.setScalar(.6); fin.position.set(0, 5.5, 0); root.add(fin);
   R.add(fin, { delay: 2.3, dur: .7, kind: 'pop', amp: .5, fx: 'sparkle', fxOff: V3(0, 1.4, 0) });
   // the bedug itself (hanging drum, axis along X)
-  const drum = new THREE.Group(); drum.position.set(0, 1.95, 0); root.add(drum);
+  { const cb = contactBand(S, 2.5, 2.5, x, z, .9, .38); G.add(cb); R.add(cb, { delay: .2, dur: .4, kind: 'fade' }); }
+  const drum = new THREE.Group(); drum.userData.keep = true; drum.position.set(0, 1.95, 0); root.add(drum);
   const body = [], prof = [[.01, -.95], [.42, -.95], [.5, -.8], [.6, -.4], [.64, 0], [.6, .4], [.5, .8], [.42, .95], [.01, .95]].map(([r, h]) => new THREE.Vector2(r, h));
   const lb = new THREE.LatheGeometry(prof, 24); lb.rotateZ(Math.PI / 2); body.push(shade(lb, { lo: .55, hi: 1, y0: -.64, y1: .64 }));
   drum.add(mesh(S, merge(body), M.wood));
@@ -440,7 +500,7 @@ function s6(S) {
   mal.add(hd, st); mal.position.set(1.2, 1.15, 1.7); mal.rotation.set(.35, 0, -.3); mal.traverse(o => o.castShadow = true); root.add(mal); R.add(mal, { delay: 2.4, dur: .5, kind: 'pop' });
   // wave rings for playing
   const rm = new THREE.MeshBasicMaterial({ color: 0xffe2a0, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
-  for (let i = 0; i < 3; i++) { const r = new THREE.Mesh(new THREE.RingGeometry(.9, 1.0, 40), rm.clone()); r.visible = false; r.position.set(0, 1.95, 0); root.add(r); S.bedug.rings.push({ m: r, t: 9, life: .8 }); }
+  for (let i = 0; i < 3; i++) { const r = new THREE.Mesh(new THREE.RingGeometry(.9, 1.0, 40), rm.clone()); r.visible = false; r.userData.keep = true; r.position.set(0, 1.95, 0); root.add(r); S.bedug.rings.push({ m: r, t: 9, life: .8 }); }
   S.finale(V3(x, 3, z), 2.9, 'confetti');
 }
 
@@ -478,18 +538,33 @@ function s7(S) {
   const mc = []; for (const s of [-1, 1]) { const c1 = cyl(.1, .12, 3.2, 12); c1.translate(s * 1.28, 0, .02); mc.push(shade(c1, { lo: .8 })); const cap = new THREE.SphereGeometry(.15, 10, 8); cap.translate(s * 1.28, 3.22, .02); mc.push(flat(cap, 1)); }
   mh.add(mesh(S, merge(mc), M.gold, false));
   R.add(mh, { delay: .8, dur: .9, kind: 'pop', amp: .15, onLand: () => S.flash(1) });
-  // mimbar (pulpit)
-  const mb = new THREE.Group(); place(mb, 2.6, PL, -6.3); mb.scale.setScalar(1.3); G.add(mb);
-  const pg = [], gg = [];
-  const bx = (arr, w, h, d, px, py, pz, r = .04) => { const g = rbox(w, h, d, r, 1); g.translate(px, py, pz); arr.push(arr === gg ? flat(g, 1) : shade(g, { lo: .7 })); };
-  bx(pg, .2, 1.8, 2.4, -.55, 0, 0); bx(pg, .2, 1.8, 2.4, .55, 0, 0); bx(pg, 1.3, 1.6, .15, 0, 0, -1.2);
-  for (let s = 0; s < 4; s++) bx(pg, 1.1, .1, .4, 0, .2 + s * .32, 1.0 - s * .42, .02);
-  bx(pg, 1.1, .12, 1.0, 0, 1.55, -.6, .03);
-  for (const sx of [-.5, .5]) for (const sz of [-1.05, -.2]) bx(pg, .1, 1.2, .1, sx, 1.65, sz);
-  bx(gg, 1.3, .1, 1.3, 0, 2.75, -.62, .02); bx(gg, 1.1, .1, .1, 0, 2.15, -1.1);
-  const cone = new THREE.ConeGeometry(.9, .9, 4).rotateY(Math.PI / 4).translate(0, 3.25, -.62); gg.push(flat(cone, 1));
-  gg.push(flat(new THREE.SphereGeometry(.12, 10, 8).translate(0, 3.8, -.62), 1));
-  mb.add(mesh(S, merge(pg), M.wood), mesh(S, merge(gg), M.gold, false)); R.add(mb, { delay: 1.3, dur: .8, kind: 'grow', amp: .15, fx: 'dust', fxOff: V3(0, .2, 0) });
+  // mimbar (pulpit): sloped carved side panels, gilded stair rails + balusters, arched gate, canopy
+  const mb = new THREE.Group(); place(mb, 2.55, PL, -6.0); mb.scale.setScalar(1.3); G.add(mb);
+  const pg = [], gg = [], cg2 = [];
+  const bx = (arr, w, h, d, px, py, pz, r = .04) => { const g = rbox(w, h, d, r, 1); g.translate(px, py, pz); arr.push(arr === pg ? shade(g, { lo: .7 }) : flat(g, 1)); return g; };
+  const sideS = new THREE.Shape([V2(1.2, 0), V2(1.2, .55), V2(-.45, 1.95), V2(-1.25, 1.95), V2(-1.25, 0)].map(v => V2(v.x, v.y)));
+  for (const sx of [-1, 1]) {
+    const g = new THREE.ExtrudeGeometry(sideS, { depth: .14, bevelEnabled: true, bevelThickness: .02, bevelSize: .02, bevelSegments: 1 });
+    g.rotateY(-Math.PI / 2); g.translate(sx * .55 + .07, 0, 0); uvScale(g, .6, .6); pg.push(shade(g, { lo: .7 }));
+    const pn = new THREE.ExtrudeGeometry(new THREE.Shape([V2(.95, .15), V2(.95, .5), V2(-.3, 1.55), V2(-.95, 1.55), V2(-.95, .15)]), { depth: .02, bevelEnabled: false });
+    pn.rotateY(-Math.PI / 2); pn.translate(sx * .63 + (sx > 0 ? .02 : 0), 0, 0); uvScale(pn, 1.2, 1.2); cg2.push(flat(pn, 1));
+    // gilded rail + balusters + newel balls
+    const A = V3(sx * .55, 1.12, 1.2), B = V3(sx * .55, 2.52, -.45), C = V3(sx * .55, 2.52, -1.25);
+    gg.push(bar(A, B, .035), bar(B, C, .035));
+    for (let zz = 1.0; zz > -.45; zz -= .26) { const yb = .55 + (1.2 - zz) / 1.65 * 1.4; gg.push(bar(V3(sx * .55, yb, zz), V3(sx * .55, yb + .57, zz), .018, 5)); }
+    gg.push(flat(new THREE.SphereGeometry(.08, 10, 8).translate(A.x, A.y + .02, A.z), 1), flat(new THREE.SphereGeometry(.07, 10, 8).translate(B.x, B.y + .04, B.z), 1));
+  }
+  for (let st2 = 0; st2 < 4; st2++) bx(pg, .96, .1, .42, 0, .18 + st2 * .34, 1.0 - st2 * .42, .02);
+  bx(pg, .96, .12, .8, 0, 1.83, -.85, .03);
+  bx(pg, 1.26, 3.1, .14, 0, 0, -1.3);
+  for (const sx of [-.5, .5]) bx(pg, .09, 1.25, .09, sx, 1.95, -.45);
+  uvScale(bx(cg2, .9, 1.2, .03, 0, 1.95, -1.21, .01), 1, 1.3);
+  bx(gg, 1.32, .1, 1.0, 0, 3.15, -.85, .02);
+  gg.push(flat(new THREE.ConeGeometry(.78, .75, 4).rotateY(Math.PI / 4).translate(0, 3.6, -.85), 1), flat(new THREE.SphereGeometry(.1, 10, 8).translate(0, 4.05, -.85), 1));
+  { const f = archFrame(.9, 1.75, .09, .1); f.translate(0, 0, 1.24); gg.push(flat(f, 1)); }
+  mb.add(mesh(S, merge(pg), M.wood), mesh(S, merge(gg), M.gold, false), mesh(S, merge(cg2), M.arabCream, false));
+  R.add(mb, { delay: 1.3, dur: .8, kind: 'grow', amp: .15, fx: 'dust', fxOff: V3(0, .2, 0) });
+  S.col(2.55, -6.0, 1.2);
   // wall arabesque panels (inside side walls)
   const wp = [];
   for (const s of [-1, 1]) for (const u of [-1.65, 1.65]) {
@@ -538,6 +613,12 @@ function s8(S) {
   const pin = new THREE.InstancedMesh(fs, M.stone, pst.length); pin.receiveShadow = true; const mm = new THREE.Matrix4(), c = new THREE.Color();
   pst.forEach(([x, z], i) => { mm.compose(V3(x, 0, z), new THREE.Quaternion().setFromAxisAngle(V3(0, 1, 0), (rnd() - .5) * .2), V3(1 + rnd() * .2, 1, 1)); pin.setMatrixAt(i, mm); c.set('#ffffff').multiplyScalar(.85 + rnd() * .15); pin.setColorAt(i, c); });
   G.add(pin); R.addInst(pin, { delay: 0, delayFn: (i) => i * .12, dur: .4, kind: 'pop' });
+  // path edging: small curb stones on both sides
+  { const eg = flat(rbox(.34, .15, .44, .05, 1), 1), ep = [];
+    for (const sx of [-1, 1]) for (let z = 14.8; z < 25; z += .5) ep.push([sx * (1.18 + (rnd() - .5) * .05), z]);
+    const ei = new THREE.InstancedMesh(eg, M.stone, ep.length); ei.receiveShadow = true;
+    ep.forEach(([x, z], i) => { mm.compose(V3(x, 0, z), new THREE.Quaternion().setFromAxisAngle(V3(0, 1, 0), (rnd() - .5) * .25), V3(1, .8 + rnd() * .4, 1)); ei.setMatrixAt(i, mm); ei.setColorAt(i, c.set('#ffffff').multiplyScalar(.7 + rnd() * .2)); });
+    G.add(ei); R.addInst(ei, { delayFn: (i, p) => .3 + (p.z - 14.8) * .05, dur: .4, kind: 'pop', amp: .5 }); }
   // hedges / bushes (instanced faceted blobs, colour variety)
   const bg = new THREE.IcosahedronGeometry(1, 1); { const p = bg.attributes.position; for (let i = 0; i < p.count; i++) { const k = 1 + (Math.sin(p.getX(i) * 7 + p.getZ(i) * 5) * .08); p.setXYZ(i, p.getX(i) * k, p.getY(i) * k * .8, p.getZ(i) * k); } bg.computeVertexNormals(); shade(bg, { lo: .6, hi: 1, y0: -.8, y1: .8 }); }
   const bushes = [];

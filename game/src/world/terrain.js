@@ -44,16 +44,9 @@ const dirtPath=C('#c4905a'), dirtPlaza=C('#c9a875'), dirtPen=C('#bf9254'), straw
 const sandC=C('#f3dfa4'), sandWet=C('#cdb581'), mud=C('#7d6a45'), bed=C('#4aa5a0'), bedDeep=C('#2b6f8f');
 const earth=C('#8d6a3f'), rice1=C('#b9d34c'), rice2=C('#86cf4a'), rock=C('#9a9486');
 
-export function buildTerrain(ctx){
-  const N=SIZE; // 1m cells
-  const geo=new THREE.PlaneGeometry(SIZE,SIZE,N,N); geo.rotateX(-Math.PI/2);
-  const pos=geo.attributes.position, n=pos.count;
-  const col=new Float32Array(n*3), splat=new Float32Array(n*3), hs=new Float32Array(n);
-  for(let i=0;i<n;i++){ const y=heightAt(pos.getX(i),pos.getZ(i)); pos.setY(i,y); hs[i]=y; }
-  geo.computeVertexNormals();
-  const nor=geo.attributes.normal, tmp=new THREE.Color();
-  for(let i=0;i<n;i++){
-    const x=pos.getX(i), z=pos.getZ(i), h=hs[i], ny=nor.getY(i), r=Math.hypot(x,z);
+// terrain surface shading at a point -> writes color into out, returns [grass,dirt,sand] weights
+export function shadeAt(x,z,h,ny,out){
+  const r=Math.hypot(x,z), tmp=out;
     const n1=fbm(x*0.045,z*0.045,3), n2=fbm(x*0.15+9,z*0.15,3), n3=vnoise(x*0.7,z*0.7)-0.5, n4=fbm(x*0.4-5,z*0.4+2,2);
     // grass painterly
     tmp.copy(gB).lerp(gA,S(-0.35,0.35,n1));
@@ -88,15 +81,33 @@ export function buildTerrain(ctx){
     const pond=(1-S(5.2,9.5,dp+n3*1.5))*(1-S(-0.1,0.4,h-0.0));
     if(pond>0){ const mw=S(0.55,-0.45,h); tmp.lerp(mud,pond*mw*0.8); }
     if(underwater>0){ const deep=S(WATER_Y,-3.8,h); const bc=(dp<14? mud.clone().lerp(C('#4f8a7a'),0.5): bed.clone()); bc.lerp(bedDeep,deep); tmp.lerp(bc,underwater); }
-    col[i*3]=tmp.r; col[i*3+1]=tmp.g; col[i*3+2]=tmp.b;
-    // splat weights: grass, dirt, sand
     const sw=Math.max(sand,underwater*0.6), dw=dirt*(1-sw);
-    splat[i*3]=Math.max(0,1-dw-sw); splat[i*3+1]=dw; splat[i*3+2]=sw;
+  return [Math.max(0,1-dw-sw),dw,sw];
+}
+const _sc=new THREE.Color();
+export function colorAtWorld(x,z,out){ const h=heightAt(x,z), e=0.5; const dx=heightAt(x+e,z)-h, dz=heightAt(x,z+e)-h; const ny=1/Math.hypot(dx/e,dz/e,1); shadeAt(x,z,h,ny,out); return out; }
+
+// warped grid: fine (~0.85m) cells in the play area, ~2.5m at the island rim/sea
+const WA=0.6, HALF=SIZE/2;
+const warp=(u)=>HALF*(WA*u+(1-WA)*u*u*u);
+const unwarp=(x)=>{ let u=x/HALF; for(let k=0;k<6;k++){ const f=WA*u+(1-WA)*u*u*u-x/HALF, d=WA+3*(1-WA)*u*u; u-=f/d; } return clamp(u,-1,1); };
+
+export function buildTerrain(ctx, { quality='high' }={}){
+  const N=quality==='low'?130:170;
+  const geo=new THREE.PlaneGeometry(2,2,N,N); geo.rotateX(-Math.PI/2);
+  const pos=geo.attributes.position, n=pos.count;
+  const col=new Float32Array(n*3), splat=new Float32Array(n*3), hs=new Float32Array(n);
+  for(let i=0;i<n;i++){ const x=warp(pos.getX(i)), z=warp(pos.getZ(i)); const y=heightAt(x,z); pos.setXYZ(i,x,y,z); hs[i]=y; }
+  geo.computeVertexNormals();
+  const nor=geo.attributes.normal, tmp=new THREE.Color();
+  for(let i=0;i<n;i++){
+    const w=shadeAt(pos.getX(i),pos.getZ(i),hs[i],nor.getY(i),tmp);
+    col[i*3]=tmp.r; col[i*3+1]=tmp.g; col[i*3+2]=tmp.b; splat[i*3]=w[0]; splat[i*3+1]=w[1]; splat[i*3+2]=w[2];
   }
   geo.setAttribute('color',new THREE.BufferAttribute(col,3));
   geo.setAttribute('aSplat',new THREE.BufferAttribute(splat,3));
   const tg=makeGrassTex(), td=makeDirtTex(), ts=makeSandTex();
-  const mat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.97,metalness:0});
+  const mat=new THREE.MeshLambertMaterial({vertexColors:true});
   mat.onBeforeCompile=(sh)=>{
     sh.uniforms.tG={value:tg}; sh.uniforms.tD={value:td}; sh.uniforms.tS={value:ts};
     sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute vec3 aSplat; varying vec3 vSplat; varying vec2 vWP;')
@@ -112,36 +123,44 @@ export function buildTerrain(ctx){
   };
   const mesh=new THREE.Mesh(geo,mat); mesh.receiveShadow=true; mesh.name='terrain';
   // height texture for water shader (r8, -6..10 m over SIZE)
-  const HR=256, data=new Uint8Array(HR*HR);
+  const HR=quality==='low'?128:192, data=new Uint8Array(HR*HR);
   for(let j=0;j<HR;j++)for(let i=0;i<HR;i++){ const x=(i/(HR-1)-0.5)*SIZE, z=(j/(HR-1)-0.5)*SIZE; data[j*HR+i]=Math.round(clamp((heightAt(x,z)+6)/16,0,1)*255); }
   const ht=new THREE.DataTexture(data,HR,HR,THREE.RedFormat,THREE.UnsignedByteType); ht.minFilter=ht.magFilter=THREE.LinearFilter; ht.needsUpdate=true;
   ht.wrapS=ht.wrapT=THREE.ClampToEdgeWrapping;
-  // color sampler for vegetation tinting
-  const colorAt=(x,z,out)=>{ const fx=(x/SIZE+0.5)*N, fz=(z/SIZE+0.5)*N; const ix=clamp(Math.round(fx),0,N), iz=clamp(Math.round(fz),0,N); const k=(iz*(N+1)+ix)*3; return out.setRGB(col[k],col[k+1],col[k+2]); };
-  // grass field textures (1 texel per terrain vertex): RGBA = terrain color + grass weight; half-float height
-  const NV=N+1, gm=new Uint8Array(NV*NV*4), hh=new Uint16Array(NV*NV);
-  for(let i=0;i<NV*NV;i++){
-    const x=pos.getX(i), z=pos.getZ(i), h=hs[i], r=Math.hypot(x,z);
-    let w=splat[i*3]*S(0.82,0.92,nor.getY(i))*S(-0.2,0.25,h);
+  // grass field textures on a uniform 2m grid: RGBA = terrain color (sqrt-encoded) + grass weight; half-float height
+  const MS=2, NV=SIZE/MS+1, gm=new Uint8Array(NV*NV*4), hh=new Uint16Array(NV*NV), mcol=new Float32Array(NV*NV*3);
+  for(let j=0;j<NV;j++)for(let i=0;i<NV;i++){
+    const k=j*NV+i, x=-HALF+i*MS, z=-HALF+j*MS, h=heightAt(x,z), r=Math.hypot(x,z);
+    const e=0.6, dx=heightAt(x+e,z)-h, dz=heightAt(x,z+e)-h, ny=1/Math.hypot(dx/e,dz/e,1);
+    const sp=shadeAt(x,z,h,ny,tmp);
+    let w=sp[0]*S(0.82,0.92,ny)*S(-0.2,0.25,h);
     if(r>40) w*=S(0.3,0.8,h);
     w*=S(0.0,0.6,clearance(x,z)+1.2);
-    gm[i*4]=Math.min(255,Math.sqrt(col[i*3])*255); gm[i*4+1]=Math.min(255,Math.sqrt(col[i*3+1])*255); gm[i*4+2]=Math.min(255,Math.sqrt(col[i*3+2])*255); gm[i*4+3]=clamp(w,0,1)*255;
-    hh[i]=THREE.DataUtils.toHalfFloat(h);
+    mcol[k*3]=tmp.r; mcol[k*3+1]=tmp.g; mcol[k*3+2]=tmp.b;
+    gm[k*4]=Math.min(255,Math.sqrt(tmp.r)*255); gm[k*4+1]=Math.min(255,Math.sqrt(tmp.g)*255); gm[k*4+2]=Math.min(255,Math.sqrt(tmp.b)*255); gm[k*4+3]=clamp(w,0,1)*255;
+    hh[k]=THREE.DataUtils.toHalfFloat(h);
   }
   const grassMask=new THREE.DataTexture(gm,NV,NV,THREE.RGBAFormat,THREE.UnsignedByteType); grassMask.minFilter=grassMask.magFilter=THREE.LinearFilter; grassMask.needsUpdate=true;
   const heightHF=new THREE.DataTexture(hh,NV,NV,THREE.RedFormat,THREE.HalfFloatType); heightHF.minFilter=heightHF.magFilter=THREE.LinearFilter; heightHF.needsUpdate=true;
+  // color sampler for vegetation tinting (bilinear on the 2m grid)
+  const colorAt=(x,z,out)=>{ const fx=clamp((x+HALF)/MS,0,NV-1.001), fz=clamp((z+HALF)/MS,0,NV-1.001); const ix=fx|0, iz=fz|0, tx=fx-ix, tz=fz-iz;
+    const g=(c)=>{ const a=mcol[(iz*NV+ix)*3+c], b=mcol[(iz*NV+ix+1)*3+c], d=mcol[((iz+1)*NV+ix)*3+c], e2=mcol[((iz+1)*NV+ix+1)*3+c]; return (a*(1-tx)+b*tx)*(1-tz)+(d*(1-tx)+e2*tx)*tz; };
+    return out.setRGB(g(0),g(1),g(2)); };
   // soft contact AO baked into terrain vertex colors around placed objects [{x,z,r,k}]
+  const NP=N+1;
   function applyAO(list){
     const ca=geo.attributes.color;
     for(const o of list){
-      const R=o.r*1.6, x0=Math.max(0,Math.floor((o.x-R)/SIZE*N+N/2)), x1=Math.min(N,Math.ceil((o.x+R)/SIZE*N+N/2)), z0=Math.max(0,Math.floor((o.z-R)/SIZE*N+N/2)), z1=Math.min(N,Math.ceil((o.z+R)/SIZE*N+N/2));
-      for(let iz=z0;iz<=z1;iz++)for(let ix=x0;ix<=x1;ix++){
-        const k=iz*NV+ix, d=Math.hypot(pos.getX(k)-o.x,pos.getZ(k)-o.z); if(d>R) continue;
+      const R=o.r*1.6;
+      const i0=Math.max(0,Math.floor((unwarp(o.x-R)+1)/2*N)), i1=Math.min(N,Math.ceil((unwarp(o.x+R)+1)/2*N));
+      const j0=Math.max(0,Math.floor((unwarp(o.z-R)+1)/2*N)), j1=Math.min(N,Math.ceil((unwarp(o.z+R)+1)/2*N));
+      for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++){
+        const k=j*NP+i, d=Math.hypot(pos.getX(k)-o.x,pos.getZ(k)-o.z); if(d>R) continue;
         const f=1-(o.k??0.35)*(1-S(o.r*0.3,R,d));
-        col[k*3]*=f*0.98; col[k*3+1]*=f; col[k*3+2]*=Math.min(1,f*1.04);
+        col[k*3]*=f*0.97; col[k*3+1]*=f; col[k*3+2]*=Math.min(1,f*1.05);
       }
     }
     ca.needsUpdate=true;
   }
-  return { mesh, heightTex:ht, colorAt, grassMask, heightHF, applyAO, NV };
+  return { mesh, heightTex:ht, colorAt, grassMask, heightHF, applyAO, NV, MS };
 }

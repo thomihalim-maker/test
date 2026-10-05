@@ -38,14 +38,16 @@ export function createDecor(ctx, blobs){
   // flagstones along path + road, scattered pebbles
   for(let t=0;t<10;t+=0.9){ const x=8+t+(r()-0.5)*0.4, z=6+(r()-0.5)*1.0; part(rocks,x,z,heightAt(x,z),0,0,0.04,0,0.7,0.12,0.6,pick(stone),r()*3); }
   for(let z=14;z<56;z+=1.4){ const x=roadX(z)+(r()-0.5)*1.4; part(rocks,x,z,heightAt(x,z),0,0,0.04,0,0.6,0.1,0.5,pick(stone),r()*3); }
-  for(let i=0;i<500;i++){ const a=r()*6.283, d=Math.sqrt(r())*14, x=Math.cos(a)*d, z=Math.sin(a)*d; if(d<2) continue; const s=0.06+r()*0.14; part(rocks,x,z,heightAt(x,z),r()*6,0,s*0.3,0,s*1.4,s*0.8,s,pick(stone),0); }
-  for(let i=0;i<260;i++){ const z=14+r()*42, x=roadX(z)+(r()-0.5)*3.4, s=0.05+r()*0.1; part(rocks,x,z,heightAt(x,z),r()*6,0,s*0.3,0,s*1.4,s*0.8,s,pick(stone),0); }
-  for(let i=0;i<120;i++){ const x=8+r()*10, z=6+(r()-0.5)*3, s=0.05+r()*0.09; part(rocks,x,z,heightAt(x,z),r()*6,0,s*0.3,0,s*1.4,s*0.8,s,pick(stone),0); }
-  function mk(geo,list,cast,mat){ if(!list.length) return; const im=new THREE.InstancedMesh(geo,mat,list.length); list.forEach((it,i)=>{ im.setMatrixAt(i,it.m); im.setColorAt(i,it.c); }); im.castShadow=cast; im.receiveShadow=true; im.computeBoundingSphere(); group.add(im); return im; }
-  const stdm=()=>new THREE.MeshStandardMaterial({roughness:0.85});
-  mk(new THREE.BoxGeometry(1,1,1),boxes,true,stdm());
-  mk(new THREE.CylinderGeometry(0.5,0.5,1,10),cyls,true,stdm());
-  mk(new THREE.IcosahedronGeometry(0.5,0),rocks,true,stdm());
-  mk(new THREE.IcosahedronGeometry(0.5,0),petalsC,false,new THREE.MeshLambertMaterial());
+  const peb=['#d9c7a3','#cdb895','#e3d5b8','#c4ae8a'];
+  const pebble=(x,z,s0)=>{ const s=s0*(0.8+r()*0.5); part(rocks,x,z,heightAt(x,z)-0.02,r()*6,0,s*0.12,0,s*1.5,s*0.45,s*1.2,pick(peb),0); };
+  const LOW=ctx.quality==='low';
+  for(let i=0;i<(LOW?70:140);i++){ const a=r()*6.283, d=3+Math.sqrt(r())*11.5, x=Math.cos(a)*d, z=Math.sin(a)*d; pebble(x,z,0.12+r()*0.14); }
+  for(let i=0;i<(LOW?40:80);i++){ const z=14+r()*42, x=roadX(z)+(r()-0.5)*3.2; pebble(x,z,0.1+r()*0.12); }
+  for(let i=0;i<(LOW?20:40);i++){ const x=8+r()*10, z=6+(r()-0.5)*2.8; pebble(x,z,0.1+r()*0.1); }
+  function mk(geo,list,mat){ if(!list.length) return; const im=new THREE.InstancedMesh(geo,mat,list.length); list.forEach((it,i)=>{ im.setMatrixAt(i,it.m); im.setColorAt(i,it.c); }); im.castShadow=false; im.receiveShadow=true; im.computeBoundingSphere(); group.add(im); return im; }
+  const mat=new THREE.MeshLambertMaterial();
+  mk(new THREE.BoxGeometry(1,1,1),boxes,mat);
+  mk(new THREE.CylinderGeometry(0.5,0.5,1,10),cyls,mat);
+  mk(new THREE.IcosahedronGeometry(0.5,1),rocks.concat(petalsC),mat);
   return { group };
 }

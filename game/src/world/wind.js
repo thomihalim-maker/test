@@ -23,6 +23,6 @@ export function patchWind(mat, { amp = 0.2, height = 1, speed = 1, flutter = 0, 
       transformed+=transpose(wim)*wo/wis2;`);
     sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', NFIX);
   };
-  mat.customProgramCacheKey = () => 'wind' + amp + height + speed + flutter + wind;
+  mat.customProgramCacheKey = () => 'wind';
   return mat;
 }

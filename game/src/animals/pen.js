@@ -10,7 +10,7 @@ const V3=THREE.Vector3;
 export function buildPen(ctx){
   const root=new THREE.Group(); root.name='animalPen'; root.position.set(PEN.cx,0,PEN.cz);
   const rnd=mulberry32(99);
-  const B={wood:[],straw:[],thatch:[],misc:[],foam:[]};
+  const B={wood:[],straw:[],thatch:[],misc:[],foam:[],tubfoam:[]}; const low=ctx.quality==='low';
   const obstacles=[];  // local coords {x,z,r}
   const colliders=[];  // local coords for player
   const tmpM=new THREE.Matrix4(), tmpQ=new THREE.Quaternion(), tmpE=new THREE.Euler();
@@ -22,7 +22,7 @@ export function buildPen(ctx){
     geo.setAttribute('color',new THREE.BufferAttribute(a,3));
     if(geo.index===null) geo=geo.toNonIndexed&&geo; B[bucket].push(geo); return geo;
   }
-  const rbox=(w,h,d,rad=.03,seg=2)=>new RoundedBoxGeometry(w,h,d,seg,rad);
+  const rbox=(w,h,d,rad=.03,seg=1)=>new RoundedBoxGeometry(w,h,d,1,rad); // seg forced to 1: chamfered, ~108 tris/box
   const WOODS=['#c79a63','#b98652','#d2a56d','#a9774a','#c18f5a'];
   const woodC=()=>WOODS[Math.floor(rnd()*WOODS.length)];
 
@@ -31,7 +31,7 @@ export function buildPen(ctx){
   const zs=[-6,-4,-2,-1.2,1.2,2,4,6];            // x=-8 side (gate between -1.2..1.2)
   const addPost=(x,z,h=1.05,w=.16,tall=false)=>{ posts.push({x,z,h});
     put('wood',rbox(w,h,w,.04,2),{p:[x,h/2,z],r:[(rnd()-.5)*.05,rnd()*3,(rnd()-.5)*.05],c:tall?'#a97745':woodC()});
-    put('wood',new THREE.SphereGeometry(w*.62,10,8),{p:[x,h+.015,z],s:[1,.7,1],c:tall?'#e9b95c':'#d9b27a'});
+    put('wood',new THREE.SphereGeometry(w*.62,8,5),{p:[x,h+.015,z],s:[1,.7,1],c:tall?'#e9b95c':'#d9b27a'});
     colliders.push({x,z,r:.28});
   };
   for(let x=-8;x<=8.01;x+=2) { addPost(x,-6); addPost(x,6); }
@@ -60,7 +60,7 @@ export function buildPen(ctx){
   // bunting
   const flagCols=['#ff6b81','#ffd166','#2ec4b6','#6c8cff','#ffffff','#ff9f43','#b983ff'];
   const bunting=(a,b,sag,n)=>{ for(let i=0;i<n;i++){ const t=(i+.5)/n; const p=new V3().lerpVectors(a,b,t); p.y-=Math.sin(t*Math.PI)*sag;
-      put('misc',new THREE.SphereGeometry(i%3===1?.075:.05,8,6),{p:[p.x,p.y,p.z],c:flagCols[i%flagCols.length]}); } };
+      put('misc',new THREE.SphereGeometry(i%3===1?.075:.05,6,4),{p:[p.x,p.y,p.z],c:flagCols[i%flagCols.length]}); } };
   bunting(new V3(-8,2.0,-1.2),new V3(-8,1.05,-6),.35,18); bunting(new V3(-8,2.0,1.2),new V3(-8,1.05,6),.35,18);
   bunting(new V3(-8,1.05,-6),new V3(8,1.05,-6),.5,30); bunting(new V3(-8,1.05,6),new V3(8,1.05,6),.5,30);
   bunting(new V3(8,1.05,-6),new V3(8,1.05,6),.5,22);
@@ -100,7 +100,7 @@ export function buildPen(ctx){
   for(const fx of[-3.4,.2]){
     const t=trough(fx,-5.0,2.2);
     const hay=new THREE.Mesh(new THREE.SphereGeometry(1,16,10),new THREE.MeshStandardMaterial({color:'#f1cf78',map:strawTexture(),roughness:1}));
-    hay.scale.set(1,.2,.26); hay.position.set(fx,.62,-5.0); hay.castShadow=true; root.add(hay);
+    hay.scale.set(1,.2,.26); hay.position.set(fx,.62,-5.0); hay.castShadow=!low; root.add(hay);
     const slots=[new V3(fx-.55,0,-4.85),new V3(fx+.55,0,-4.85)];
     const st={pos:new V3(fx,0,-5.0),slots,occ:[null,null],fill:0.0,mesh:hay,head:new V3(fx,.5,-4.95),face:Math.PI}; stations.feed.push(st); fills.push(st);
     obstacles.push({x:fx-.75,z:-5.0,r:.5},{x:fx+.75,z:-5.0,r:.5}); colliders.push({x:fx-.7,z:-5,r:.5},{x:fx,z:-5,r:.5},{x:fx+.7,z:-5,r:.5});
@@ -122,7 +122,7 @@ export function buildPen(ctx){
     const wm=new THREE.MeshStandardMaterial({color:'#9fe0f5',roughness:.1,transparent:true,opacity:.9,emissive:'#4aa7c9',emissiveIntensity:.2});
     const wat=new THREE.Mesh(new THREE.CircleGeometry(R*.93,28).rotateX(-Math.PI/2),wm); wat.position.set(tx,.58,tz); root.add(wat);
     // foam bubbles
-    for(let i=0;i<26;i++){ const a=rnd()*7,rr=Math.sqrt(rnd())*R*.82,s=.07+rnd()*.12; put('foam',new THREE.SphereGeometry(s,8,6),{p:[tx+Math.cos(a)*rr,.6+s*.5,tz+Math.sin(a)*rr],s:[1,.8,1],c:rnd()<.5?'#ffffff':'#e3f6ff'}); }
+    for(let i=0;i<26;i++){ const a=rnd()*7,rr=Math.sqrt(rnd())*R*.82,s=.07+rnd()*.12; put('tubfoam',new THREE.SphereGeometry(s,8,6),{p:[tx+Math.cos(a)*rr,.6+s*.5,tz+Math.sin(a)*rr],s:[1,.8,1],c:rnd()<.5?'#ffffff':'#e3f6ff'}); }
     // rubber duck
     const dx=tx+.25,dz=tz-.2; put('misc',new THREE.SphereGeometry(.13,10,8),{p:[dx,.68,dz],s:[1.1,.85,1],c:'#ffd43b'}); put('misc',new THREE.SphereGeometry(.085,10,8),{p:[dx+.07,.79,dz],c:'#ffd43b'}); put('misc',new THREE.ConeGeometry(.035,.07,6).rotateZ(-Math.PI/2),{p:[dx+.17,.78,dz],c:'#ff8a3d'});
     put('misc',new THREE.SphereGeometry(.015,6,5),{p:[dx+.14,.82,dz+.05],c:'#222'}); put('misc',new THREE.SphereGeometry(.015,6,5),{p:[dx+.14,.82,dz-.05],c:'#222'});
@@ -133,7 +133,7 @@ export function buildPen(ctx){
     put('wood',rbox(.22,.05,.08,.02),{p:[tx+1.5,.36,tz+.34],r:[0,.3,0],c:'#c9964f'}); put('misc',rbox(.2,.035,.06,.01),{p:[tx+1.5,.325,tz+.34],r:[0,.3,0],c:'#f5e3a8'});
     put('misc',new THREE.CylinderGeometry(.22,.17,.32,14),{p:[tx-1.45,.16,tz+.5],c:'#ff7a59'}); put('misc',new THREE.TorusGeometry(.2,.015,5,14).rotateX(Math.PI/2),{p:[tx-1.45,.32,tz+.5],c:'#6b4a2e'}); put('foam',new THREE.SphereGeometry(.13,8,6),{p:[tx-1.45,.34,tz+.5],s:[1,.7,1],c:'#ffffff'});
     colliders.push({x:tx-1.45,z:tz+.5,r:.25});
-    stations.wash={pos:new V3(tx,0,tz),slots:[new V3(tx+1.5,0,tz-1.1),new V3(tx-.4,0,tz-1.5),new V3(tx+.6,0,tz+1.6)],occ:[null,null,null],face:0,water:wat};
+    stations.wash={pos:new V3(tx,0,tz),slots:[new V3(tx+1.5,0,tz-1.1),new V3(tx-.4,0,tz-1.5),new V3(tx+.6,0,tz+1.6)],occ:[null,null,null],face:0,water:wat,fill:.6,direct:true};
     obstacles.push({x:tx,z:tz,r:1.05},{x:tx+1.5,z:tz+.2,r:.4}); colliders.push({x:tx,z:tz,r:1.0},{x:tx+1.5,z:tz+.2,r:.4}); }
 
   // ------------ shade shelter (thatched, bamboo posts) ------------
@@ -160,13 +160,13 @@ export function buildPen(ctx){
   // tufts of grass + flowers around the fence (decor, instanced)
   const tuftG=(()=>{ const gs=[]; for(let i=0;i<5;i++){ const g=new THREE.ConeGeometry(.045,.32+(i%3)*.08,4); g.translate(0,.16,0); g.rotateZ((i-2)*.22); g.rotateY(i*1.3);
       const n=g.attributes.position.count,a=new Float32Array(n*3); for(let k=0;k<n;k++){ const t=g.attributes.position.getY(k)/.4; a[k*3]=.35+.2*t; a[k*3+1]=.7+.2*t; a[k*3+2]=.25; } g.setAttribute('color',new THREE.BufferAttribute(a,3)); gs.push(g);} return mergeGeometries(gs); })();
-  const tN=110, tufts=new THREE.InstancedMesh(tuftG,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.9}),tN); const dm=new THREE.Object3D();
+  const tN=low?40:110, tufts=new THREE.InstancedMesh(tuftG,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.9}),tN); const dm=new THREE.Object3D();
   for(let i=0;i<tN;i++){ const side=rnd()*4|0, t=(rnd()*2-1), off=.35+rnd()*.7;
     let x,z; if(side===0){x=t*8.6;z=-6-off;} else if(side===1){x=t*8.6;z=6+off;} else if(side===2){x=8+off;z=t*6.6;} else {x=-8-off;z=t*6.6; if(Math.abs(z)<2) z+=3.5*Math.sign(z||1);}
     dm.position.set(x,0,z); dm.rotation.y=rnd()*6; dm.scale.setScalar(.8+rnd()*.9); dm.updateMatrix(); tufts.setMatrixAt(i,dm.matrix); }
   root.add(tufts);
-  const fl=new THREE.InstancedMesh(new THREE.SphereGeometry(.05,6,5),new THREE.MeshStandardMaterial({roughness:.6}),50); const fc=['#fff','#ffd166','#ff8fb1','#b9a3ff'];
-  for(let i=0;i<50;i++){ const side=rnd()*4|0,t=(rnd()*2-1),off=.5+rnd()*.9; let x,z; if(side===0){x=t*8.6;z=-6-off;} else if(side===1){x=t*8.6;z=6+off;} else if(side===2){x=8+off;z=t*6.6;} else {x=-8-off;z=t*6.6; if(Math.abs(z)<2) z+=3.5*Math.sign(z||1);}
+  const fl=new THREE.InstancedMesh(new THREE.SphereGeometry(.05,6,5),new THREE.MeshStandardMaterial({roughness:.6}),low?20:50); const fc=['#fff','#ffd166','#ff8fb1','#b9a3ff'];
+  for(let i=0;i<fl.count;i++){ const side=rnd()*4|0,t=(rnd()*2-1),off=.5+rnd()*.9; let x,z; if(side===0){x=t*8.6;z=-6-off;} else if(side===1){x=t*8.6;z=6+off;} else if(side===2){x=8+off;z=t*6.6;} else {x=-8-off;z=t*6.6; if(Math.abs(z)<2) z+=3.5*Math.sign(z||1);}
     dm.position.set(x,.3+rnd()*.12,z); dm.rotation.set(0,0,0); dm.scale.setScalar(.9+rnd()*.6); dm.updateMatrix(); fl.setMatrixAt(i,dm.matrix); fl.setColorAt(i,new THREE.Color(fc[i%4])); }
   root.add(fl);
 
@@ -195,11 +195,12 @@ export function buildPen(ctx){
     straw:new THREE.MeshStandardMaterial({vertexColors:true,map:strawTexture(),roughness:1}),
     thatch:new THREE.MeshStandardMaterial({vertexColors:true,map:thatchTexture(),roughness:1}),
     misc:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.7,side:THREE.DoubleSide}),
-    foam:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.4,emissive:'#bfe8ff',emissiveIntensity:.05}) };
+    foam:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.4,emissive:'#bfe8ff',emissiveIntensity:.05}) }; mats.tubfoam=mats.foam;
+  const meshes={};
   for(const k of Object.keys(B)){
     if(!B[k].length) continue;
     const list=B[k].map(g=>{ let q=g.index?g.toNonIndexed():g; for(const n of Object.keys(q.attributes)) if(!['position','normal','uv','color'].includes(n)) q.deleteAttribute(n); return q; });
-    const m=new THREE.Mesh(mergeGeometries(list),mats[k]); m.castShadow=(k!=='thatch'&&k!=='foam'); m.receiveShadow=true; m.name='pen_'+k; root.add(m);
+    const m=new THREE.Mesh(mergeGeometries(list),mats[k]); m.castShadow=!(k==='thatch'||k==='foam'||k==='tubfoam'||(low&&k==='misc')); m.receiveShadow=!low||k!=='misc'; m.name='pen_'+k; root.add(m); meshes[k]=m;
   }
   // legacy sub-group for troughs (kept empty-safe)
   ctx.scene.add(root);
@@ -219,7 +220,8 @@ export function buildPen(ctx){
     warm.intensity=night*7*(.94+.06*Math.sin(t*7)); lantern.material.emissiveIntensity=.3+night*2.2; mats.foam.emissiveIntensity=.05+night*.5;
     for(const st of stations.feed){ const f=Math.max(0,st.fill); st.mesh.visible=f>0.01; st.mesh.scale.set(1,.06+.34*f,.2+.08*f); st.mesh.position.y=.42+.12*f; }
     const w=stations.water; w.mesh.position.y=.46+.28*Math.max(.05,w.fill)+Math.sin(t*2.2)*.004; w.mesh.material.emissiveIntensity=.2+Math.sin(t*1.7)*.05; w.mesh.visible=w.fill>.01;
-    stations.wash.water.position.y=.58+Math.sin(t*1.5)*.006;
+    const wf=stations.wash.fill??0; stations.wash.water.position.y=.3+.28*Math.max(.05,wf)+Math.sin(t*1.5)*.006; stations.wash.water.visible=wf>.01;
+    if(meshes.tubfoam){ meshes.tubfoam.visible=wf>.06; meshes.tubfoam.position.y=(Math.min(1,wf)-1)*.28; meshes.tubfoam.scale.y=1; }
   }
   return { root, stations, obstacles:world.obstacles, update, bounds:{x0:PEN.cx-PEN.hw,x1:PEN.cx+PEN.hw,z0:PEN.cz-PEN.hd,z1:PEN.cz+PEN.hd}, gate:new V3(PEN.cx-PEN.hw,0,PEN.cz) };
 }

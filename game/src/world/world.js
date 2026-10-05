@@ -5,6 +5,7 @@ import { createAtmosphere } from './atmosphere.js';
 import { createWater } from './water.js';
 import { createVegetation } from './vegetation.js';
 import { createBlobs, createLamps } from './props.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { createDecor } from './decor.js';
 import { createGrassField } from './grassfield.js';
@@ -22,22 +23,29 @@ export async function init(ctx){
   const freeze = q.has('freeze') || q.get('hourspeed')==='0';
   const HOUR_PER_SEC = (q.has('hourspeed') ? +q.get('hourspeed') : 1/20);
   ctx.night = 0;
+  // quality tier: ?quality=low|high, else heuristic (touch / small screen / few cores -> low)
+  if (!ctx.quality) {
+    const qp = q.get('quality');
+    const mobile = matchMedia('(pointer: coarse)').matches || Math.min(screen.width, screen.height) < 600 || (navigator.hardwareConcurrency || 8) <= 4;
+    ctx.quality = qp === 'low' || qp === 'high' ? qp : (mobile ? 'low' : 'high');
+  }
+  const LOW = ctx.quality === 'low';
 
   const cam = createCameraRig(ctx);
   const atm = createAtmosphere(ctx);
-  const terrain = buildTerrain(ctx);
+  const terrain = buildTerrain(ctx, { quality: ctx.quality });
   scene.add(terrain.mesh);
   const blobs = createBlobs(ctx); scene.add(blobs.mesh);
   const water = createWater(ctx, terrain.heightTex); scene.add(water.mesh);
   const veg = createVegetation(ctx, terrain, blobs); scene.add(veg.group);
   const lamps = createLamps(ctx, blobs); scene.add(lamps.group);
-  const grassField = createGrassField(ctx, terrain); scene.add(grassField.mesh);
+  const grassField = createGrassField(ctx, terrain, LOW ? { count: 3600, radius: 11 } : { count: 7000, radius: 15 }); scene.add(grassField.mesh);
   const decor = createDecor(ctx, blobs); scene.add(decor.group);
   const parts = createParticles(ctx); scene.add(parts.group);
 
   // distant islands / headlands for depth (fog-faded)
   {
-    const r = mulberry32(5), g = new THREE.Group();
+    const r = mulberry32(5), g = [];
     const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
     for (let i = 0; i < 7; i++) {
       const a = i / 7 * Math.PI * 2 + r() * 0.6, d = 135 + r() * 55, s = 14 + r() * 22;
@@ -49,9 +57,9 @@ export async function init(ctx){
         const t = Math.max(0, y); const c = new THREE.Color('#3f8f4a').lerp(new THREE.Color('#8fcf55'), t); cols.push(c.r, c.g, c.b);
       }
       geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3)); geo.computeVertexNormals();
-      const m = new THREE.Mesh(geo, mat); m.position.set(Math.cos(a) * d, -1.2, Math.sin(a) * d); m.scale.set(s * 1.5, s * 0.6, s * 1.2); g.add(m);
+      geo.deleteAttribute('uv'); geo.scale(s * 1.5, s * 0.6, s * 1.2); geo.translate(Math.cos(a) * d, -1.2, Math.sin(a) * d); g.push(geo);
     }
-    g.name = 'distantIslands'; scene.add(g);
+    const isl = new THREE.Mesh(mergeGeometries(g), mat); isl.name = 'distantIslands'; scene.add(isl);
   }
 
   let grade = null;
@@ -62,7 +70,7 @@ export async function init(ctx){
       fragmentShader: `uniform sampler2D tDiffuse; uniform float uWarm,uNight; varying vec2 vUv;
         void main(){ vec4 c=texture2D(tDiffuse,vUv); vec2 d=vUv-0.5; float v=smoothstep(0.85,0.25,length(d*vec2(1.0,1.15)));
           float l=dot(c.rgb,vec3(0.2126,0.7152,0.0722)); c.rgb=mix(vec3(l),c.rgb,1.06+0.02*uWarm);
-          c.rgb*=mix(vec3(1.0),vec3(1.04,0.99,0.93),uWarm); c.rgb=mix(c.rgb,c.rgb*vec3(0.85,0.95,1.2),uNight*0.5);
+          c.rgb*=mix(vec3(1.0),vec3(1.06,0.95,0.96),uWarm); c.rgb=mix(c.rgb,c.rgb*vec3(0.85,0.95,1.2),uNight*0.5);
           c.rgb*=mix(0.62,1.0,v); gl_FragColor=c; }`,
     });
     ctx.composer.insertPass(grade, Math.max(1, ctx.composer.passes.length - 1));

@@ -16,8 +16,8 @@ const KIND = {
   cow  :{ speed:.75,  rad:.58, reach:.85, gain:.1,    w0:[190,260], wMax:520, price:220, bleat:'moo' },
 };
 const MAX_ANIMALS=16;
-const TXT={ id:{hay:'Hay habis!',water:'Air habis!',soap:'Sabun habis!',treat:'Camilan habis!',happy:'senang!',full:'sudah kenyang',fullw:'sudah puas minum',clean:'sudah bersih',full2:'Hewan sudah penuh',troughHay:'Palung diisi jerami',troughWater:'Bak air diisi'},
-            en:{hay:'Out of hay!',water:'Out of water!',soap:'Out of soap!',treat:'Out of treats!',happy:'is happy!',full:'is full',fullw:'is not thirsty',clean:'is already clean',full2:'Pen is full',troughHay:'Trough filled with hay',troughWater:'Water trough filled'} };
+const TXT={ id:{hay:'Hay habis!',water:'Air habis!',soap:'Sabun habis!',treat:'Camilan habis!',happy:'senang!',full:'sudah kenyang',fullw:'sudah puas minum',clean:'sudah bersih',full2:'Hewan sudah penuh',troughHay:'Palung diisi jerami',troughWater:'Bak air diisi',tubFill:'Bak mandi diisi',cared:'terawat baik!',weightB:'Bonus bobot hewan',sick:'lesu, butuh perawatan',recovered:'sehat kembali!',petDone:'senang dielus'},
+            en:{hay:'Out of hay!',water:'Out of water!',soap:'Out of soap!',treat:'Out of treats!',happy:'is happy!',full:'is full',fullw:'is not thirsty',clean:'is already clean',full2:'Pen is full',troughHay:'Trough filled with hay',troughWater:'Water trough filled',tubFill:'Wash tub filled',cared:'is well cared for!',weightB:'Animal weight bonus',sick:'feels unwell, needs care',recovered:'feels better!',petDone:'loves the pets'} };
 
 export async function init(ctx){
   const scene=ctx.scene, S=ctx.state; S.inventory??={hay:10,water:10,soap:3,treat:5};
@@ -79,12 +79,16 @@ export async function init(ctx){
     } else if(type==='heart'||type==='love'){
       g.fillStyle='#ff5d8f'; g.strokeStyle='#d62d6a'; g.lineWidth=5; g.beginPath(); g.moveTo(0,24); g.bezierCurveTo(-42,-4,-20,-34,0,-12); g.bezierCurveTo(20,-34,42,-4,0,24); g.fill(); g.stroke();
       g.fillStyle='rgba(255,255,255,.8)'; g.beginPath(); g.ellipse(-12,-10,6,3.5,-.7,0,7); g.fill();
+    } else if(type==='sad'){
+      g.fillStyle='#c9ced6'; g.strokeStyle='#5b6270'; g.lineWidth=4; g.beginPath(); g.arc(0,0,24,0,7); g.fill(); g.stroke();
+      g.fillStyle='#4a5160'; g.beginPath(); g.arc(-8,-5,3.4,0,7); g.arc(8,-5,3.4,0,7); g.fill(); g.lineWidth=3.5; g.beginPath(); g.arc(0,13,8,Math.PI*1.15,Math.PI*1.85); g.stroke();
+      g.fillStyle='#6fc3ff'; g.beginPath(); g.ellipse(13,4,3,5,0,0,7); g.fill();
     } else if(type==='zzz'){
       g.fillStyle='#5b6bb8'; g.font='bold 34px sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('Z',-10,6); g.font='bold 26px sans-serif'; g.fillText('z',10,-8); g.font='bold 18px sans-serif'; g.fillText('z',24,-20);
     }
     g.restore();
   }
-  const PLATE={hunger:'#ff9d1a',thirst:'#2f9bff',dirty:'#17c3b2',heart:'#ff4f87',love:'#ff4f87',zzz:'#6f7dff'};
+  const PLATE={hunger:'#ff9d1a',thirst:'#2f9bff',dirty:'#17c3b2',heart:'#ff4f87',love:'#ff4f87',zzz:'#6f7dff',sad:'#8a93a3'};
   function drawBubble(a,b,kind,showName){
     const g=b.g; g.clearRect(0,0,256,200);
     if(kind){
@@ -116,7 +120,7 @@ export async function init(ctx){
       state:'idle', stT:1+rng()*2, target:null, slot:null, after:null, speed:0, walkAmt:0, ph:rng()*6, sleepAmt:0, headDown:0, headLook:0, look:0,
       blinkT:1+rng()*3, blink:0, bleatT:0, hopT:-1, hopH:.35, shakeT:0, petT:0, eatT:0, wake:0, rewardCd:0, happyEdge:false, reactT:0, sx:1, sy:1, tailPh:rng()*6, zT:0,
       bubble:makeBubble(), lastNeed:'', think:rng()*2, stuck:0, hornsy:0, bleatCd:6+rng()*20, fat:1, prevHappy:0, brk:'' };
-    a.stats.happy=clamp(a.stats.happy);
+    a.stats.happy=clamp(a.stats.happy); a.dayW=a.weight; a.petDay=-1; a.neglect=0; a.sick=false; a.needy=false;
     a.pos.set(...(opts.at||[0,0,0])); a.pos.y=gh(a.pos.x,a.pos.z);
     m.group.position.copy(a.pos); m.group.rotation.y=a.heading; scene.add(m.group);
     a.bubble.sp.position.set(0,0,0); scene.add(a.bubble.sp);
@@ -125,11 +129,11 @@ export async function init(ctx){
   function spawnPoint(rng){ for(let i=0;i<40;i++){ const x=B.x0+1.5+rng()*(B.x1-B.x0-3), z=B.z0+1.5+rng()*(B.z1-B.z0-3); if(pen.obstacles.every(o=>Math.hypot(o.x-x,o.z-z)>o.r+.9) && list.every(l=>Math.hypot(l.pos.x-x,l.pos.z-z)>1.6)) return [x,0,z]; } return [B.x0+2,0,B.z0+6]; }
   const rs=mulberry32(1234);
   if(Array.isArray(S.animals)&&S.animals.length&&S.animals[0]?.seed!==undefined){
-    for(const d of S.animals){ if(!KIND[d.kind]) continue; create(d.kind,{seed:d.seed,name:d.name,stats:d.stats,weight:d.weight,baby:d.baby,at:spawnPoint(rs)}); }
+    for(const d of S.animals){ if(!KIND[d.kind]) continue; Object.assign(create(d.kind,{seed:d.seed,name:d.name,stats:d.stats,weight:d.weight,baby:d.baby,at:spawnPoint(rs)}),{dayW:d.dayW??d.weight,petDay:d.petDay??-1,neglect:d.neglect||0,sick:!!d.sick,needy:!!d.needy}); }
   }
   if(!list.length) ['goat','goat','sheep','sheep','cow','goat'].forEach((k,i)=>create(k,{seed:[101,205,309,412,517,623][i],at:spawnPoint(rs)}));
   if(!S.animals?.length){ create('goat',{seed:731,baby:true,at:spawnPoint(rs)}); create('sheep',{seed:842,baby:true,at:spawnPoint(rs)}); }
-  const persist=()=>{ S.animals=list.map(a=>({kind:a.kind,seed:a.seed,name:a.name,stats:{...a.stats},weight:a.weight,baby:a.baby})); };
+  const persist=()=>{ S.animals=list.map(a=>({kind:a.kind,seed:a.seed,name:a.name,stats:{...a.stats},weight:a.weight,baby:a.baby,dayW:a.dayW,petDay:a.petDay,neglect:a.neglect,sick:a.sick,needy:a.needy})); };
   persist();
 
   // ---------------- helpers: station use / AI ----------------
@@ -161,23 +165,27 @@ export async function init(ctx){
     if(S2.thirst<.5 && st.water.fill>.04){ const i=freeSlot(st.water); if(i>=0){ claim(a,st.water,i); const p=standFor(a,st.water,i); go(a,p.x,p.z,()=>{ a.heading=st.water.face; startState(a,'drink',14); },{r:.15}); return; } }
     if(S2.hunger<.55){ const cand=st.feed.filter(f=>f.fill>.04).sort((p,q)=>p.pos.distanceTo(a.pos)-q.pos.distanceTo(a.pos));
       for(const f of cand){ const i=freeSlot(f); if(i>=0){ claim(a,f,i); const p=standFor(a,f,i); go(a,p.x,p.z,()=>{ a.heading=f.face; startState(a,'eat',16); },{r:.15}); return; } } }
-    if(S2.clean<.3 && r<.4){ const w=st.wash; const i=freeSlot(w); if(i>=0){ claim(a,w,i); const p=w.slots[i]; go(a,p.x,p.z,()=>{ a.heading=Math.atan2(w.pos.x-a.pos.x,w.pos.z-a.pos.z); startState(a,'wait',10+Math.random()*8); },{r:.2}); return; } }
+    if(S2.clean<.35 && (st.wash.fill>.05?r<.85:r<.25)){ const w=st.wash; const i=freeSlot(w); if(i>=0){ claim(a,w,i); const p=w.slots[i]; go(a,p.x,p.z,()=>{ a.heading=Math.atan2(w.pos.x-a.pos.x,w.pos.z-a.pos.z); startState(a,'wait',10+Math.random()*8); },{r:.2}); return; } }
     if(r<.46){ const [x,z]=wanderPoint(a); go(a,x,z,()=>startState(a,'idle',1+Math.random()*3)); }
     else if(r<.68){ startState(a,'graze',4+Math.random()*5); }
-    else if(r<.78 && S2.happy>.55){ a.hopT=0; startState(a,'hop',.9); }
+    else if(r<.78 && S2.happy>.55 && !a.sick){ a.hopT=0; startState(a,'hop',.9); }
     else if(r<.85){ bleat(a); startState(a,'idle',2); }
     else { a.look=(Math.random()-.5)*1.2; startState(a,'idle',2+Math.random()*3); }
   }
 
   // ---------------- interaction API ----------------
-  function reward(a,kind){
-    if(a.stats.happy<.7||a.rewardCd>0) return 0; a.rewardCd=kind==='pet'?20:6;
-    const n=a.kind==='cow'?3:2; const ui=ctx.modules.ui;
-    if(ui?.addCoins) ui.addCoins(n); else { S.coins=(S.coins||0)+n; ctx.emit('coins:change',S.coins); }
-    ctx.emit('animal:happy',{animal:a,pos:a.pos.clone().setY(a.pos.y+.7*a.K.reach)});
-    toast({msg:`${a.name} ${T('happy')} +${n}`,icon:'heart',kind:'good'});
-    return n;
+  // Economy: coins come from outcomes, never per action. ui.addCoins/addPahala are the ledger.
+  const dayNo=()=>S.day??0;
+  function giveCoins(n,src){ const ui=ctx.modules.ui; if(n<=0) return; if(ui?.addCoins) ui.addCoins(n,src); else ctx.emit('animal:reward',{coins:n,src}); }
+  function happyEvent(a,reason){ ctx.emit('animal:happy',{animal:a,reason,pos:a.pos.clone().setY(a.pos.y+.7*a.K.reach)}); }
+  function checkOutcome(a){ // needy -> all needs satisfied = care bonus
+    const S2=a.stats, m=Math.min(S2.hunger,S2.thirst,S2.clean);
+    if(m<.35) a.needy=true;
+    else if(a.needy&&m>=.7){ a.needy=false; const n=a.kind==='cow'?4:3; giveCoins(n,'animal:care'); happyEvent(a,'cared'); hearts(a.pos.clone().setY(a.pos.y+a.model.dims.bubbleY*.7),5);
+      toast({msg:`${a.name} ${T('cared')} +${n}`,icon:'heart',kind:'good'}); audio('coin',{pos:a.pos,vol:.6}); }
   }
+  ctx.on('day:new',()=>{ let tot=0; for(const a of list){ const g=a.weight-(a.dayW??a.weight); const pct=g/Math.max(1,a.dayW??a.weight)*100; if(pct>0.5&&!a.sick) tot+=Math.min(3,Math.round(pct)); a.dayW=a.weight; }
+    if(tot>0){ giveCoins(tot,'animal:weight'); toast({msg:`${T('weightB')} +${tot}`,icon:'coin',kind:'good'}); } persist(); });
   function evPos(a){ return a.pos.clone().setY(a.pos.y+.6); }
   const useItem=(it)=>{ if((S.inventory[it]||0)<=0){ toast(T(it)); return false; } S.inventory[it]--; ctx.emit('inventory:change',S.inventory); return true; };
   function wakeUp(a){ if(a.state==='sleep'){ a.bed=false; release(a); a.state='idle'; a.stT=2; a.wake=3; } }
@@ -189,17 +197,22 @@ export async function init(ctx){
     feed(a,item='hay'){ if(!a) return false; const treat=item==='treat';
       if(a.stats.hunger>.97&&!treat){ toast(`${a.name} ${T('full')}`); a.reactT=.6; return false; }
       if(!useItem(treat?'treat':'hay')) return false;
-      a.stats.hunger=clamp(a.stats.hunger+(treat?.18:.5)); a.stats.happy=clamp(a.stats.happy+(treat?.28:.1)); a.eatT=treat?1.4:2.2; a.wake=2; wakeUp(a); if(treat){ a.hopT=0; sparkles(evPos(a),6); }
-      audio('munch',{pos:a.pos}); ctx.emit('animal:fed',{animal:a,pos:evPos(a),item}); reward(a,'feed'); return true; },
+      a.stats.hunger=clamp(a.stats.hunger+(treat?.12:.5)); a.stats.happy=clamp(a.stats.happy+(treat?.4:.08)); a.eatT=treat?1.6:2.2; a.wake=2; wakeUp(a);
+      if(treat){ a.hopT=0; a.neglect=Math.max(0,a.neglect-30); sparkles(evPos(a),6); hearts(a.pos.clone().setY(a.pos.y+a.model.dims.bubbleY*.7),6); a.petT=Math.max(a.petT,1.2); }
+      audio('munch',{pos:a.pos}); ctx.emit('animal:fed',{animal:a,pos:evPos(a),item}); checkOutcome(a); return true; },
+    treat(a){ return api.feed(a,'treat'); },
     water(a){ if(!a) return false; if(a.stats.thirst>.97){ toast(`${a.name} ${T('fullw')}`); return false; } if(!useItem('water')) return false;
-      a.stats.thirst=clamp(a.stats.thirst+.55); a.stats.happy=clamp(a.stats.happy+.06); a.drinkT=2; a.eatT=2; wakeUp(a); audio('splash',{pos:a.pos,vol:.5}); ctx.emit('animal:watered',{animal:a,pos:evPos(a)}); reward(a,'water'); return true; },
+      a.stats.thirst=clamp(a.stats.thirst+.55); a.stats.happy=clamp(a.stats.happy+.06); a.drinkT=2; a.eatT=2; wakeUp(a); audio('splash',{pos:a.pos,vol:.5}); ctx.emit('animal:watered',{animal:a,pos:evPos(a)}); checkOutcome(a); return true; },
     wash(a){ if(!a) return false; if(a.stats.clean>.96){ toast(`${a.name} ${T('clean')}`); a.reactT=.6; return false; } if(!useItem('soap')) return false;
-      a.stats.clean=1; a.stats.happy=clamp(a.stats.happy+.18); a.shakeT=2.2; wakeUp(a); bubbles(evPos(a).setY(a.pos.y+.5),16); audio('splash',{pos:a.pos}); ctx.emit('animal:washed',{animal:a,pos:evPos(a)}); reward(a,'wash'); return true; },
-    pet(a){ if(!a) return false; a.stats.happy=clamp(a.stats.happy+.07); a.petT=1.6; a.wake=4; wakeUp(a); if(a.state==='walk'||a.state==='graze'||a.state==='wait'){ release(a); a.state='idle'; a.stT=2; }
-      hearts(a.pos.clone().setY(a.pos.y+a.model.dims.bubbleY*.7),3); audio('pop',{pos:a.pos,vol:.4}); if(Math.random()<.35) bleat(a); reward(a,'pet'); return true; },
+      a.stats.clean=1; a.stats.happy=clamp(a.stats.happy+.18); a.shakeT=2.2; wakeUp(a); bubbles(evPos(a).setY(a.pos.y+.5),16); audio('splash',{pos:a.pos}); ctx.emit('animal:washed',{animal:a,pos:evPos(a)}); checkOutcome(a); return true; },
+    pet(a){ if(!a) return false; const first=a.petDay!==dayNo(); a.stats.happy=clamp(a.stats.happy+(first?.12:.03)); a.petT=1.6; a.wake=4; wakeUp(a); if(a.state==='walk'||a.state==='graze'||a.state==='wait'){ release(a); a.state='idle'; a.stT=2; }
+      hearts(a.pos.clone().setY(a.pos.y+a.model.dims.bubbleY*.7),first?4:2); audio('pop',{pos:a.pos,vol:.4}); if(Math.random()<.35) bleat(a);
+      if(first){ a.petDay=dayNo(); giveCoins(1,'animal:pet'); happyEvent(a,'pet'); } ctx.emit('animal:petted',{animal:a,pos:evPos(a),first}); return true; },
     interact(a,tool){ switch(tool){ case 'hay': return api.feed(a,'hay'); case 'treat': return api.feed(a,'treat'); case 'water': return api.water(a); case 'soap': return api.wash(a); default: return api.pet(a); } },
-    fillStation(type='feed'){ if(type==='water'){ if(st.water.fill>.9){ return false; } if(!useItem('water')) return false; st.water.fill=Math.min(1,st.water.fill+.55); toast(T('troughWater')); audio('splash',{pos:st.water.pos,vol:.5}); return true; }
+    fillStation(type='feed'){ if(type==='wash'||type==='tub'){ const w=st.wash; if(w.fill>.9) return false; if(!useItem('water')) return false; w.fill=Math.min(1,w.fill+.6); toast(T('tubFill')); bubbles(w.pos.clone().setY(.7),10); audio('splash',{pos:w.pos,vol:.6}); return true; }
+      if(type==='water'){ if(st.water.fill>.9){ return false; } if(!useItem('water')) return false; st.water.fill=Math.min(1,st.water.fill+.55); toast(T('troughWater')); audio('splash',{pos:st.water.pos,vol:.5}); return true; }
       const f=st.feed.slice().sort((p,q)=>p.fill-q.fill)[0]; if(f.fill>.9) return false; if(!useItem('hay')) return false; f.fill=Math.min(1,f.fill+.55); toast(T('troughHay')); audio('munch',{pos:f.pos,vol:.5}); return true; },
+    canAdd:()=>list.length<MAX_ANIMALS, get count(){ return list.length; }, maxAnimals:MAX_ANIMALS,
     add(kind,o={}){ if(!KIND[kind]||list.length>=MAX_ANIMALS){ if(list.length>=MAX_ANIMALS) toast(T('full2')); return null; }
       const a=create(kind,{at:[B.x0+1.6,0,PEN.cz+(Math.random()-.5)*1.5],heading:Math.PI/2,baby:!!o.baby,stats:{hunger:.7,thirst:.7,clean:1,happy:.8}}); persist(); sparkles(a.pos.clone().setY(.6),10); audio('pop',{pos:a.pos}); ctx.emit('animal:added',{animal:a}); return a; },
     remove(a){ const i=list.indexOf(a); if(i<0) return; release(a); a.dead=true; scene.remove(a.mesh); scene.remove(a.bubble.sp); a.bubble.tex.dispose(); a.mesh.traverse(o=>o.geometry?.dispose?.()); list.splice(i,1); persist(); },
@@ -221,9 +234,18 @@ export async function init(ctx){
     const tgt=(S2.hunger*.4+S2.thirst*.3+S2.clean*.3);
     S2.happy=clamp(S2.happy+(tgt*.95-S2.happy)*dt*.035 - (Math.min(S2.hunger,S2.thirst)<.2?.01*dt:0));
     // weight (gameplay)
-    const K=a.K; if(S2.hunger>.4&&S2.thirst>.3) a.weight=Math.min(K.wMax*1.1,a.weight+K.gain*dt*(.5+S2.happy*.7)*(S2.clean>.25?1:.6)); else if(S2.hunger<.1) a.weight=Math.max(K.w0[0]*.7,a.weight-K.gain*.4*dt);
+    const K=a.K; if(S2.hunger>.4&&S2.thirst>.3) a.weight=Math.min(K.wMax*1.1,a.weight+K.gain*dt*(.5+S2.happy*.7)*(S2.clean>.25?1:.6)*(a.sick?.3:1)); else if(S2.hunger<.1) a.weight=Math.max(K.w0[0]*.7,a.weight-K.gain*.4*dt);
     a.rewardCd=Math.max(0,a.rewardCd-dt); a.wake=Math.max(0,a.wake-dt); a.shakeT=Math.max(0,a.shakeT-dt); a.petT=Math.max(0,a.petT-dt); a.eatT=Math.max(0,a.eatT-dt); a.reactT=Math.max(0,a.reactT-dt);
     if(S2.happy>.82&&!a.happyEdge){ a.happyEdge=true; } else if(S2.happy<.7) a.happyEdge=false;
+    // neglect -> soft 'sick/sad' state (recoverable)
+    const worst=Math.min(S2.hunger,S2.thirst,S2.clean*1.6);
+    if(worst<.12) a.neglect=Math.min(150,a.neglect+dt); else if(Math.min(S2.hunger,S2.thirst,S2.clean)>.5) a.neglect=Math.max(0,a.neglect-dt*5); else a.neglect=Math.max(0,a.neglect-dt*.3);
+    if(!a.sick&&a.neglect>90){ a.sick=true; ctx.emit('animal:sick',{animal:a,pos:evPos(a)}); toast({msg:`${a.name} ${T('sick')}`,icon:'chat',kind:'warn'}); }
+    else if(a.sick&&a.neglect<25){ a.sick=false; ctx.emit('animal:recovered',{animal:a,pos:evPos(a)}); toast({msg:`${a.name} ${T('recovered')}`,icon:'heart',kind:'good'}); sparkles(evPos(a),8); }
+    if(a.sick) S2.happy=Math.min(S2.happy,.45);
+    if(Math.min(S2.hunger,S2.thirst,S2.clean)<.35) a.needy=true; else checkOutcome(a);
+    // bathing at the wash tub (slow, uses up the tub)
+    if(a.state==='wait'&&a.slot?.st===st.wash){ const w=st.wash; if(w.fill>.01&&S2.clean<1){ const r=.035*dt; S2.clean=clamp(S2.clean+r); w.fill=Math.max(0,w.fill-r*.45); if(Math.random()<dt*2.5) bubbles(evPos(a),1); if(S2.clean>.97){ ctx.emit('animal:bathed',{animal:a,pos:evPos(a)}); a.shakeT=1.4; release(a); startState(a,'idle',1.5); } else a.stT=Math.max(a.stT,1); } }
     a.bleatCd-=dt; if(a.bleatCd<=0){ a.bleatCd=14+Math.random()*30; if(a.state!=='sleep'&&(Math.min(S2.hunger,S2.thirst)<.35||Math.random()<.3)) bleat(a); }
     // state machine
     const reacting=a.petT>0||a.shakeT>0||a.eatT>0&&a.state!=='eat'&&a.state!=='drink'||a.reactT>0;
@@ -252,7 +274,7 @@ export async function init(ctx){
       const m=.9; if(a.pos.x<B.x0+m) ax+=1; if(a.pos.x>B.x1-m) ax-=1; if(a.pos.z<B.z0+m) az+=1; if(a.pos.z>B.z1-m) az-=1;
       let vx=dx+ax*1.2, vz=dz+az*1.2; const want_h=Math.atan2(vx,vz); const dh=angDiff(a.heading,want_h);
       a.heading+=clamp(dh,-4.2*dt,4.2*dt);
-      want=a.K.speed*clamp(dist/1.0,.35,1)*clamp(1-Math.abs(dh)*.55,.2,1)*(a.runUp?1.5:1)*(a.hunger<.15?1:1);
+      want=a.K.speed*clamp(dist/1.0,.35,1)*clamp(1-Math.abs(dh)*.55,.2,1)*(a.runUp?1.5:1)*(a.sick?.6:1);
     }
     a.speed=damp(a.speed,want,want>a.speed?5:7,dt);
     if(a.speed>.02){ a.pos.x+=Math.sin(a.heading)*a.speed*dt; a.pos.z+=Math.cos(a.heading)*a.speed*dt; }
@@ -277,7 +299,7 @@ export async function init(ctx){
     a.ph+=dt*(5.5+a.speed*5.5)*a.walkAmt; const ph=a.ph, w=a.walkAmt, sl=a.sleepAmt, awake=1-sl;
     // blink
     a.blinkT-=dt; if(a.blinkT<=0){ a.blink=.16; a.blinkT=1.8+Math.random()*3.5; if(Math.random()<.2) a.blinkT=.25; }
-    a.blink=Math.max(0,a.blink-dt); let eyeY=a.blink>0?.08:1;
+    a.blink=Math.max(0,a.blink-dt); let eyeY=a.blink>0?.08:(a.sick?.6:1);
     const pettedClose=a.petT>0?Math.min(1,a.petT*3):0; eyeY=Math.min(eyeY,1-pettedClose*.7); eyeY=Math.min(eyeY,1-sl*.92);
     // hop
     let hopY=0, sx=1, sy=1;
@@ -324,7 +346,7 @@ export async function init(ctx){
     bn.eyeL.scale.set(1,Math.max(.06,eyeY),1); bn.eyeR.scale.set(1,Math.max(.06,eyeY),1);
     // ears
     const flap=Math.sin(ph*2+1)*.28*w; const idle=Math.sin(t*1.7+a.seed)*.05; const twitch=Math.max(0,Math.sin(t*.9+a.seed*3)-.95)*5;
-    const droop=.18*sl+(S2.happy<.35?.18:0)+(a.petT>0?.3:0)-(bleatUp*.8);
+    const droop=.18*sl+(S2.happy<.35?.18:0)+(a.sick?.4:0)+(a.petT>0?.3:0)-(bleatUp*.8);
     bn.earL.rotation.set(0,0,flap+idle+droop-twitch*.15+shake*.3); bn.earR.rotation.set(0,0,-(flap-idle*.6+droop-twitch*.0)-shake*.3);
     // tail
     const happyAmt=a.petT>0?1.4:S2.happy; a.tailPh+=dt*(6+happyAmt*10);
@@ -345,6 +367,7 @@ export async function init(ctx){
     let kind='';
     if(a.state==='sleep') kind='zzz';
     else if(a.petT>0||a.eatT>1.0&&S2.happy>.7) kind='love';
+    else if(a.sick&&(t*.25+a.seed)%1<.5) kind='sad';
     else { const m=Math.min(S2.hunger,S2.thirst,S2.clean); if(m<.3){ kind=S2.hunger===m?'hunger':S2.thirst===m?'thirst':'dirty'; } else if(S2.happy>.9&&(t*.2+a.seed)%1<.45) kind='heart'; }
     const showName=dist<9.5; const wk=a.weight.toFixed(a.kind==='cow'?0:1);
     const key=kind+'|'+showName+'|'+wk+'|'+(kind==='hunger'||kind==='thirst'||kind==='dirty'?(Math.min(S2.hunger,S2.thirst,S2.clean)<.15?'r':'y'):'');
@@ -361,14 +384,15 @@ export async function init(ctx){
     pen.update(dt,t);
     for(const a of list){ stepAI(a,dt); move(a,dt); pose(a,dt,t); updateBubble(a,dt,t); }
     updateParticles(dt,t);
-    saveT+=dt; if(saveT>3){ saveT=0; for(let i=0;i<list.length;i++){ const a=list[i],d=S.animals?.[i]; if(d&&d.seed===a.seed){ d.stats={...a.stats}; d.weight=a.weight; } else persist(); } }
+    saveT+=dt; if(saveT>3){ saveT=0; S.pen={feed:st.feed.map(f=>+f.fill.toFixed(3)),water:+st.water.fill.toFixed(3),wash:+st.wash.fill.toFixed(3)}; for(let i=0;i<list.length;i++){ const a=list[i],d=S.animals?.[i]; if(d&&d.seed===a.seed){ d.stats={...a.stats}; d.weight=a.weight; d.neglect=a.neglect; d.sick=a.sick; d.needy=a.needy; d.petDay=a.petDay; d.dayW=a.dayW; } else persist(); } }
     if(camParam&&camParam.length>=6&&!camParam.some(Number.isNaN)){ ctx.camera.position.set(camParam[0],camParam[1],camParam[2]); ctx.camera.lookAt(camParam[3],camParam[4],camParam[5]); if(ctx.cameraRig){ try{ ctx.cameraRig.target.set(camParam[3],camParam[4],camParam[5]); }catch(e){} } }
   };
   // debug / test hooks
   api.debug={ hearts,bubbles,sparkles,spawnP };
   // test env: ?fill=1 fills troughs, ?night forces hour
   if(q.has('night')) ctx.hour=23;
-  if(q.has('fill')){ st.feed.forEach(f=>f.fill=.8); st.water.fill=.8; }
+  { const P=S.pen||{}; st.feed.forEach((f,i)=>f.fill=P.feed?.[i]??.45); st.water.fill=P.water??.5; st.wash.fill=P.wash??.6; }
+  if(q.has('fill')){ st.feed.forEach(f=>f.fill=.8); st.water.fill=.8; st.wash.fill=.9; }
   if(q.has('hungry')) list.forEach(a=>{ a.stats.hunger=.2; a.stats.thirst=.2; a.stats.clean=.15; });
   if(q.has('show')){ // test showcase: freeze animals in a row
     const pose=q.get('show'); list.forEach((a,i)=>{ a.pos.set(20.5+i*2.2,0,8); a.heading=.5; a.state=pose==='sleep'?'sleep':pose==='graze'?'graze':'idle'; a.stT=1e9; a.model.group.position.copy(a.pos);

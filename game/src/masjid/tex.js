@@ -183,6 +183,36 @@ export const tex = {
     g.fillStyle = '#e2c26a';
     for (let x = 64; x < w - 40; x += 32) for (let y = 64; y < h - 40; y += 32) { g.beginPath(); g.moveTo(x, y - 7); g.lineTo(x + 7, y); g.lineTo(x, y + 7); g.lineTo(x - 7, y); g.fill(); }
   })),
+  brick: () => once('brick', () => mk(256, 256, (g, w, h) => {
+    g.fillStyle = '#d8c4a0'; g.fillRect(0, 0, w, h);
+    const bw = 64, bh = 26;
+    for (let r = 0; r * bh < h; r++) for (let c = -1; c * bw < w; c++) {
+      const x = c * bw + (r % 2 ? bw / 2 : 0) + 2, y = r * bh + 2, v = rnd();
+      const col = [[176, 70, 42], [192, 84, 50], [160, 62, 38], [204, 98, 60], [184, 78, 46]][(v * 5) | 0];
+      const gr = g.createLinearGradient(0, y, 0, y + bh - 4);
+      gr.addColorStop(0, `rgb(${col[0] * 1.08},${col[1] * 1.08},${col[2] * 1.06})`); gr.addColorStop(1, `rgb(${col[0] * .82},${col[1] * .8},${col[2] * .8})`);
+      g.fillStyle = gr; g.fillRect(x, y, bw - 4, bh - 4);
+    }
+    noise(g, w, h, 1400, .22, ['#5a2410', '#f0b080', '#8a3a20']);
+  })),
+  sign: () => once('sign', () => mk(512, 256, (g, w, h) => {
+    g.fillStyle = '#f6ecd2'; g.fillRect(0, 0, w, h);
+    noise(g, w, h, 1500, .15, ['#c8b48a', '#ffffff']);
+    g.strokeStyle = '#2c7a64'; g.lineWidth = 14; g.strokeRect(10, 10, w - 20, h - 20);
+    g.strokeStyle = '#e0a83a'; g.lineWidth = 4; g.strokeRect(24, 24, w - 48, h - 48);
+    // painted mosque icon: tiered tajug roof + hall + crescent
+    const cx = 116, by = 196;
+    g.fillStyle = '#fff8e8'; g.fillRect(cx - 62, by - 62, 124, 62);
+    g.fillStyle = '#2c7a64'; g.beginPath(); g.moveTo(cx - 18, by); g.lineTo(cx - 18, by - 34); g.quadraticCurveTo(cx, by - 52, cx + 18, by - 34); g.lineTo(cx + 18, by); g.fill();
+    const tier = (y, hw, th) => { g.fillStyle = '#c4532e'; g.beginPath(); g.moveTo(cx - hw, y); g.lineTo(cx + hw, y); g.lineTo(cx + hw * .45, y - th); g.lineTo(cx - hw * .45, y - th); g.closePath(); g.fill(); };
+    tier(by - 60, 86, 30); tier(by - 92, 58, 24); g.fillStyle = '#c4532e'; g.beginPath(); g.moveTo(cx - 36, by - 116); g.lineTo(cx + 36, by - 116); g.lineTo(cx, by - 150); g.closePath(); g.fill();
+    g.fillStyle = '#e0a83a'; g.beginPath(); g.arc(cx, by - 166, 13, 0, 7); g.fill(); g.fillStyle = '#f6ecd2'; g.beginPath(); g.arc(cx + 6, by - 170, 11, 0, 7); g.fill();
+    g.fillStyle = '#7a4a26'; g.fillRect(cx - 90, by, 180, 10);
+    // title
+    g.fillStyle = '#2c4a3e'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = 'bold 58px sans-serif'; g.fillText('Calon', 350, 98); g.fillText('Masjid', 350, 160);
+    g.fillStyle = '#e0a83a'; for (let i = 0; i < 5; i++) { g.beginPath(); g.arc(282 + i * 34, 208, 6, 0, 7); g.fill(); }
+  }, { repeat: false })),
   water: () => once('water', () => mk(256, 256, (g, w, h) => {
     g.fillStyle = '#4fc3d1'; g.fillRect(0, 0, w, h);
     g.lineWidth = 3;

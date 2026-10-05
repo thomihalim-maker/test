@@ -33,6 +33,18 @@ export function grassTuft({ n=5, height=1, width=0.09, spread=0.16, seed=1, base
   }
   return b.geo();
 }
+// cheap tuft: n single-triangle blades (n tris)
+export function grassTri({ n=5, height=0.6, width=0.12, spread=0.18, seed=1, base=[0.5,0.62,0.45], tip=[1.3,1.42,0.85] }={}){
+  const b=new B(), r=mulberry32(seed);
+  for(let k=0;k<n;k++){
+    const a=r()*Math.PI*2, d=r()*spread, ox=Math.cos(a)*d, oz=Math.sin(a)*d;
+    const yaw=r()*Math.PI*2, h=height*(0.6+r()*0.55), w=width*(0.8+r()*0.5), lean=(0.15+r()*0.3)*h;
+    const cy=Math.cos(yaw), sy=Math.sin(yaw), lx=Math.cos(yaw+1.57)*lean, lz=Math.sin(yaw+1.57)*lean;
+    const nn=nrm(lx*0.4,1,lz*0.4);
+    b.t(b.v([ox-cy*w/2,0,oz-sy*w/2],nn,base),b.v([ox+cy*w/2,0,oz+sy*w/2],nn,base),b.v([ox+lx,h,oz+lz],nn,tip));
+  }
+  return b.geo();
+}
 // flower: returns {petals, stem}
 export function flowerGeo(){
   const bs=new B(), bp=new B();

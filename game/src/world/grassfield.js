@@ -4,10 +4,10 @@ import * as THREE from 'three';
 import { mulberry32 } from './noise.js';
 import { SIZE } from './terrain.js';
 import { windU, NFIX } from './wind.js';
-import { grassTuft } from './trees.js';
+import { grassTri } from './trees.js';
 
 export function createGrassField(ctx, terrain, { count = 9000, radius = 17 } = {}){
-  const geo = grassTuft({ n: 4, height: 0.58, width: 0.1, spread: 0.2, seed: 21 });
+  const geo = grassTri({ n: 5, height: 0.6, width: 0.13, spread: 0.22, seed: 21 });
   const r = mulberry32(4242);
   const off = new Float32Array(count * 2), rnd = new Float32Array(count * 2);
   // jittered stratified lattice over [-R,R]^2
@@ -20,14 +20,14 @@ export function createGrassField(ctx, terrain, { count = 9000, radius = 17 } = {
   geo.setAttribute('aOff', new THREE.InstancedBufferAttribute(off, 2));
   geo.setAttribute('aRnd', new THREE.InstancedBufferAttribute(rnd, 2));
   const mat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
-  const U = { uFocus: { value: new THREE.Vector2() }, uR: { value: radius }, uMask: { value: terrain.grassMask }, uHF: { value: terrain.heightHF }, uNV: { value: terrain.NV } };
+  const U = { uFocus: { value: new THREE.Vector2() }, uR: { value: radius }, uMask: { value: terrain.grassMask }, uHF: { value: terrain.heightHF }, uNV: { value: terrain.NV }, uMS: { value: terrain.MS } };
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U); sh.uniforms.uTime = windU.uTime;
-    sh.vertexShader = `uniform float uTime,uR,uNV; uniform vec2 uFocus; uniform sampler2D uMask,uHF; attribute vec2 aOff,aRnd;\n` +
+    sh.vertexShader = `uniform float uTime,uR,uNV,uMS; uniform vec2 uFocus; uniform sampler2D uMask,uHF; attribute vec2 aOff,aRnd;\n` +
       sh.vertexShader.replace('#include <begin_vertex>', `
       vec2 per=vec2(2.0*uR);
       vec2 wp=aOff+floor((uFocus-aOff)/per+0.5)*per;
-      vec2 tuv=(wp+${(SIZE / 2).toFixed(1)}+0.5)/uNV;
+      vec2 tuv=((wp+${(SIZE / 2).toFixed(1)})/uMS+0.5)/uNV;
       vec4 mk=texture2D(uMask,tuv); float gh=texture2D(uHF,tuv).r;
       float dist=length(wp-uFocus);
       float fade=1.0-smoothstep(uR*0.55,uR*0.97,dist);
