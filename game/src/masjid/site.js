@@ -130,12 +130,12 @@ export function createSite(ctx, M, parent, api) {
   // --- pulsing build marker (ring + light column + bobbing arrow), additive glow
   const glow = new THREE.MeshBasicMaterial({ color: 0xffcf5a, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, side: THREE.DoubleSide });
   const rgba = (g, fn) => { const p = g.attributes.position, c = new Float32Array(p.count * 4); for (let i = 0; i < p.count; i++) { c[i * 4] = c[i * 4 + 1] = c[i * 4 + 2] = 1; c[i * 4 + 3] = fn(p.getX(i), p.getY(i), p.getZ(i)); } g.setAttribute('color', new THREE.BufferAttribute(c, 4)); return g; };
-  const ring = new THREE.RingGeometry(1.05, 1.32, 48, 1).rotateX(-Math.PI / 2); rgba(ring, () => .95);
-  const ring2 = new THREE.RingGeometry(.0, 1.05, 48, 1).rotateX(-Math.PI / 2); rgba(ring2, (x, y, z) => .22 * Math.hypot(x, z));
-  const col = new THREE.CylinderGeometry(1.2, 1.25, 2.6, 40, 4, true).translate(0, 1.3, 0); rgba(col, (x, y) => .42 * Math.pow(1 - y / 2.6, 1.6));
+  const ring = new THREE.RingGeometry(1.35, 1.75, 48, 1).rotateX(-Math.PI / 2); rgba(ring, () => .95);
+  const ring2 = new THREE.RingGeometry(.0, 1.35, 48, 1).rotateX(-Math.PI / 2); rgba(ring2, (x, y, z) => .3 * Math.hypot(x, z) / 1.35);
+  const col = new THREE.CylinderGeometry(1.5, 1.55, 3.2, 40, 4, true).translate(0, 1.6, 0); rgba(col, (x, y) => .6 * Math.pow(1 - y / 3.2, 1.5));
   const markerMesh = new THREE.Mesh(merge([ring, ring2, col].map(g => g.index ? g.toNonIndexed() : g)), glow); markerMesh.renderOrder = 2;
-  const arrowG = new THREE.ConeGeometry(.32, .55, 4); arrowG.rotateX(Math.PI); rgba(arrowG, () => 1);
-  const arrowB = new THREE.CylinderGeometry(.12, .12, .4, 8).translate(0, .45, 0); rgba(arrowB, () => 1);
+  const arrowG = new THREE.ConeGeometry(.5, .8, 4); arrowG.rotateX(Math.PI); rgba(arrowG, () => 1);
+  const arrowB = new THREE.CylinderGeometry(.18, .18, .6, 8).translate(0, .7, 0); rgba(arrowB, () => 1);
   const arrow = new THREE.Mesh(merge([arrowG.toNonIndexed(), arrowB.toNonIndexed()]), glow); arrow.renderOrder = 2;
   const marker = new THREE.Group(); marker.add(markerMesh, arrow); marker.name = 'masjid-build-marker'; parent.add(marker);
   const markPos = V3(0, 0, 0); let markVis = 0;
@@ -172,9 +172,9 @@ export function createSite(ctx, M, parent, api) {
       if (marker.visible) {
         const p = 1 + Math.sin(t * 3.2) * .07;
         markerMesh.scale.set(p * markVis, markVis, p * markVis); markerMesh.rotation.y = t * .4;
-        arrow.position.y = 2.5 + Math.sin(t * 4) * .22; arrow.rotation.y = t * 1.6; arrow.scale.setScalar(markVis);
+        arrow.position.y = 3.3 + Math.sin(t * 4) * .22; arrow.rotation.y = t * 1.6; arrow.scale.setScalar(markVis);
         glow.opacity = .75 + Math.sin(t * 3.2) * .25;
-        glow.color.setHex(api.canAfford() ? 0xffcf5a : 0x9ad0ff);
+        if (api.canAfford()) glow.color.setRGB(1.6, 1.1, .35); else glow.color.setRGB(.55, .95, 1.5);
       }
     },
     root, marker,

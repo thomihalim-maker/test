@@ -9,7 +9,7 @@ export function createDecor(ctx, blobs){
   const boxes=[], cyls=[], rocks=[], petalsC=[];
   const m=new THREE.Matrix4(), q=new THREE.Quaternion(), e=new THREE.Euler(), p=new THREE.Vector3(), sc=new THREE.Vector3(), col=new THREE.Color();
   const C=(h)=>new THREE.Color(h);
-  const wood=['#8a5a34','#9a6a3c','#7a4e2c'], stone=['#b9b2a2','#a8a293','#cfc8b6','#9b9686'];
+  const wood=['#8a5a34','#9a6a3c','#7a4e2c'], stone=['#c9b9a0','#b8aa92','#d8cab0','#ab9e88'];
   const pick=(a)=>C(a[(r()*a.length)|0]);
   // item-local part
   function part(list,ix,iz,iy,ry,lx,ly,lz,sx,sy,sz,color,lry=0){
