@@ -5,6 +5,8 @@ import { createAtmosphere } from './atmosphere.js';
 import { createWater } from './water.js';
 import { createVegetation } from './vegetation.js';
 import { createBlobs, createLamps } from './props.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { createDecor } from './decor.js';
 import { createParticles } from './particles.js';
 import { createCameraRig } from './camera.js';
 import { windU } from './wind.js';
@@ -28,6 +30,7 @@ export async function init(ctx){
   const water = createWater(ctx, terrain.heightTex); scene.add(water.mesh);
   const veg = createVegetation(ctx, terrain, blobs); scene.add(veg.group);
   const lamps = createLamps(ctx, blobs); scene.add(lamps.group);
+  const decor = createDecor(ctx, blobs); scene.add(decor.group);
   const parts = createParticles(ctx); scene.add(parts.group);
 
   // distant islands / headlands for depth (fog-faded)
@@ -49,6 +52,19 @@ export async function init(ctx){
     g.name = 'distantIslands'; scene.add(g);
   }
 
+  let grade = null;
+  if (ctx.composer) {
+    grade = new ShaderPass({
+      uniforms: { tDiffuse: { value: null }, uWarm: { value: 0 }, uNight: { value: 0 } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }',
+      fragmentShader: `uniform sampler2D tDiffuse; uniform float uWarm,uNight; varying vec2 vUv;
+        void main(){ vec4 c=texture2D(tDiffuse,vUv); vec2 d=vUv-0.5; float v=smoothstep(0.85,0.25,length(d*vec2(1.0,1.15)));
+          float l=dot(c.rgb,vec3(0.2126,0.7152,0.0722)); c.rgb=mix(vec3(l),c.rgb,1.18+0.1*uWarm);
+          c.rgb*=mix(vec3(1.0),vec3(1.06,0.98,0.9),uWarm); c.rgb=mix(c.rgb,c.rgb*vec3(0.85,0.95,1.2),uNight*0.5);
+          c.rgb*=mix(0.62,1.0,v); gl_FragColor=c; }`,
+    });
+    ctx.composer.insertPass(grade, Math.max(1, ctx.composer.passes.length - 1));
+  }
   let lastHourInt = Math.floor(ctx.hour);
   const focus = new THREE.Vector3();
   const updateAll = (dt, t) => {
@@ -58,8 +74,9 @@ export async function init(ctx){
     ctx.night = atm.state.night;
     windU.uTime.value = t;
     water.update(t, atm);
-    lamps.update(t, atm.state.night);
+    lamps.update(t, atm.state.night, focus);
     parts.update(dt, t, atm, focus);
+    if (grade) { grade.uniforms.uWarm.value = atm.state.golden; grade.uniforms.uNight.value = atm.state.night; }
     // bloom/glow a bit stronger at night
     if (ctx.bloom) ctx.bloom.strength = 0.26 + 0.22 * atm.state.night;
   };

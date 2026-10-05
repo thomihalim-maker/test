@@ -22,27 +22,30 @@ export function createLamps(ctx, blobs){
   const spots=[];
   for(const z of [16,26,36,46]) for(const sd of [-1,1]) spots.push([roadX(z)+sd*3.0,z]);
   spots.push([11,3.6],[16,8.6],[POND.x+7,POND.z-5],[POND.x-6,POND.z+7],[-12,-16],[14,-17]);
-  const post=new THREE.CylinderGeometry(0.06,0.09,2.4,6); post.translate(0,1.2,0);
-  const cap=new THREE.ConeGeometry(0.22,0.2,6); cap.translate(0,2.72,0);
-  const lamp=new THREE.BoxGeometry(0.2,0.28,0.2); lamp.translate(0,2.48,0);
+  const post=new THREE.CylinderGeometry(0.1,0.14,2.4,8); post.translate(0,1.2,0);
+  const cap=new THREE.ConeGeometry(0.34,0.26,6); cap.translate(0,2.86,0);
+  const lamp=new THREE.BoxGeometry(0.32,0.42,0.32); lamp.translate(0,2.55,0);
   const woodM=new THREE.MeshStandardMaterial({color:'#8a6240',roughness:0.8});
   const capM=new THREE.MeshStandardMaterial({color:'#2f5f58',roughness:0.7});
   const bulbM=new THREE.MeshBasicMaterial({color:new THREE.Color(1,0.78,0.4)});
   const mk=(g,m,cast)=>{ const im=new THREE.InstancedMesh(g,m,spots.length); const d=new THREE.Object3D();
     spots.forEach(([x,z],i)=>{ d.position.set(x,heightAt(x,z),z); d.updateMatrix(); im.setMatrixAt(i,d.matrix); }); im.castShadow=cast; im.computeBoundingSphere(); group.add(im); return im; };
+  const base=new THREE.CylinderGeometry(0.26,0.32,0.3,8); base.translate(0,0.15,0); mk(base,new THREE.MeshStandardMaterial({color:'#aaa497',roughness:0.9}),true);
   mk(post,woodM,true); mk(cap,capM,true); mk(lamp,bulbM,false);
   spots.forEach(([x,z])=>{ ctx.colliders.push({x,z,r:0.2}); blobs.add(x,z,0.5); });
   // glow sprites
   const gt=makeRadialTex([[0,'rgba(255,220,150,1)'],[0.25,'rgba(255,190,100,0.45)'],[1,'rgba(255,170,80,0)']],128);
   const sm=new THREE.SpriteMaterial({map:gt,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,fog:false,opacity:0});
-  const sprites=spots.map(([x,z])=>{ const s=new THREE.Sprite(sm); s.position.set(x,heightAt(x,z)+2.48,z); s.scale.setScalar(2.2); group.add(s); return s; });
+  const sprites=spots.map(([x,z])=>{ const s=new THREE.Sprite(sm); s.position.set(x,heightAt(x,z)+2.55,z); s.scale.setScalar(2.2); group.add(s); return s; });
   // ground light pools
   const pt=makeRadialTex([[0,'rgba(255,200,110,0.55)'],[0.5,'rgba(255,180,90,0.18)'],[1,'rgba(255,170,80,0)']],128);
   const pm=new THREE.MeshBasicMaterial({map:pt,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:0,fog:false,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3});
   const pg=new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2);
   const pools=new THREE.InstancedMesh(pg,pm,spots.length); const d=new THREE.Object3D();
   spots.forEach(([x,z],i)=>{ d.position.set(x,heightAt(x,z)+0.07,z); d.scale.set(7,1,7); d.updateMatrix(); pools.setMatrixAt(i,d.matrix); }); pools.frustumCulled=false; group.add(pools);
-  function update(t,night){
+  const pls=[0,1].map(()=>{const l=new THREE.PointLight(0xffb060,0,16,1.6); group.add(l); return l;});
+  function update(t,night,focus){
+    if(focus){ const s=spots.map(([x,z])=>[Math.hypot(x-focus.x,z-focus.z),x,z]).sort((a,b)=>a[0]-b[0]); pls.forEach((l,i)=>{ l.position.set(s[i][1],heightAt(s[i][1],s[i][2])+2.4,s[i][2]); l.intensity=Math.max(0,night)*22; }); }
     const on=Math.max(0,night); const flick=1+0.04*Math.sin(t*7)+0.02*Math.sin(t*13.3);
     sm.opacity=on*0.75*flick; pm.opacity=on*0.9; bulbM.color.setRGB(0.5+0.5*(1-on)*0.8+on*1.4,0.4+0.5*(1-on)*0.5+on*1.0,0.25+on*0.45);
   }
