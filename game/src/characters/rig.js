@@ -90,7 +90,7 @@ export class People{
     const mat = personMaterial(), matS = personMaterial({map:tart}), matF = personMaterial({rim:0});
     const ot = (t)=>outlineMaterial(t);
     const P = {};
-    const mk = (name, geo, m, out, n, cast=true)=> P[name] = new PartSet(scene, geo, m, out, n, cast);
+    const mk = (name, geo, m, out, n, cast=true)=>{ P[name] = new PartSet(scene, geo, m, out, n, cast); P[name].mesh.name=name; };
     mk('head', B.buildHead(), mat, ot(.02), max);
     mk('eyes', B.buildEyes(), matF, null, max, false);
     mk('smile', B.buildMouth(false), matF, null, max, false);
@@ -112,6 +112,7 @@ export class People{
     this.blob.frustumCulled=false; this.blob.count=0; this.blob.renderOrder=1; scene.add(this.blob);
     this.groundH = (x,z)=>0;
   }
+  setCast(b){ for(const k in this.parts) if(k!=='eyes'&&k!=='smile'&&k!=='open') this.parts[k].mesh.castShadow=b; }
   render(list){
     const P = this.parts; for(const k in P) P[k].reset();
     let bn=0;

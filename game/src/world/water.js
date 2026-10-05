@@ -38,7 +38,7 @@ void main(){
   body*=uAmb;
   // sky reflection tint
   vec3 sky=mix(uSkyH,uSkyT,clamp(1.0-V.y*0.0+N.y*0.0,0.0,1.0)*0.55);
-  vec3 col=mix(body,sky,0.18+0.6*fres);
+  vec3 col=mix(body,sky,0.1+0.6*fres);
   // sun glint
   vec3 Rf=reflect(-V,N);
   float spec=pow(max(dot(Rf,uSunDir),0.0),260.0)*smoothstep(0.0,0.1,uSunDir.y);
@@ -46,13 +46,13 @@ void main(){
   col+=uSunCol*(spec*3.0+spark*0.9);
   // soft foam at shorelines
   float wob=fbm(p*0.8+uTime*0.03);
-  float edge=1.0-smoothstep(0.0,0.22+wob*0.18,depth);
+  float edge=1.0-smoothstep(0.0,0.1+wob*0.1,depth);
   float ring=sin(depth*9.0-uTime*0.9+wob*5.0);
   float band=smoothstep(0.55,0.95,ring)*(1.0-smoothstep(0.12,0.85,depth))*smoothstep(0.0,0.05,depth);
   float foamN=smoothstep(0.35,0.7,fbm(p*3.0+uTime*0.05));
   float foam=clamp(edge*0.95+band*0.55*foamN,0.0,1.0);
-  col=mix(col,vec3(1.0)*(0.55+0.5*uAmb.r),foam*0.9);
-  float alpha=mix(0.18,0.93,smoothstep(0.0,0.9,depth));
+  col=mix(col,vec3(1.0)*(0.5+0.5*uAmb.r),foam*0.75);
+  float alpha=mix(0.35,0.92,smoothstep(0.0,1.1,depth));
   alpha=max(alpha,foam*0.95);
   alpha=max(alpha,fres*0.5);
   gl_FragColor=vec4(col,alpha);
@@ -66,7 +66,7 @@ export function createWater(ctx, heightTex){
       uTime:{value:0},uNight:{value:0},uSize:{value:SIZE},uH:{value:heightTex},
       uSunDir:{value:new THREE.Vector3(0,1,0)},uSunCol:{value:new THREE.Color(1,1,1)},
       uSkyH:{value:new THREE.Color()},uSkyT:{value:new THREE.Color()},
-      uShallow:{value:new THREE.Color('#8fe6d4')},uMid:{value:new THREE.Color('#35b8cc')},uDeep:{value:new THREE.Color('#1c63a8')},uAmb:{value:new THREE.Color(1,1,1)}}])
+      uShallow:{value:new THREE.Color('#58d8c4')},uMid:{value:new THREE.Color('#22a6cc')},uDeep:{value:new THREE.Color('#164fa6')},uAmb:{value:new THREE.Color(1,1,1)}}])
   });
   const mesh=new THREE.Mesh(new THREE.PlaneGeometry(900,900,1,1).rotateX(-Math.PI/2),mat);
   mesh.position.y=WATER_Y; mesh.renderOrder=2; mesh.name='water'; mesh.frustumCulled=false;
@@ -76,7 +76,7 @@ export function createWater(ctx, heightTex){
     u.uSunDir.value.copy(atm.state.elev>-0.03?atm.state.sunDir:atm.state.moonDir);
     u.uSunCol.value.copy(atm.state.elev>-0.03?k.sun:new THREE.Color('#9db4ff')).multiplyScalar(atm.state.elev>-0.03?1:0.5);
     u.uSkyH.value.copy(k.hor); u.uSkyT.value.copy(k.mid);
-    const amb=0.18+0.95*(1-atm.state.night); u.uAmb.value.setRGB(amb*(0.95+0.1*k.glow.r),amb,amb*1.02);
+    const amb=0.2+0.8*(1-atm.state.night); u.uAmb.value.setRGB(amb*(0.95+0.1*k.glow.r),amb,amb*1.02);
     u.uAmb.value.lerp(k.hs,0.15);
   }
   return { mesh, update };

@@ -79,7 +79,7 @@ export function merge(list) { list.forEach(ensureColor); return mergeGeometries(
  * Curved tajug roof frustum, local origin at centre of eave line (y=0 eave, y=h top).
  * Concave swoop with upturned corners. Returns { tiles, wood, trim, ridge } geometries.
  */
-export function tajugRoof({ a0, b0 = a0, a1 = .15, b1 = a1, h, k = 1.75, flick = .35, lift = .55, tile = 1.1, N = 9, M = 8, ridgeR = .13 }) {
+export function tajugRoof({ a0, b0 = a0, a1 = .15, b1 = a1, h, k = 1.75, flick = .35, lift = .55, tile = 1.7, N = 9, M = 8, ridgeR = .13 }) {
   const Y = (t, xn) => h * Math.pow(t, k) + flick * Math.pow(1 - t, 4) + lift * Math.pow(xn, 5) * Math.pow(1 - t, 1.6);
   const faces = [];
   const faceDefs = [
@@ -131,7 +131,7 @@ export function tajugRoof({ a0, b0 = a0, a1 = .15, b1 = a1, h, k = 1.75, flick =
   }
   const ridge = merge(rid);
   // fascia (wood) + trim (gold) + soffit
-  const wood = [], trim = [], T = .26, Hh = .34, y = -.04;
+  const wood = [], trim = [], T = .2, Hh = .26, y = -.04;
   const bx = (arr, w, hh, d, x, yy, z, r = .05) => { const g = rbox(w, hh, d, r); g.translate(x, yy, z); arr.push(shade(g, { lo: .7, hi: 1 })); };
   bx(wood, 2 * a0 + T, Hh, T, 0, y - Hh + .12, b0); bx(wood, 2 * a0 + T, Hh, T, 0, y - Hh + .12, -b0);
   bx(wood, T, Hh, 2 * b0 + T, a0, y - Hh + .12, 0); bx(wood, T, Hh, 2 * b0 + T, -a0, y - Hh + .12, 0);
@@ -142,7 +142,6 @@ export function tajugRoof({ a0, b0 = a0, a1 = .15, b1 = a1, h, k = 1.75, flick =
   for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) { const g = new THREE.ConeGeometry(.12, .42, 6); g.translate(sx * (a0 + .12), Y(0, 1) + .2, sz * (b0 + .12)); trim.push(flat(g, 1)); }
   const soffitS = new THREE.Shape([V2(-a0, -b0), V2(a0, -b0), V2(a0, b0), V2(-a0, b0)]);
   const ia = Math.max(.1, a0 * .3), ib = Math.max(.1, b0 * .3);
-  soffitS.holes.push(new THREE.Path([V2(-ia, -ib), V2(-ia, ib), V2(ia, ib), V2(ia, -ib)]));
   const soffit = new THREE.ShapeGeometry(soffitS); soffit.rotateX(Math.PI / 2); soffit.translate(0, y - .02, 0);
   uvScale(soffit, .5, .5); flat(soffit, .8);
   return { tiles, ridge, wood: merge(wood), trim: merge(trim), soffit, Y };

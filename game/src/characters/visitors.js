@@ -42,10 +42,12 @@ function poseAt(t){ if(t<0) return 'qiyam'; for(const [n,d] of FULL){ if(t<d) re
 export function createVisitors(ctx, people, env){
   const scene = ctx.scene, V = [];
   const q = new URLSearchParams(location.search);
-  const PRAY = { x:0, z:9.8, ...(ctx.modules.masjid?.prayerArea||{}) };
+  const PRAY = { x:0, z:3.9, ...(ctx.modules.masjid?.prayerArea||{}) };
   // slots
   const mk = (cols,rows,x0,dx,z0,dz)=>{ const a=[]; for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) a.push({x:PRAY.x+x0+c*dx, z:PRAY.z+z0+r*dz, row:r, used:null}); return a; };
-  const slotsM = mk(6,4,-6.4,1.2,0,1.35), slotsF = mk(4,3,2.6,1.3,0,1.35);
+  const AISLE = .3;
+  const byFar = (a)=>{ const out=[]; for(let r=0;r<4;r++){ const row=a.filter(s=>s.row===r).sort((p,q)=>Math.abs(q.x-AISLE)-Math.abs(p.x-AISLE)); out.push(...row);} return out; };
+  const slotsM = byFar(mk(6,4,-6.9,1.1,0,1.25)), slotsF = byFar(mk(4,4,1.8,1.1,0,1.25));
   // sajadah mats (instanced)
   const MAXM = slotsM.length+slotsF.length;
   const matGeo = new THREE.PlaneGeometry(.62,1.15).rotateX(-Math.PI/2);
@@ -54,11 +56,11 @@ export function createVisitors(ctx, people, env){
   const _m=new THREE.Matrix4(), _q=new THREE.Quaternion(), _p=new THREE.Vector3(), _s=new THREE.Vector3(1,1,1), _e=new THREE.Euler();
   function refreshMats(){
     let n=0; for(const sl of [...slotsM,...slotsF]){ if(!sl.used) continue;
-      _p.set(sl.x, ctx.groundHeight(sl.x,sl.z)+.02, sl.z-.12); _q.setFromEuler(_e.set(0,0,0)); _s.set(1,1,1); _m.compose(_p,_q,_s); matMesh.setMatrixAt(n,_m); matMesh.setColorAt(n,matCols[(sl.row+(sl.x*3|0))%5&3 || 0]); n++; }
+      _p.set(sl.x, ctx.groundHeight(sl.x,sl.z)+.02, sl.z-.12); _q.setFromEuler(_e.set(0,0,0)); _s.set(1,1,1); _m.compose(_p,_q,_s); matMesh.setMatrixAt(n,_m); matMesh.setColorAt(n,matCols[(sl.row*2+Math.round(sl.x))&3 % 4]); n++; }
     matMesh.count=n; matMesh.instanceMatrix.needsUpdate=true; if(matMesh.instanceColor) matMesh.instanceColor.needsUpdate=true;
   }
-  const GATHER = [ {x:-1.5,z:19}, {x:1.5,z:21}, {x:-4.5,z:18}, {x:4.5,z:19.5}, {x:0,z:23}, {x:-7,z:21}, {x:7,z:22} ];
-  const SIT = [ {x:-10,z:6},{x:-10.9,z:7.4},{x:-9.2,z:7.6},{x:10,z:5},{x:10.9,z:6.4},{x:9.1,z:6.6} ];
+  const GATHER = [ {x:-1.5,z:17}, {x:1.5,z:19}, {x:-4.5,z:16}, {x:4.5,z:17.5}, {x:0,z:21}, {x:-7,z:19}, {x:7,z:20} ];
+  const SIT = [ {x:-9.5,z:14},{x:-10.5,z:15.2},{x:-8.6,z:15.4},{x:9.5,z:14},{x:10.5,z:15.2},{x:8.6,z:15.4} ];
   const prayer = { phase:'idle', t:0, hold:q.get('prayer')||null, restT:0, timer:0 };
   let nextId=1, spawnT=3, lastArrive=-99;
   const api = { list:V, prayer, slotsM, slotsF, PRAY, count:()=>V.length, get stageCap(){return cap();} };
@@ -118,7 +120,7 @@ export function createVisitors(ctx, people, env){
     for(const v of waiting){
       const arr = v.person.spec.gender==='f'?slotsF:slotsM;
       const sl = arr.find(s=>!s.used); if(!sl) continue;
-      sl.used=v; v.slot=sl; v.state='toSlot'; v.delay = sl.row*.1+R(0,.35); any=true; v.path=[];
+      sl.used=v; v.slot=sl; v.state='toSlot'; v.delay = sl.row*.1+R(0,.35); any=true; v.path=[{x:AISLE+R(-.3,.3),z:Math.max(11,v.person.pos.z-2)},{x:AISLE,z:9.6},{x:AISLE,z:sl.z},{x:sl.x,z:sl.z}];
     }
     if(!any) return false;
     prayer.phase='assemble'; prayer.t=0; refreshMats(); return true;
@@ -157,7 +159,7 @@ export function createVisitors(ctx, people, env){
       prayer.restT += dt;
       const g = V.filter(v=>v.state==='gather'&&v.mode==='pray');
       const oldest = g.reduce((m,v)=>Math.max(m,v.waitT),0);
-      if(g.length>=Math.min(3,Math.max(1,c)) && ctx.time-lastArrive>3.5 && (oldest>7 || g.length>=6)) startPrayer();
+      if((ctx.state?.masjid?.stage|0)>=1 && g.length>=Math.min(3,Math.max(1,c)) && ctx.time-lastArrive>3.5 && (oldest>7 || g.length>=6)) startPrayer();
     } else if(prayer.phase==='assemble'){
       prayer.t+=dt;
       const all = V.filter(v=>v.state==='toSlot');
@@ -182,13 +184,15 @@ export function createVisitors(ctx, people, env){
           v.waitT += v.state==='gather'?dt:0;
           if(v.path.length){ const w=v.path[0]; const d=moveTo(v,w.x,w.z,dt); if(d<.35){ v.path.shift(); if(!v.path.length){ v.state = v.mode==='sit'?'toSit':'gather'; v.waitT=0; } } p.pose('loco'); }
           else { stand(v,dt,Math.atan2(-p.pos.x*.2,-4)+Math.PI*0+ (v.gx?0:0) + Math.sin(v.id)*1.2 + Math.PI); p.pose(v.id%2?'chat':'loco'); }
-          if(v.state==='gather'&&v.waitT>80){ leave(v); }
+          if(v.state==='gather'&&v.waitT>((ctx.state?.masjid?.stage|0)>=1?80:14)){ leave(v); }
           break; }
+        case 'static': { stand(v,dt,v.faceYaw); break; }
         case 'toSit': { const d=moveTo(v,v.spot.x,v.spot.z,dt,.9); p.pose('loco'); if(d<.2){ v.state='sitIdle'; v.timer=R(25,45); } break; }
         case 'sitIdle': { stand(v,dt,Math.atan2(-v.spot.x,4)+.6); p.pose('chatSit'); v.timer-=dt; if(v.timer<=0) leave(v); break; }
         case 'toSlot': {
-          const sl=v.slot; const d=moveTo(v,sl.x,sl.z,dt,1.15); p.pose('loco');
-          if(d<.15){ v.state='pray'; if(prayer.phase==='assemble'){} }
+          const sl=v.slot; p.pose('loco');
+          if(v.path.length>1){ const w=v.path[0]; if(moveTo(v,w.x,w.z,dt,1.15)<.4) v.path.shift(); }
+          else { const d=moveTo(v,sl.x,sl.z,dt,1.15); if(d<.15) v.state='pray'; }
           break; }
         case 'pray': {
           const sl=v.slot; const dx=sl.x-p.pos.x, dz=sl.z-p.pos.z;
@@ -234,6 +238,11 @@ export function createVisitors(ctx, people, env){
     // overflow: stand and chat in clumps
     for(const v of V) if(v.state==='gather'){ const a=R(0,6.28), r=R(5,10); v.person.pos.set(Math.cos(a)*r+PRAY.x, 0, 15+Math.abs(Math.sin(a))*r*.6); v.person.pose('chat'); }
   }
-  api.update = update; api.spawn = spawn; api.crowd = crowd;
+  function lineup(){
+    const kinds=['man','boy','elder','woman','girl','elderW'];
+    kinds.forEach((k,i)=>{ const v=spawn({kind:k,x:(i-2.5)*1.5,z:10}); v.state='static'; v.faceYaw=0; v.person.yaw=0; v.person.pos.y=ctx.groundHeight(v.person.pos.x,10); const pn=q.get('pose'); if(pn) v.person.pose(pn); else v.person.pose(i%2?'chat':'loco'); });
+    spawnT=999;
+  }
+  api.lineup = lineup; api.update = update; api.spawn = spawn; api.crowd = crowd;
   return api;
 }

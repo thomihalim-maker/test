@@ -23,11 +23,13 @@ export function heightAt(x,z){
   const rn=r+5*fbm(x*0.035+3,z*0.035-7,2);
   const big=fbm(x*0.022+11,z*0.022+5,4);
   const mid=fbm(x*0.07,z*0.07,3);
-  let H=(0.5+0.5*big)*7.5*S(24,56,r)+mid*0.8*S(10,28,r)+big*0.9*S(12,30,r);
+  let H=(0.5+0.5*big)*(8+8*S(0.1,0.6,fbm(x*0.012-4,z*0.012+9,2)))*S(26,54,r)+mid*0.8*S(10,28,r)+big*0.9*S(12,30,r);
+  H+=3.2*S(36,50,r)*(0.55+0.45*fbm(Math.atan2(z,x)*1.3+2,r*0.02,2));
   const t=S(40,50,r);
   if(t>0){ const st=2.0,q=H/st,f=q-Math.floor(q); const tq=(Math.floor(q)+S(0.6,0.92,f))*st; H+=(tq-H)*t; }
   // flat zones mask
   const F=S(0,12,dPlaza(x,z))*S(0,10,dPen(x,z,0))*S(0,6,dPath(x,z))*S(0,7,dRoad(x,z));
+  if(H<0) H*=0.2;
   let h=H*F*(1-S(50,64,rn));
   h+=-5.5*S(58,82,rn);
   const dp=Math.hypot(x-POND.x,z-POND.z)+2.2*fbm(x*0.12,z*0.12,2);

@@ -139,10 +139,10 @@ export function palmGeo(seed=1){
   const b=new B(), r=mulberry32(seed);
   const H=7.8, lean=1.1; const pts=[], rad=[];
   for(let i=0;i<=10;i++){ const t=i/10; pts.push([lean*t*t+0.25*Math.sin(t*3.0),H*t,0.35*Math.sin(t*2.2)]); rad.push(0.34-0.15*t); }
-  const dark=hx('#6b4a2e'), light=hx('#a98258');
+  const dark=hx('#8a6240'), light=hx('#c9a26c');
   tube(b,pts,rad,7,(t,k,i)=>mul(mix(dark,light,0.4+0.5*((i%2)?1:0.55)*(0.7+0.3*Math.sin(k*2.1))),0.6+0.5*t),{flare:0.5});
   const top=pts[10];
-  const cb=hx('#2f7a2c'), ct=hx('#9ed84a');
+  const cb=hx('#3a9a30'), ct=hx('#a8e050');
   const NF=11;
   for(let i=0;i<NF;i++){
     const yaw=i/NF*Math.PI*2+r()*0.3, up=i%3===0;
@@ -179,11 +179,11 @@ export function mangoGeo(seed=1){
   for(let i=0;i<9;i++){ const a=i/9*6.283+r()*0.5, d=i?R*(0.6+0.4*r()):0; blobs.push([Math.cos(a)*d,cy+(i?(r()-0.3)*0.9:0.5),Math.sin(a)*d, 1.05+r()*0.7]); }
   // branches
   for(const bl of blobs.slice(1,6)) tube(b,[[0,2.1,0],[bl[0]*0.5,2.9,bl[2]*0.5],[bl[0]*0.85,bl[1]-0.4,bl[2]*0.85]],[0.12,0.09,0.06],4,()=>hx('#6a4a30'));
-  const lo=hx('#1f6c3a'), mid=hx('#3f9a3a'), hi=hx('#9ad84e');
+  const lo=hx('#2a8a3c'), mid=hx('#52b83e'), hi=hx('#a8e24f');
   blobs.forEach((bl,i)=>{
     const tint=r(); const hiC=mix(hi,hx('#c4e255'),tint*0.5);
     blob(b,[bl[0],bl[1],bl[2]],bl[3],bl[3]*0.82,bl[3],(x,y,z,p)=>{ const t=clamp((p[1]-2.8)/3.0,0,1); return mix(mix(lo,mid,clamp(t*1.6,0,1)),hiC,clamp((t-0.35)*1.6,0,1)); },
-      {seed:seed*11+i,disp:0.22,wd:10,hd:7,upBias:0.45,aoFn:(p,n)=>{ const dc=Math.hypot(p[0],p[2]); return 0.62+0.38*clamp(dc/(R*1.4)+ (p[1]-3.0)*0.12,0,1); }});
+      {seed:seed*11+i,disp:0.22,wd:10,hd:7,upBias:0.45,aoFn:(p,n)=>{ const dc=Math.hypot(p[0],p[2]); return 0.78+0.3*clamp(dc/(R*1.4)+ (p[1]-3.0)*0.12,0,1); }});
   });
   for(let i=0;i<7;i++){ const a=r()*6.283,d=R*(0.7+0.5*r()); blob(b,[Math.cos(a)*d*0.9,cy-0.5-r()*0.6,Math.sin(a)*d*0.9],0.12,0.17,0.12,mix(hx('#ffb03a'),hx('#ff8a3a'),r()),{wd:6,hd:4,disp:0.03,seed:i}); }
   return b.geo();

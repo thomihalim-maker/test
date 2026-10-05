@@ -9,9 +9,9 @@ const K=[
  [4.8,'#0a1230','#18286a','#2c3a78','#8fa8ff',0,'#4a5fa8','#1d2340',0.8,1.15,'#000000'],
  [5.7,'#2a3a80','#6a5a9c','#f09a88','#ffa070',0.5,'#8a8cc8','#5a4a50',0.7,1.1,'#ff8a60'],
  [6.5,'#4676d0','#c5a0c0','#ffc296','#ffbe80',1.6,'#a8b4e0','#7a6a55',0.8,1.05,'#ff9a5a'],
- [8,  '#3a88e4','#86c4f4','#cfe9f4','#ffe6c0',2.7,'#bfdcff','#8dbf68',0.95,1.0,'#ffd9a0'],
- [12, '#2c80ec','#62b6f6','#bde4fa','#fff6e2',3.1,'#c4e2ff','#92c56c',1.0,0.95,'#fff0c0'],
- [16, '#3484e8','#78bcf2','#cfe8f4','#ffe9b8',2.8,'#c0dcff','#8fbe68',0.95,1.0,'#ffe0a0'],
+ [8,  '#3a88e4','#86c4f4','#b4dcf4','#ffe6c0',2.7,'#bfdcff','#8dbf68',0.95,1.0,'#ffd9a0'],
+ [12, '#2c80ec','#62b6f6','#a8d8f8','#fff6e2',3.1,'#c4e2ff','#92c56c',1.0,0.95,'#fff0c0'],
+ [16, '#3484e8','#78bcf2','#b8e0f6','#ffe9b8',2.8,'#c0dcff','#8fbe68',0.95,1.0,'#ffe0a0'],
  [17.4,'#4a7ed2','#eab088','#ffcf98','#ffb460',2.2,'#ffd8b0','#8a7a52',0.9,1.05,'#ffb060'],
  [18.4,'#3f4ca0','#d87aa0','#ff9070','#ff7a44',1.1,'#e8a8b0','#6a5a58',0.8,1.1,'#ff7040'],
  [19.3,'#1f2c6a','#6a52a0','#b4608e','#ff6a52',0.25,'#8a7ab8','#40405a',0.78,1.15,'#ff5a50'],
@@ -126,7 +126,7 @@ export function createAtmosphere(ctx){
     sky.position.copy(camPos);
     // fog
     scene.fog.color.copy(k.hor); scene.background=null;
-    scene.fog.density=0.0066+0.0022*state.golden+0.0012*state.night;
+    scene.fog.density=0.0046+0.0010*state.golden+0.0012*state.night;
     // lights
     const sunLevel=k.sunI*S(-0.04,0.18,e);
     const moonLevel=0.55*S(-0.03,-0.3,e);

@@ -55,9 +55,9 @@ export function strawTexture(){
 }
 export function thatchTexture(){
   const [c,g]=cv(256,256); const rnd=mulberry32(5);
-  g.fillStyle='#b98a45'; g.fillRect(0,0,256,256);
+  g.fillStyle='#e0b867'; g.fillRect(0,0,256,256);
   for(let r=0;r<16;r++){
-    const y=r*16; const grd=g.createLinearGradient(0,y,0,y+16); grd.addColorStop(0,'#8a6230'); grd.addColorStop(.35,'#c99a54'); grd.addColorStop(1,'#a97b3c');
+    const y=r*16; const grd=g.createLinearGradient(0,y,0,y+16); grd.addColorStop(0,'#c99a54'); grd.addColorStop(.35,'#f0cd82'); grd.addColorStop(1,'#d8ae62');
     g.fillStyle=grd; g.fillRect(0,y,256,16);
     for(let i=0;i<60;i++){ const x=rnd()*256; g.strokeStyle=`rgba(${rnd()<.5?'255,230,160':'80,50,20'},.35)`; g.lineWidth=1; g.beginPath(); g.moveTo(x,y); g.lineTo(x+(rnd()-.5)*5,y+16); g.stroke(); }
   }
@@ -66,7 +66,7 @@ export function thatchTexture(){
 // ground patch for inside the pen: dirt + straw + grass specks, soft alpha edge
 export function penGroundTexture(){
   const [c,g]=cv(512,384); const rnd=mulberry32(21);
-  g.fillStyle='#b99a63'; g.fillRect(0,0,512,384);
+  g.fillStyle='#d1b777'; g.fillRect(0,0,512,384);
   for(let i=0;i<2600;i++){
     const x=rnd()*512,y=rnd()*384; const k=rnd();
     g.fillStyle=k<.35?'rgba(120,88,44,.28)':k<.6?'rgba(235,205,125,.35)':k<.8?'rgba(110,150,60,.30)':'rgba(255,240,190,.20)';

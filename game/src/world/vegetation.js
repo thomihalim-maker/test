@@ -23,10 +23,10 @@ export function createVegetation(ctx, terrain, blobs){
   // ---------- grass ----------
   const grassItems=[], farItems=[];
   let tries=0;
-  while((grassItems.length<13500||farItems.length<4500)&&tries++<200000){
+  while((grassItems.length<11000||farItems.length<3500)&&tries++<200000){
     const a=rnd()*Math.PI*2, rr=Math.sqrt(rnd())*62, x=Math.cos(a)*rr, z=Math.sin(a)*rr;
     const far=rr>36;
-    if(far? farItems.length>=4500 : grassItems.length>=13500) continue;
+    if(far? farItems.length>=3500 : grassItems.length>=11000) continue;
     if(clearance(x,z)<0.25) continue;
     const h=heightAt(x,z); if(h<0.7&&rr>40) continue; if(h<-0.2) continue;
     if(slopeAt(x,z)>0.7) continue;
@@ -39,7 +39,7 @@ export function createVegetation(ctx, terrain, blobs){
     const s=(far?1.3:0.85)*(0.8+rnd()*0.7);
     (far?farItems:grassItems).push({x,y:h-0.03,z,ry:rnd()*6.28,s,c:tmpC.clone()});
   }
-  const gGeo=G.grassTuft({n:5,height:0.62,width:0.1,spread:0.18,seed:4});
+  const gGeo=G.grassTuft({n:4,height:0.6,width:0.1,spread:0.18,seed:4});
   const gMat=patchWind(lamb(),{amp:0.22,height:0.6,speed:1.2});
   const grass=inst(gGeo,gMat,grassItems,{receive:true}); grass.name='grass';
   const grassFar=inst(gGeo,gMat,farItems,{receive:true}); grassFar.name='grassFar';
@@ -126,9 +126,9 @@ export function createVegetation(ctx, terrain, blobs){
 
   // ---------- reeds + lilies at pond ----------
   const reeds=[];
-  for(let i=0;i<150;i++){ const a=rnd()*6.283, r=POND.r-1.8+rnd()*3.4, x=POND.x+Math.cos(a)*r, z=POND.z+Math.sin(a)*r;
+  for(let i=0;i<70;i++){ const a=rnd()*6.283, r=POND.r-1.6+rnd()*3.4, x=POND.x+Math.cos(a)*r, z=POND.z+Math.sin(a)*r;
     const h=heightAt(x,z); if(h>0.4||h<-0.85||clearance(x,z)<-9) continue; const c=new THREE.Color().setRGB(0.28,0.5,0.2).multiplyScalar(0.8+rnd()*0.5);
-    reeds.push({x,y:Math.max(h,-0.9)-0.05,z,ry:rnd()*6.28,s:1.2+rnd()*1.1,c}); }
+    reeds.push({x,y:Math.max(h,-0.9)-0.05,z,ry:rnd()*6.28,s:0.8+rnd()*0.8,c}); }
   inst(G.grassTuft({n:6,height:1.5,width:0.07,spread:0.12,seed:8,base:[0.35,0.5,0.3],mid:[0.8,1,0.6],tip:[1.2,1.3,0.6]}),patchWind(lamb(),{amp:0.3,height:1.5,speed:1}),reeds,{}).name='reeds';
   const lilies=[], lotus=[];
   for(let i=0;i<200&&lilies.length<30;i++){ const a=rnd()*6.283, r=rnd()*(POND.r-1.4), x=POND.x+Math.cos(a)*r, z=POND.z+Math.sin(a)*r;

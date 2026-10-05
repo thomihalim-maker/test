@@ -30,8 +30,8 @@ export function makeProps(scene){
   hay.add(part(new THREE.TorusGeometry(.17,.014,5,16).rotateY(Math.PI/2),0xa05a2c,{pos:[0,.05,.1],outline:0}));
   // hammer: origin at grip
   const hammer = new THREE.Group(); hammer.visible=false;
-  hammer.add(part(new THREE.CapsuleGeometry(.025,.28,4,8),0x8a5a33,{pos:[0,.1,0],outline:.01}));
-  hammer.add(part(new THREE.BoxGeometry(.2,.1,.1,2,2,2),0x7b7f8c,{pos:[0,.3,0],outline:.01}));
+  hammer.add(part(new THREE.CapsuleGeometry(.032,.34,4,8),0x8a5a33,{pos:[0,.12,0],outline:.01}));
+  hammer.add(part(new THREE.BoxGeometry(.26,.13,.13,2,2,2),0x7b7f8c,{pos:[0,.36,0],outline:.01}));
   hammer.add(part(new THREE.CylinderGeometry(.045,.045,.22,10).rotateZ(Math.PI/2),0x8a8f9c,{pos:[0,.3,0],outline:.008}));
   // brush: origin at grip
   const brush = new THREE.Group(); brush.visible=false;

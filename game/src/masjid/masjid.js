@@ -28,7 +28,7 @@ export async function init(ctx) {
   const night = []; // {m, day, night}
   const M = makeMaterials(ctx, night);
   const built = []; // per-stage S objects
-  let glassFlash = 0, hallLight = null, nightK = 0;
+  let glassFlash = 0, hallLight = null, nightK = 0, testLights = null;
   const heightFns = [];
 
   // ---- standalone test harness: only when no world module is present ----
@@ -40,7 +40,7 @@ export async function init(ctx) {
     const hemi = new THREE.HemisphereLight(0xcfe8ff, 0x7a6a4a, 1.0); scene.add(hemi); ctx.hemi ??= hemi;
     const sun = new THREE.DirectionalLight(0xfff0d0, 3.0); sun.position.set(-30, 36, 26); sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048); const sc = sun.shadow.camera; sc.left = -34; sc.right = 34; sc.top = 34; sc.bottom = -34; sc.near = 5; sc.far = 130; sun.shadow.bias = -.0004; sun.shadow.normalBias = .04;
-    scene.add(sun); ctx.sun ??= sun;
+    scene.add(sun); ctx.sun ??= sun; testLights = { hemi, sun };
   }
   const hourParam = qs.has('hour') ? parseFloat(qs.get('hour')) : null;
   if (hourParam !== null) ctx.hour = hourParam;
@@ -174,6 +174,7 @@ export async function init(ctx) {
           if (u < 1) { r.m.visible = true; r.m.scale.setScalar(.8 + u * 2.6); r.m.material.opacity = (1 - u) * .8; r.m.quaternion.copy(camera.quaternion); } else r.m.visible = false;
         }
       }
+      if (testLights) { testLights.sun.intensity = 3 * (1 - .93 * nightK); testLights.hemi.intensity = 1 - .72 * nightK; testLights.sun.color.set(nightK > .5 ? 0x8aa4ff : 0xfff0d0); scene.background.set(nightK > .5 ? 0x0c1230 : 0xbfe3f5); scene.fog.color.copy(scene.background); }
       if (camParam) { camera.position.set(camParam[0], camParam[1], camParam[2]); camera.lookAt(camParam[3], camParam[4], camParam[5]); }
     },
   };

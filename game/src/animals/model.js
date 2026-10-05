@@ -20,7 +20,7 @@ export function animalMaterial(){
     s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nvarying float vGlow;')
       .replace('#include <emissivemap_fragment>',`#include <emissivemap_fragment>
       float rimF = pow(1.0 - saturate(dot(normalize(vViewPosition), normal)), 2.4);
-      totalEmissiveRadiance += vec3(1.0,0.80,0.62)*rimF*0.20*(0.4+diffuseColor.rgb) + diffuseColor.rgb*vGlow*1.7;`);
+      totalEmissiveRadiance += vec3(1.0,0.80,0.62)*rimF*0.20*(0.4+diffuseColor.rgb) + diffuseColor.rgb*(vGlow*1.7+0.11);`);
   };
   _mat.customProgramCacheKey=()=>'animalmat1';
   return _mat;
@@ -133,7 +133,7 @@ function cowBreed(rng){
     case 'limousin': return {k, base:'#c4803f', belly:'#e6b982', head:'#bd7a3a', muzzle:'#f3d5b2', ear:'#a8672f', leg:'#b4712f', patches:[], nose:'#e9a8a0', horn:'#efe6cf', hump:false, tail:'#8e5424'};
     case 'bali': return {k, base:'#b25a35', belly:'#e8c9a6', head:'#a64f2e', muzzle:'#f3dcc0', ear:'#8f4328', leg:'#fff4e2', patches:[{c:[0,.5,-.45],r:.3,col:'#fff6e6'}], nose:'#3e2a26', horn:'#d8cdb4', hump:false, tail:'#3a2218'};
     case 'brahman': return {k, base:'#d9d4ca', belly:'#efece4', head:'#c9c3b8', muzzle:'#e6d6d0', ear:'#b4aea2', leg:'#c9c3b8', patches:[], nose:'#6a5a5a', horn:'#efe6cf', hump:true, tail:'#a29c90'};
-    default: return {k:'jersey', base:'#d9a56c', belly:'#f0cfa0', head:'#c88e56', muzzle:'#4e3a32', ear:'#c0834c', leg:'#a8703d', patches:[], nose:'#2f2422', horn:'#efe6cf', hump:false, tail:'#6b4426'};
+    default: return {k:'jersey', base:'#d9a56c', belly:'#f0cfa0', head:'#c88e56', muzzle:'#8a6a5c', ear:'#c0834c', leg:'#a8703d', patches:[], nose:'#7a5a50', horn:'#efe6cf', hump:false, tail:'#6b4426'};
   }
 }
 

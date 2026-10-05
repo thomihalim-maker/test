@@ -40,11 +40,11 @@ export async function init(ctx){
       for (let k = 0; k < p.count; k++) {
         let y = p.getY(k); const x = p.getX(k), z = p.getZ(k);
         const n = fbm(x * 2 + i * 7, z * 2, 3);
-        p.setXYZ(k, x * (1 + n * 0.25), y < 0 ? y * 0.1 : y * (0.45 + n * 0.12), z * (1 + n * 0.25));
+        p.setXYZ(k, x * (1 + n * 0.25), y < 0 ? y * 0.1 : y * (0.8 + n * 0.5 + 0.35 * Math.sin(x * 5 + i) * Math.cos(z * 4)), z * (1 + n * 0.25));
         const t = Math.max(0, y); const c = new THREE.Color('#3f8f4a').lerp(new THREE.Color('#8fcf55'), t); cols.push(c.r, c.g, c.b);
       }
       geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3)); geo.computeVertexNormals();
-      const m = new THREE.Mesh(geo, mat); m.position.set(Math.cos(a) * d, -1.2, Math.sin(a) * d); m.scale.set(s * 1.6, s * 0.55, s * 1.3); g.add(m);
+      const m = new THREE.Mesh(geo, mat); m.position.set(Math.cos(a) * d, -1.2, Math.sin(a) * d); m.scale.set(s * 1.5, s * 0.6, s * 1.2); g.add(m);
     }
     g.name = 'distantIslands'; scene.add(g);
   }

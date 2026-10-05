@@ -97,7 +97,7 @@ export function buildPen(ctx){
     place(rbox(len,h,.08,.03),[0,.34+h/2,-w/2+.04],[0,0,0],'#c79a63');
     place(rbox(.08,h,w,.03),[len/2-.04,.34+h/2,0],[0,0,0],'#b98652');             // ends
     place(rbox(.08,h,w,.03),[-len/2+.04,.34+h/2,0],[0,0,0],'#b98652');
-    for(const sx of[-1,1]) for(const sz of[-1,1]){ place(rbox(.1,.38,.1,.02),[sx*(len/2-.1),.19,sz*(w/2-.08)],[0,0,0],'#8a5e38']); }
+    for(const sx of[-1,1]) for(const sz of[-1,1]){ place(rbox(.1,.38,.1,.02),[sx*(len/2-.1),.19,sz*(w/2-.08)],[0,0,0],'#8a5e38'); }
     place(rbox(len+.1,.04,.12,.015),[0,.34+h+.01,w/2-.04],[0,0,0],'#d9b27a'); place(rbox(len+.1,.04,.12,.015),[0,.34+h+.01,-w/2+.04],[0,0,0],'#d9b27a');
     return {len,w,h};
   }
@@ -146,8 +146,8 @@ export function buildPen(ctx){
     put('wood',rbox(.14,.12,D,.03),{p:[sx-W/2+.12,ph,sz],c:'#a9774a'}); put('wood',rbox(.14,.12,D,.03),{p:[sx+W/2-.12,ph,sz],c:'#a9774a'});
     // roof: two slopes (ridge along X)
     const slope=.45, rw=D/2+.45, th=.16; const rl=Math.hypot(rw,rw*slope);
-    for(const s of[-1,1]){ const g=rbox(W+.9,th,rl,.05,2); put('thatch',g,{p:[sx,ph+.28+(rw*slope)/2,sz+s*rw/2*.98],r:[s*Math.atan(slope),0,0],c:'#e0b878',uv:2.5}); }
-    put('thatch',new THREE.CylinderGeometry(.13,.13,W+1.0,10).rotateZ(Math.PI/2),{p:[sx,ph+.28+rw*slope+.06,sz],c:'#b88a4c'});
+    for(const s of[-1,1]){ const g=rbox(W+.9,th,rl,.05,2); put('thatch',g,{p:[sx,ph+.28+(rw*slope)/2,sz+s*rw/2*.98],r:[s*Math.atan(slope),0,0],c:'#fff1c8',uv:2.5}); }
+    put('thatch',new THREE.CylinderGeometry(.13,.13,W+.5,10).rotateZ(Math.PI/2),{p:[sx,ph+.28+rw*slope+.06,sz],c:'#b88a4c'});
     // hanging lantern
     put('misc',new THREE.SphereGeometry(.12,10,8),{p:[sx,ph-.3,sz],s:[1,1.2,1],c:'#ffd27a'});
     stations.shade={pos:new V3(sx,0,sz),rx:W/2-.5,rz:D/2-.5,sleep:[new V3(sx-1.2,0,sz-.4),new V3(sx,0,sz-.5),new V3(sx+1.2,0,sz-.4),new V3(sx-.7,0,sz+.7),new V3(sx+.6,0,sz+.7),new V3(sx+1.5,0,sz+.6)]};
