@@ -15,7 +15,7 @@ export const DECOR_KINDS = [
 
 // Predefined slots around plaza, path, pen and pond (x,z, facing yaw). Kept off the masjid footprint, paths and pen fence.
 export const SLOTS = [
-  ['p1',-4.6,12.4,Math.PI],['p2',4.6,12.4,Math.PI],['p3',-8.4,10.6,Math.PI*.8],['p4',8.4,10.6,-Math.PI*.8],
+  ['p1',-4.6,12.4,Math.PI],['p2',4.6,12.4,Math.PI],['p3',-10.6,12.8,Math.PI*.8],['p4',8.4,10.6,-Math.PI*.8],
   ['p5',-13.6,1.6,Math.PI/2],['p6',13.6,.6,-Math.PI/2],['p7',-13.2,-9.2,Math.PI*.3],['p8',13.2,-9.2,-Math.PI*.3],
   ['p9',-6.8,-13.2,0],['p10',6.8,-13.2,0],['p11',0,-14.4,0],
   ['w1',12.6,8.6,Math.PI],['w2',13.8,3.4,0],['w3',16.6,2.6,0],
