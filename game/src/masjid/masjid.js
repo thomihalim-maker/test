@@ -106,6 +106,12 @@ export async function init(ctx) {
     if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(n * 2), 2));
     if (!g.attributes.color) g.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(n * 3).fill(1), 3));
     for (const k of Object.keys(g.attributes)) if (!KEEP_ATTR.includes(k)) g.deleteAttribute(k);
+    // Zero-length normals become NaN after normalize() in the shader, and bloom spreads NaN across the whole frame.
+    const nm = g.attributes.normal.array;
+    for (let i = 0; i < nm.length; i += 3) {
+      const l = Math.hypot(nm[i], nm[i + 1], nm[i + 2]);
+      if (!(l > 1e-6)) { nm[i] = 0; nm[i + 1] = 1; nm[i + 2] = 0; }
+    }
     g.morphAttributes = {}; g.clearGroups();
     return g;
   }
@@ -120,6 +126,8 @@ export async function init(ctx) {
         if (!o.isMesh || keep.has(o)) return;
         let vis = true; for (let p = o; p && p !== S.G; p = p.parent) if (!p.visible) vis = false;
         const mat = o.material;
+        // A collapsed (scale 0) piece has a singular matrix: skip it rather than bake degenerate geometry.
+        if (vis && Math.abs(o.matrixWorld.determinant()) < 1e-9) vis = false;
         if (vis && !Array.isArray(mat) && mat.visible !== false) {
           const key = mat.uuid + (o.castShadow ? ':c' : ':n') + (o.geometry.attributes.color?.itemSize === 4 ? ':a' : '');
           if (!add.has(key)) add.set(key, { mat, cast: o.castShadow, list: [] });

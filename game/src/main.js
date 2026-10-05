@@ -18,6 +18,10 @@ const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, sample
 const composer = new EffectComposer(renderer, rt);
 composer.addPass(new RenderPass(scene, camera));
 const bloom = new UnrealBloomPass(new THREE.Vector2(256,256), 0.28, 0.7, 0.92);
+// Guard: one non-finite pixel from any module would otherwise blur into a fully black frame through bloom.
+bloom.materialHighPassFilter.fragmentShader = bloom.materialHighPassFilter.fragmentShader.replace(
+  'vec4 texel = texture2D( tDiffuse, vUv );',
+  'vec4 texel = texture2D( tDiffuse, vUv ); texel = ( any( isnan( texel ) ) || any( isinf( texel ) ) ) ? vec4( 0.0 ) : min( texel, vec4( 64.0 ) );');
 composer.addPass(bloom); composer.addPass(new OutputPass());
 ctx.composer = composer; ctx.bloom = bloom;
 
@@ -39,7 +43,7 @@ renderer.info.autoReset = false;
 ctx.stats = { fps:60, calls:0, triangles:0, dpr };
 
 // Module load order matters. Missing modules are skipped so agents can work independently.
-const order = ['world/world','audio/audio','masjid/masjid','characters/characters','animals/animals','fx/fx','ui/ui'];
+const order = ['world/world','audio/audio','masjid/masjid','characters/characters','animals/animals','fx/fx','game/progress','ui/ui'];
 const mods = [];
 for (const name of order){
   try{
