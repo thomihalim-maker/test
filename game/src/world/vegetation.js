@@ -39,7 +39,7 @@ export function createVegetation(ctx, terrain, blobs){
   // ---------- flowers ----------
   const FP=['#ff7fb0','#ffffff','#ffd23f','#b69cff','#ff9248','#ff6b6b','#7fd4ff'].map(c=>new THREE.Color(c));
   const fl=[]; let patches=0, ft=0;
-  while(patches<(LOW?60:115)&&ft++<6000){
+  while(patches<(LOW?45:80)&&ft++<6000){
     const a=rnd()*6.283, rr=14+Math.sqrt(rnd())*46, cx=Math.cos(a)*rr, cz=Math.sin(a)*rr;
     if(clearance(cx,cz)<2) continue; const hh=heightAt(cx,cz); if(hh<0.5||slopeAt(cx,cz)>0.4) continue;
     patches++;

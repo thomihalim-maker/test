@@ -117,7 +117,7 @@ export function createSite(ctx, M, parent, api) {
   // --- C: signboard "Calon Masjid" (until stage 2)
   {
     const wood = [], sign = [];
-    const sx = 5.4, sz = 11.0, ry = .4, m4 = new THREE.Matrix4().compose(V3(sx, 0, sz), new THREE.Quaternion().setFromAxisAngle(V3(0, 1, 0), ry), V3(1, 1, 1));
+    const sx = -4.6, sz = 13.4, ry = .5, m4 = new THREE.Matrix4().compose(V3(sx, 0, sz), new THREE.Quaternion().setFromAxisAngle(V3(0, 1, 0), ry), V3(1, 1, 1));
     const loc = [];
     for (const s of [-1, 1]) loc.push(shade(xfm(rbox(.12, 2.3, .12, .03, 1), s * 1.05, 0, 0), { lo: .55 }));
     loc.push(shade(xfm(rbox(2.5, 1.32, .1, .04, 2), 0, .95, -.02), { lo: .8 }));
