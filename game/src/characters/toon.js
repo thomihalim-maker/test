@@ -101,3 +101,51 @@ export function propOutlineMaterial(thick=0.012, color=0x3a2218){
   return m;
 }
 export function toonMat(color){ return new THREE.MeshToonMaterial({color, gradientMap:gradientMap()}); }
+
+// ---- painted-face head material: high gradient floor, no lilac tint, face atlas decal ----
+let _gradFace;
+function gradientFace(){
+  if(_gradFace) return _gradFace;
+  const d = new Uint8Array([192,226,246,255]);
+  _gradFace = new THREE.DataTexture(d, d.length, 1, THREE.RedFormat);
+  _gradFace.minFilter = _gradFace.magFilter = THREE.NearestFilter; _gradFace.needsUpdate = true;
+  return _gradFace;
+}
+export function faceMaterial(atlas, {cols=6, rows=4, eyeV=.568}={}){
+  const m = new THREE.MeshToonMaterial({ color:0xffffff, gradientMap:gradientFace(), vertexColors:true });
+  m.onBeforeCompile = (sh)=>{
+    sh.uniforms.faceMap = { value: atlas };
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\n'+HEADER+`
+        flat varying vec4 vCells; flat varying float vOpen; flat varying vec3 vHair; varying vec2 vFUV; varying float vFMask;`)
+      .replace('#include <color_vertex>', 'vColor = color.rgb * palOf(aSF.x);')
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        vFUV = vec2((position.x+0.31)/0.62, (position.y+0.27)/0.44);
+        vFMask = smoothstep(0.1, 0.2, position.z) * step(aSF.x, 1.5) * step(0.5, aSF.x);
+        { int code = int(iP5.w + 0.5);
+          vCells = vec4(float(code & 31), float((code>>5)&31), float((code>>10)&31), float((code>>15)&31));
+          vOpen = float((code>>20)&7)/7.0; }
+        vHair = vec3(iP4.zw, iP5.x);`);
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+        uniform sampler2D faceMap; flat varying vec4 vCells; flat varying float vOpen; flat varying vec3 vHair; varying vec2 vFUV; varying float vFMask;
+        vec4 cellS(float idx, vec2 uv){
+          if(uv.x<0.0||uv.y<0.0||uv.x>1.0||uv.y>1.0) return vec4(0.0);
+          float col = mod(idx, ${cols.toFixed(1)}), row = floor(idx/${cols.toFixed(1)});
+          return texture2D(faceMap, vec2((col+uv.x)/${cols.toFixed(1)}, (row+1.0-uv.y)/${rows.toFixed(1)}));
+        }`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        if(vFMask>0.001){
+          vec4 c = cellS(vCells.w, vFUV); diffuseColor.rgb = mix(diffuseColor.rgb, c.rgb, c.a*vFMask);
+          c = cellS(vCells.z, vFUV); diffuseColor.rgb = mix(diffuseColor.rgb, c.rgb*vHair*0.8, c.a*vFMask);
+          vec2 e = vFUV; e.y = ${eyeV.toFixed(4)} + (e.y-${eyeV.toFixed(4)})/max(vOpen,0.07);
+          c = cellS(vCells.x, e); diffuseColor.rgb = mix(diffuseColor.rgb, c.rgb, c.a*vFMask);
+          c = cellS(vCells.y, vFUV); diffuseColor.rgb = mix(diffuseColor.rgb, c.rgb, c.a*vFMask);
+        }`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        { float f = 1.0 - saturate(dot(normalize(vNormal), normalize(vViewPosition)));
+          totalEmissiveRadiance += pow(f,3.0) * 0.12 * vec3(1.0,0.84,0.66) * diffuseColor.rgb; }`);
+  };
+  m.customProgramCacheKey = ()=>'face1';
+  return m;
+}
