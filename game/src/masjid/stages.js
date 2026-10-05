@@ -514,13 +514,14 @@ function s7(S) {
   G.add(cp); R.add(cp, { delay: 0, dur: .7, kind: 'pop', amp: .1 });
   // sajadah rows: instanced
   const mg = new THREE.PlaneGeometry(.78, 1.3).rotateX(-Math.PI / 2);
-  const rows = 5, cols = 6, N = rows * cols, inst = new THREE.InstancedMesh(mg, M.sajadah, N); inst.receiveShadow = true;
+  const rows = 5, cols = 6, spots = [];
+  for (let r = 0; r < rows; r++) for (let k = 0; k < cols; k++) { const x = (k - 2.5) * 1.55, zz = -6.35 + r * 1.62; if (!(Math.abs(x - 2.55) < 1.0 && zz < -4.3)) spots.push([x, zz, r, k]); }
+  const inst = new THREE.InstancedMesh(mg, M.sajadah, spots.length); inst.receiveShadow = true;
   const tints = ['#f1e4c7', '#b13a4a', '#e9d7a8', '#c25b3f', '#f4efe0'], mm = new THREE.Matrix4(), c = new THREE.Color();
   let i = 0;
-  for (let r = 0; r < rows; r++) for (let k = 0; k < cols; k++, i++) {
-    const x = (k - 2.5) * 1.55, zz = -6.35 + r * 1.62;
+  for (const [x, zz, r, k] of spots) {
     mm.compose(V3(x, y + .012, zz), new THREE.Quaternion().setFromAxisAngle(V3(0, 1, 0), (rnd() - .5) * .04), V3(1, 1, 1)); inst.setMatrixAt(i, mm);
-    c.set(tints[(r + k * 2) % tints.length]); inst.setColorAt(i, c);
+    c.set(tints[(r + k * 2) % tints.length]); inst.setColorAt(i, c); i++;
   }
   G.add(inst); R.addInst(inst, { delayFn: (i2, p) => .4 + (p.z + 7) * .1 + Math.abs(p.x) * .03, dur: .5, kind: 'drop', drop: .8, amp: .4 });
   // mihrab niche (inside the back-wall hole / bulge)
@@ -540,7 +541,7 @@ function s7(S) {
   mh.add(mesh(S, merge(mc), M.gold, false));
   R.add(mh, { delay: .8, dur: .9, kind: 'pop', amp: .15, onLand: () => S.flash(1) });
   // mimbar (pulpit): sloped carved side panels, gilded stair rails + balusters, arched gate, canopy
-  const mb = new THREE.Group(); place(mb, 2.55, PL, -6.0); mb.scale.setScalar(1.3); G.add(mb);
+  const mb = new THREE.Group(); place(mb, 2.55, PL, -6.0); mb.scale.setScalar(1.15); G.add(mb);
   const pg = [], gg = [], cg2 = [];
   const bx = (arr, w, h, d, px, py, pz, r = .04) => { const g = rbox(w, h, d, r, 1); g.translate(px, py, pz); arr.push(arr === pg ? shade(g, { lo: .7 }) : flat(g, 1)); return g; };
   const sideS = new THREE.Shape([V2(1.2, 0), V2(1.2, .55), V2(-.45, 1.95), V2(-1.25, 1.95), V2(-1.25, 0)].map(v => V2(v.x, v.y)));
@@ -572,7 +573,7 @@ function s7(S) {
     const pl = rbox(1.0, 1.0, .06, .02, 1); uvScale(pl, 1, 1); xf(pl, s * 4.96, PL + 2.0, HALL_Z + u + 0, Math.PI / 2); wp.push(flat(pl, 1));
   }
   const panels = mesh(S, merge(wp), M.arabCream, false); G.add(panels); R.add(panels, { delay: 1.6, dur: .5, kind: 'pop' });
-  const pfg = []; for (const s of [-1, 1]) for (const u of [-1.65, 1.65]) { const f = new THREE.TorusGeometry(.72, .04, 6, 4).rotateZ(Math.PI / 4).rotateY(Math.PI / 2).translate(s * 4.94, PL + 2.0, HALL_Z + u); pfg.push(flat(f, 1)); }
+  const pfg = []; for (const s of [-1, 1]) for (const u of [-1.65, 1.65]) { const f = new THREE.TorusGeometry(.72, .04, 6, 4).rotateZ(Math.PI / 4).rotateY(Math.PI / 2).translate(s * 4.94, PL + 2.5, HALL_Z + u); pfg.push(flat(f, 1)); }
   const pf = mesh(S, merge(pfg), M.gold, false); G.add(pf); R.add(pf, { delay: 1.7, dur: .5, kind: 'pop' });
   // chandeliers
   const ch = new THREE.Group(); G.add(ch);
