@@ -30,11 +30,20 @@ void main(){
   float n0=fbm(q1)*0.7+fbm(q2)*0.3;
   float nx=fbm(q1+vec2(e,0.))*0.7+fbm(q2+vec2(e,0.))*0.3-n0;
   float nz=fbm(q1+vec2(0.,e))*0.7+fbm(q2+vec2(0.,e))*0.3-n0;
-  vec3 N=normalize(vec3(-nx*2.2,1.0,-nz*2.2));
+  float rr=length(p); float sea=smoothstep(40.0,56.0,rr);
+  // slow ocean swell: directional sines (analytic slope), toward shore
+  vec2 sw=vec2(0.0);
+  vec2 d1=normalize(vec2(0.8,0.6)), d2=normalize(vec2(-0.3,1.0)), d3=-p/max(rr,1.0);
+  sw+=d1*cos(dot(p,d1)*0.35-uTime*0.9)*0.18;
+  sw+=d2*cos(dot(p,d2)*0.52-uTime*1.15+1.7)*0.12;
+  sw+=d3*cos(rr*0.6+uTime*1.2)*0.10*smoothstep(90.0,60.0,rr);
+  vec3 N=normalize(vec3(-nx*2.2-sw.x*sea,1.0,-nz*2.2-sw.y*sea));
+  float crest=sea*smoothstep(0.75,1.0,sin(dot(p,d1)*0.35-uTime*0.9)*0.5+0.5)*smoothstep(0.4,0.75,fbm(p*0.6+uTime*0.04));
   vec3 V=normalize(vView);
   float fres=pow(1.0-max(dot(N,V),0.0),3.0);
   // body color by depth
   vec3 body=mix(uShallow,uMid,smoothstep(0.0,1.2,depth)); body=mix(body,uDeep,smoothstep(0.9,4.5,depth));
+  body=mix(body,uDeep*vec3(0.75,0.85,1.0),smoothstep(85.0,170.0,rr)*sea);
   body*=uAmb;
   // sky reflection tint
   vec3 sky=mix(uSkyH,uSkyT,clamp(1.0-V.y*0.0+N.y*0.0,0.0,1.0)*0.55);
@@ -47,10 +56,11 @@ void main(){
   // soft foam at shorelines
   float wob=fbm(p*0.8+uTime*0.03);
   float edge=1.0-smoothstep(0.0,0.1+wob*0.1,depth);
-  float ring=sin(depth*9.0-uTime*0.9+wob*5.0);
-  float band=smoothstep(0.55,0.95,ring)*(1.0-smoothstep(0.12,0.85,depth))*smoothstep(0.0,0.05,depth);
+  float ring=sin(depth*mix(9.0,5.0,sea)-uTime*mix(0.9,1.3,sea)+wob*5.0);
+  float band=smoothstep(0.55,0.95,ring)*(1.0-smoothstep(0.12,mix(0.85,1.6,sea),depth))*smoothstep(0.0,0.05,depth);
+  float swash=sea*(1.0-smoothstep(0.0,0.06+0.12*(0.5+0.5*sin(uTime*0.8+wob*6.0)),depth));
   float foamN=smoothstep(0.35,0.7,fbm(p*3.0+uTime*0.05));
-  float foam=clamp(edge*0.95+band*0.55*foamN,0.0,1.0);
+  float foam=clamp(edge*mix(0.6,0.95,sea)+band*mix(0.4,0.75,sea)*foamN+swash*0.8+crest*0.25,0.0,1.0);
   col=mix(col,mix(vec3(0.85,0.8,0.65),vec3(1.0),smoothstep(0.0,0.12,depth))*(0.5+0.5*uAmb.r),foam*0.55);
   float alpha=mix(0.35,0.92,smoothstep(0.0,1.1,depth));
   alpha=max(alpha,foam*0.95);

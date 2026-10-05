@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { makeRadialTex } from './textures.js';
 import { heightAt, roadX, POND, clearance } from './terrain.js';
 
-export function createBlobs(ctx, cap=420){
+export function createBlobs(ctx, cap=900){
   const tex=makeRadialTex([[0,'#8a8a96'],[0.35,'#9a9aa6'],[0.7,'#d4d4dc'],[1,'#ffffff']],128);
   const mat=new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false,blending:THREE.MultiplyBlending,premultipliedAlpha:true,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2,fog:false});
   const geo=new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2);

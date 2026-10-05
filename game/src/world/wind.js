@@ -1,7 +1,7 @@
 // Shared wind uniform + onBeforeCompile patch (world-space coherent sway for instanced foliage)
 import * as THREE from 'three';
 export const windU = { uTime: { value: 0 } };
-const NFIX = THREE.ShaderChunk.normal_fragment_begin.replace('gl_FrontFacing ? 1.0 : - 1.0', '1.0');
+export const NFIX = THREE.ShaderChunk.normal_fragment_begin.replace('gl_FrontFacing ? 1.0 : - 1.0', '1.0');
 export function patchWind(mat, { amp = 0.2, height = 1, speed = 1, flutter = 0, wind = true } = {}) {
   mat.side = THREE.DoubleSide;
   mat.onBeforeCompile = (sh) => {

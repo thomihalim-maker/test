@@ -74,14 +74,50 @@ function blob(b, c, rx,ry,rz, color, {wd=9,hd=6,disp=0.18,seed=1,upBias=0.35,aoF
       row.push(b.v(p,nrm(x,y+upBias,z),col)); } rows.push(row); }
   for(let j=0;j<hd;j++)for(let i=0;i<wd;i++){ const i2=(i+1)%wd; b.q(rows[j][i],rows[j+1][i],rows[j+1][i2],rows[j][i2]); }
 }
-export function bushGeo({flowers=false,seed=3}={}){
+export function bushGeo({variant='round',seed=3}={}){
   const b=new B(), r=mulberry32(seed);
-  const lo=hx('#2f8a3e'), hi=hx('#8fd44c'), fl=[hx('#ff7ca8'),hx('#ffffff'),hx('#ffd23f')];
-  const fc=fl[seed%3];
-  for(let k=0;k<4;k++){
-    const a=k/4*6.283+r(), d=k?0.45:0, c=[Math.cos(a)*d,0.42+r()*0.1,Math.sin(a)*d], s=0.62+r()*0.25;
-    blob(b,c,s,s*0.82,s,(x,y,z,p)=>{ let col=mix(lo,hi,clamp(y*0.5+0.55,0,1)); if(flowers && r()<0.09 && y>-0.1) col=mul(fc,1.25); return col; },{seed:seed*7+k,disp:0.2,wd:8,hd:5,aoFn:(p,n)=>0.65+0.35*clamp((p[1]+0.1)/0.8,0,1)});
+  const pal={round:['#2a7f3a','#86d04a'],tall:['#1f6f40','#6cc25a'],flat:['#357f2c','#a4d846'],flower:['#2b7a3c','#7fca4e']}[variant];
+  const lo=hx(pal[0]), hi=hx(pal[1]);
+  const lobes=variant==='tall'?[[0,0.55,0,0.62,0.95],[0.25,1.15,0.1,0.48,0.7],[-0.3,0.45,0.15,0.48,0.75]]
+    :variant==='flat'?[[0,0.3,0,0.95,0.45],[0.75,0.25,0.2,0.6,0.38],[-0.7,0.26,-0.15,0.65,0.4],[0.1,0.28,0.7,0.55,0.36]]
+    :[[0,0.5,0,0.7,0.62],[0.5,0.4,0.15,0.5,0.45],[-0.45,0.4,0.2,0.52,0.46],[0.05,0.42,-0.5,0.5,0.44]];
+  const top=Math.max(...lobes.map(l=>l[1]+l[4]));
+  const pts=[];
+  lobes.forEach(([x,y,z,s,sy],k)=>{
+    blob(b,[x,y,z],s,sy,s,(nx,ny,nz,p)=>{ const t=clamp(p[1]/top,0,1); return mix(lo,hi,t*t*(3-2*t)); },
+      {seed:seed*7+k,disp:0.16,wd:9,hd:6,upBias:0.4,aoFn:(p)=>0.6+0.4*clamp(p[1]/(top*0.7),0,1)});
+    if(variant==='flower') for(let i=0;i<7;i++){ const th=r()*6.283, ph=r()*1.1; pts.push([x+Math.sin(ph)*Math.cos(th)*s,y+Math.cos(ph)*sy,z+Math.sin(ph)*Math.sin(th)*s]); }
+  });
+  const fc=[hx('#ff7ca8'),hx('#fff4f0'),hx('#ffd23f'),hx('#ff6a5a')][seed%4];
+  for(const p of pts) blob(b,p,0.09,0.07,0.09,mul(fc,1.15),{wd:5,hd:3,disp:0,seed:1,upBias:0.6});
+  return b.geo();
+}
+export function broadleafGeo(variant=0,seed=1){
+  const b=new B(), r=mulberry32(seed);
+  const H=variant===1?3.0:2.4;
+  const pts=[],rad=[]; for(let i=0;i<=5;i++){ const t=i/5; pts.push([0.25*Math.sin(t*2.5),H*t,0.1*t]); rad.push(0.36-0.14*t); }
+  tube(b,pts,rad,8,(t,k)=>mul(mix(hx('#6a4a32'),hx('#9a7350'),0.5+0.5*Math.sin(k*2.1)),0.75+0.35*t),{flare:0.7});
+  const cy=H+(variant===1?1.9:1.5);
+  const lobes=variant===1?[[0,cy,0,1.7,2.3],[0.3,cy+1.5,0.1,1.25,1.3],[-0.9,cy-0.4,0.4,1.1,1.1],[0.9,cy-0.3,-0.3,1.1,1.1]]
+    :[[0,cy,0,2.3,1.85],[1.3,cy-0.3,0.5,1.25,1.1],[-1.25,cy-0.25,-0.4,1.3,1.1],[0.2,cy+0.9,-0.9,1.15,1.0],[-0.4,cy+0.8,1.0,1.1,0.95]];
+  const pal=variant===2?['#2a7a36','#8fd24c']:variant===1?['#2b7f45','#9ee05a']:['#2f8a38','#a8e24c'];
+  const lo=hx(pal[0]), hi=hx(pal[1]), mid=mix(lo,hi,0.5);
+  const bot=cy-2.0, top=cy+2.0;
+  lobes.forEach(([x,y,z,s,sy],k)=>blob(b,[x,y,z],s,sy,s,(nx,ny,nz,p)=>{ const t=clamp((p[1]-bot)/(top-bot),0,1); const tt=t*t*(3-2*t); return mix(mix(lo,mid,clamp(tt*2,0,1)),hi,clamp(tt*2-1,0,1)); },
+    {seed:seed*5+k,disp:0.12,wd:14,hd:9,upBias:0.55,aoFn:(p)=>{ const dc=Math.hypot(p[0],p[2]); return 0.7+0.3*clamp(dc/2.2+(p[1]-cy)*0.25,0,1); }}));
+  if(variant===2){ // flamboyan blossoms: red-orange clusters on upper canopy
+    for(let i=0;i<40;i++){ const [x,y,z,s,sy]=lobes[(r()*lobes.length)|0]; const th=r()*6.283, ph=r()*1.2;
+      blob(b,[x+Math.sin(ph)*Math.cos(th)*s*1.02,y+Math.cos(ph)*sy*1.02,z+Math.sin(ph)*Math.sin(th)*s*1.02],0.28,0.18,0.28,mix(hx('#ff4a2a'),hx('#ff9a3a'),r()),{wd:6,hd:4,disp:0.1,seed:i,upBias:0.5}); }
   }
+  return b.geo();
+}
+export function cloverGeo(){
+  const b=new B(); const g1=hx('#3e9a3a'), g2=hx('#6cc04a');
+  for(let k=0;k<5;k++){ const a=k*2.4, d=k?0.09:0, cx=Math.cos(a)*d, cz=Math.sin(a)*d, y=0.05+k*0.012;
+    for(let l=0;l<3;l++){ const la=a+l*2.094; const lx=cx+Math.cos(la)*0.045, lz=cz+Math.sin(la)*0.045;
+      const c=b.v([cx,y,cz],[0,1,0],g1), ring=[];
+      for(let i=0;i<5;i++){ const t=la-1.0+i*0.5; ring.push(b.v([lx+Math.cos(t)*0.04,y+0.01,lz+Math.sin(t)*0.04],[0,1,0],g2)); }
+      for(let i=0;i<4;i++) b.t(c,ring[i+1],ring[i]); } }
   return b.geo();
 }
 export function rockGeo(seed=2){

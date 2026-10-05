@@ -2,27 +2,40 @@
 import * as THREE from 'three';
 import { createAnimator } from './anim.js';
 import { makeMaterials, BUILDERS, BEDUG, PL, HALL_Z } from './stages.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 export const STAGES = [
-  { id: 'fondasi', name: 'Fondasi & Plaza', cost: 60, desc: 'Lantai marmer bertingkat, tangga, dan plaza ubin bermotif.' },
-  { id: 'dinding', name: 'Dinding & Ruang Salat', cost: 100, desc: 'Dinding berlengkung, jendela kaca patri, serambi bertiang jati.' },
-  { id: 'atap', name: 'Atap Tajug Bersusun', cost: 150, desc: 'Tiga tingkat atap tajug berubin tanah liat dengan mustaka emas.' },
-  { id: 'menara', name: 'Menara', cost: 120, desc: 'Menara segi delapan dengan balkon, jendela kaca patri, dan kubah.' },
-  { id: 'wudhu', name: 'Tempat Wudhu', cost: 80, desc: 'Pancuran wudhu berpendopo dengan kolam segi delapan dan keran.' },
-  { id: 'bedug', name: 'Pendopo Bedug', cost: 80, desc: 'Pendopo kayu berisi bedug besar yang bisa ditabuh.' },
-  { id: 'interior', name: 'Mihrab, Mimbar & Karpet', cost: 140, desc: 'Mihrab, mimbar berukir, karpet, sajadah, dan lampu gantung.' },
-  { id: 'taman', name: 'Taman & Lentera', cost: 100, desc: 'Taman bunga, palem, semak, jalan setapak, dan lentera bercahaya.' },
+  { id: 'fondasi', name: 'Fondasi & Plaza', nameEn: 'Foundation & Plaza', cost: 60, desc: 'Lantai marmer bertingkat, tangga, dan plaza ubin bermotif.', descEn: 'Tiered marble platform, stairs and a patterned tile plaza.' },
+  { id: 'dinding', name: 'Dinding & Ruang Salat', nameEn: 'Walls & Prayer Hall', cost: 100, desc: 'Dinding berlengkung, kaca patri, serambi, dan gapura paduraksa berpintu jati.', descEn: 'Arched walls, stained glass, veranda and a paduraksa gate with teak doors.' },
+  { id: 'atap', name: 'Atap Tajug Bersusun', nameEn: 'Tiered Tajug Roof', cost: 150, desc: 'Tiga tingkat atap tajug berubin tanah liat dengan mustaka emas.', descEn: 'Three-tier terracotta tajug roof crowned with a golden mustaka.' },
+  { id: 'menara', name: 'Menara', nameEn: 'Minaret', cost: 120, desc: 'Menara bersusun gaya Kudus dengan atap tajug dan kaca patri.', descEn: 'Kudus-style tiered tower with a tajug cap and stained glass.' },
+  { id: 'wudhu', name: 'Tempat Wudhu', nameEn: 'Ablution Pavilion', cost: 80, desc: 'Pancuran wudhu berpendopo dengan kolam segi delapan dan keran.', descEn: 'Ablution pavilion with an octagonal fountain basin and taps.' },
+  { id: 'bedug', name: 'Pendopo Bedug', nameEn: 'Bedug Pavilion', cost: 80, desc: 'Pendopo kayu berisi bedug besar yang bisa ditabuh.', descEn: 'Teak pavilion with a big bedug drum you can play.' },
+  { id: 'interior', name: 'Mihrab, Mimbar & Karpet', nameEn: 'Mihrab, Minbar & Carpets', cost: 140, desc: 'Mihrab, mimbar berukir, karpet, sajadah, dan lampu gantung.', descEn: 'Mihrab niche, carved minbar, carpets, prayer mats and chandeliers.' },
+  { id: 'taman', name: 'Taman & Lentera', nameEn: 'Garden & Lanterns', cost: 100, desc: 'Taman bunga, palem, semak, jalan setapak, dan lentera bercahaya.', descEn: 'Flower beds, palms, hedges, a stone path and glowing lanterns.' },
 ];
-
+const I18N = {
+  needPrev: ['Bangun tahap sebelumnya dulu: {name}', 'Build the previous stage first: {name}'],
+  noCoins: ['Koin kurang ({cost} dibutuhkan)', 'Not enough coins ({cost} needed)'],
+  built: ['{name} dibangun! +{p} pahala', '{name} built! +{p} pahala'],
+};
 const qs = new URLSearchParams(location.search);
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 export async function init(ctx) {
   const { scene, camera } = ctx;
-  ctx.state.masjid ??= { stage: 0, parts: {} };
-  const st = ctx.state.masjid; st.parts ??= {};
+  const partsFor = n => Object.fromEntries(STAGES.slice(0, n).map(s => [s.id, true]));
   const forced = qs.has('stage') ? Math.max(0, Math.min(STAGES.length, parseInt(qs.get('stage')) || 0)) : null;
-  if (forced !== null) { st.stage = forced; }
+  let st;
+  if (forced !== null) st = { stage: forced, parts: partsFor(forced), preview: true }; // LOCAL preview: never written to ctx.state / save
+  else {
+    ctx.state.masjid ??= { stage: 0, parts: {} };
+    st = ctx.state.masjid; st.stage = Math.max(0, Math.min(STAGES.length, st.stage | 0)); st.parts = partsFor(st.stage);
+  }
+  const lang = () => (ctx.state.settings?.lang ?? ctx.state.lang) === 'en' ? 1 : 0;
+  const tr = (k, v = {}) => { let s = I18N[k][lang()]; for (const a in v) s = s.replace('{' + a + '}', v[a]); return s; };
+  const sName = s => lang() ? s.nameEn : s.name;
+  let completeSent = !!st.complete;
   const group = new THREE.Group(); group.name = 'masjid'; scene.add(group);
   const anim = createAnimator(ctx);
   const night = []; // {m, day, night}
@@ -70,15 +83,67 @@ export async function init(ctx) {
     }
     if (S.hallLight && !hallLight) { hallLight = new THREE.PointLight(0xffc678, 6, 15, 1.6); hallLight.position.set(0, PL + 3.2, HALL_Z); group.add(hallLight); }
     if (instant) { S.R.finish(); S.R.update?.(0); } else {
-      S.R.onDone = () => { };
+      S.R.onDone = () => { bake([S]); if (n === STAGES.length) sendComplete(); };
     }
     return S;
   }
-  for (let n = 1; n <= st.stage; n++) buildStage(n, true);
+  function sendComplete() {
+    if (completeSent) return; completeSent = true; st.complete = true;
+    const s = STAGES[STAGES.length - 1]; ctx.emit('build:complete', { stage: STAGES.length, id: s.id, name: sName(s) });
+  }
+
+  // ---- static batching: once a stage has finished animating, merge all its static meshes per material ----
+  const bakeGroup = new THREE.Group(); bakeGroup.name = 'masjid-baked'; group.add(bakeGroup);
+  const baked = new Map(); // key -> Mesh
+  const KEEP_ATTR = ['position', 'normal', 'uv', 'color'];
+  function normalize(src, m4) {
+    const g = src.index ? src.toNonIndexed() : src.clone();
+    g.applyMatrix4(m4);
+    const n = g.attributes.position.count;
+    if (!g.attributes.normal) g.computeVertexNormals();
+    if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(n * 2), 2));
+    if (!g.attributes.color) g.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(n * 3).fill(1), 3));
+    for (const k of Object.keys(g.attributes)) if (!KEEP_ATTR.includes(k)) g.deleteAttribute(k);
+    g.morphAttributes = {}; g.clearGroups();
+    return g;
+  }
+  function bake(list) {
+    group.updateMatrixWorld(true);
+    const inv = group.matrixWorld.clone().invert(), add = new Map();
+    for (const S of list) {
+      const keep = new Set(), keepRoots = [];
+      S.G.traverse(o => { if ((o.userData.keep || o.isInstancedMesh) && !keep.has(o)) { keepRoots.push(o); o.traverse(c => keep.add(c)); } });
+      const dispose = [];
+      S.G.traverse(o => {
+        if (!o.isMesh || keep.has(o)) return;
+        let vis = true; for (let p = o; p && p !== S.G; p = p.parent) if (!p.visible) vis = false;
+        const mat = o.material;
+        if (vis && !Array.isArray(mat) && mat.visible !== false) {
+          const key = mat.uuid + (o.castShadow ? ':c' : ':n') + (o.geometry.attributes.color?.itemSize === 4 ? ':a' : '');
+          if (!add.has(key)) add.set(key, { mat, cast: o.castShadow, list: [] });
+          add.get(key).list.push(normalize(o.geometry, new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld)));
+        }
+        dispose.push(o.geometry);
+      });
+      for (const k of keepRoots) group.attach(k);
+      group.remove(S.G); S.G = null; S.baked = true;
+      for (const g of new Set(dispose)) g.dispose();
+    }
+    for (const [key, { mat, cast, list }] of add) {
+      const prev = baked.get(key);
+      const merged = mergeGeometries(prev ? [prev.geometry, ...list] : list, false);
+      list.forEach(g => g.dispose());
+      if (!merged) { console.warn('masjid bake failed for', mat.name || key); continue; }
+      merged.computeBoundingSphere();
+      if (prev) { prev.geometry.dispose(); prev.geometry = merged; }
+      else { const mesh = new THREE.Mesh(merged, mat); mesh.castShadow = cast; mesh.receiveShadow = true; mesh.name = 'baked:' + key; bakeGroup.add(mesh); baked.set(key, mesh); }
+    }
+  }
+  { const init = []; for (let n = 1; n <= st.stage; n++) init.push(buildStage(n, true)); if (init.length) bake(init); }
 
   // ---- bedug interaction ----
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
-  let down = null, lastHit = -9, prevAct = false;
+  let down = null, lastHit = -9;
   function playBedug() {
     const S = built[6]; if (!S || !S.bedug) return false;
     if (ctx.time - lastHit < .28) return false; lastHit = ctx.time;
@@ -95,7 +160,6 @@ export async function init(ctx) {
     const r = ctx.canvas.getBoundingClientRect(); ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, camera); const hits = ray.intersectObject(built[6].bedug.hit, false); if (hits.length) playBedug();
   });
-  addEventListener('keydown', e => { if (e.code === 'KeyB' && !e.repeat) { const p = playerPos(); if (!p || p.distanceTo(BEDUG3) < 5) playBedug(); } });
   const BEDUG3 = new THREE.Vector3(BEDUG.x, 0, BEDUG.z);
   function playerPos() { const c = ctx.modules.characters; const o = c?.player?.position ?? c?.player?.pos ?? c?.player?.mesh?.position ?? c?.pos ?? c?.mesh?.position ?? c?.group?.position; return o?.isVector3 ? o : null; }
   ctx.on('interact', (d) => { const p = playerPos(); if (built[6] && p && p.distanceTo(BEDUG3) < 3.6) playBedug(); });
@@ -111,31 +175,36 @@ export async function init(ctx) {
   function stageIndex(id) { if (typeof id === 'number') return id; const i = STAGES.findIndex(s => s.id === id); return i < 0 ? (parseInt(id) || -1) : i + 1; }
   const api = {
     get stage() { return st.stage; }, set stage(v) { api.setStage(v); },
-    stages: STAGES, group, ctx,
+    get stages() { return STAGES.map(s => ({ id: s.id, name: sName(s), cost: s.cost, desc: lang() ? s.descEn : s.desc })); },
+    group, ctx,
     get max() { return STAGES.length; },
-    get next() { return STAGES[st.stage] ?? null; },
+    get next() { return api.stages[st.stage] ?? null; },
+    get preview() { return !!st.preview; },
     get nightFactor() { return nightK; },
-    canAfford(id) { const n = id == null ? st.stage + 1 : stageIndex(id); const s = STAGES[n - 1]; return !!s && ctx.state.coins >= s.cost; },
+    get drawables() { let n = 0; group.traverse(o => { if ((o.isMesh || o.isInstancedMesh) && o.visible && o.material?.visible !== false) { let v = true; for (let p = o; p; p = p.parent) if (!p.visible) v = false; if (v) n++; } }); return n; },
+    canAfford(id) { const n = id == null ? st.stage + 1 : stageIndex(id); const s = STAGES[n - 1]; return !!s && (ctx.state.coins ?? 0) >= s.cost; },
     place(id) {
       const n = id == null ? st.stage + 1 : stageIndex(id);
       if (!(n >= 1 && n <= STAGES.length)) return false;
-      if (n !== st.stage + 1) { if (n > st.stage + 1) ctx.emit('toast', 'Bangun tahap sebelumnya dulu: ' + STAGES[st.stage].name); return false; }
-      const s = STAGES[n - 1];
-      if ((ctx.state.coins ?? 0) < s.cost) { ctx.emit('toast', `Koin kurang (${s.cost} dibutuhkan)`); return false; }
-      ctx.state.coins -= s.cost; ctx.state.pahala = (ctx.state.pahala ?? 0) + n * 5;
-      st.stage = n; st.parts[s.id] = true;
+      if (n !== st.stage + 1) { if (n > st.stage + 1) ctx.emit('toast', tr('needPrev', { name: sName(STAGES[st.stage]) })); return false; }
+      const s = STAGES[n - 1], ui = ctx.modules.ui, reward = n * 5;
+      if ((ctx.state.coins ?? 0) < s.cost) { ctx.emit('toast', tr('noCoins', { cost: s.cost })); return false; }
+      if (typeof ui?.spend === 'function') { if (ui.spend(s.cost) === false) { ctx.emit('toast', tr('noCoins', { cost: s.cost })); return false; } }
+      else { ctx.state.coins -= s.cost; ctx.emit('coins:change', { coins: ctx.state.coins }); }
+      if (typeof ui?.addPahala === 'function') ui.addPahala(reward, 'masjid');
+      else { ctx.state.pahala = (ctx.state.pahala ?? 0) + reward; ctx.emit('coins:change', { coins: ctx.state.coins }); }
+      st.stage = n; st.parts = partsFor(n);
       buildStage(n, false);
-      ctx.emit('coins:change', { coins: ctx.state.coins, pahala: ctx.state.pahala, delta: -s.cost });
       try { ctx.modules.audio?.play('build'); } catch (e) { }
-      ctx.emit('build:placed', { stage: n, id: s.id, name: s.name, stages: STAGES.length });
-      ctx.emit('toast', `${s.name} dibangun! +${n * 5} pahala`);
-      if (n === STAGES.length) setTimeout(() => ctx.emit('build:complete', { stage: n, id: s.id, name: s.name }), 4200);
+      ctx.emit('build:placed', { stage: n, id: s.id, name: sName(s), stages: STAGES.length });
+      ctx.emit('toast', tr('built', { name: sName(s), p: reward }));
       return true;
     },
     setStage(v) { // debug / preview: instantly build up to stage v
       v = Math.max(0, Math.min(STAGES.length, v | 0));
-      for (let n = st.stage + 1; n <= v; n++) { buildStage(n, true); st.parts[STAGES[n - 1].id] = true; }
-      st.stage = Math.max(st.stage, v);
+      const list = []; for (let n = st.stage + 1; n <= v; n++) list.push(buildStage(n, true));
+      if (list.length) bake(list);
+      st.stage = Math.max(st.stage, v); st.parts = partsFor(st.stage);
     },
     playBedug, bedugPos: BEDUG3,
     update(dt, t) {
@@ -176,7 +245,6 @@ export async function init(ctx) {
         }
       }
       if (testLights) { testLights.sun.intensity = 3 * (1 - .93 * nightK); testLights.hemi.intensity = 1 - .45 * nightK; testLights.sun.color.set(nightK > .5 ? 0x8aa4ff : 0xfff0d0); scene.background.set(nightK > .5 ? 0x0c1230 : 0xbfe3f5); scene.fog.color.copy(scene.background); }
-      if (false) { camera.position.set(camParam[0], camParam[1], camParam[2]); camera.lookAt(camParam[3], camParam[4], camParam[5]); }
     },
   };
   api.api = api;

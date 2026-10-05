@@ -118,5 +118,30 @@ export function buildTerrain(ctx){
   ht.wrapS=ht.wrapT=THREE.ClampToEdgeWrapping;
   // color sampler for vegetation tinting
   const colorAt=(x,z,out)=>{ const fx=(x/SIZE+0.5)*N, fz=(z/SIZE+0.5)*N; const ix=clamp(Math.round(fx),0,N), iz=clamp(Math.round(fz),0,N); const k=(iz*(N+1)+ix)*3; return out.setRGB(col[k],col[k+1],col[k+2]); };
-  return { mesh, heightTex:ht, colorAt };
+  // grass field textures (1 texel per terrain vertex): RGBA = terrain color + grass weight; half-float height
+  const NV=N+1, gm=new Uint8Array(NV*NV*4), hh=new Uint16Array(NV*NV);
+  for(let i=0;i<NV*NV;i++){
+    const x=pos.getX(i), z=pos.getZ(i), h=hs[i], r=Math.hypot(x,z);
+    let w=splat[i*3]*S(0.82,0.92,nor.getY(i))*S(-0.2,0.25,h);
+    if(r>40) w*=S(0.3,0.8,h);
+    w*=S(0.0,0.6,clearance(x,z)+1.2);
+    gm[i*4]=Math.min(255,Math.sqrt(col[i*3])*255); gm[i*4+1]=Math.min(255,Math.sqrt(col[i*3+1])*255); gm[i*4+2]=Math.min(255,Math.sqrt(col[i*3+2])*255); gm[i*4+3]=clamp(w,0,1)*255;
+    hh[i]=THREE.DataUtils.toHalfFloat(h);
+  }
+  const grassMask=new THREE.DataTexture(gm,NV,NV,THREE.RGBAFormat,THREE.UnsignedByteType); grassMask.minFilter=grassMask.magFilter=THREE.LinearFilter; grassMask.needsUpdate=true;
+  const heightHF=new THREE.DataTexture(hh,NV,NV,THREE.RedFormat,THREE.HalfFloatType); heightHF.minFilter=heightHF.magFilter=THREE.LinearFilter; heightHF.needsUpdate=true;
+  // soft contact AO baked into terrain vertex colors around placed objects [{x,z,r,k}]
+  function applyAO(list){
+    const ca=geo.attributes.color;
+    for(const o of list){
+      const R=o.r*1.6, x0=Math.max(0,Math.floor((o.x-R)/SIZE*N+N/2)), x1=Math.min(N,Math.ceil((o.x+R)/SIZE*N+N/2)), z0=Math.max(0,Math.floor((o.z-R)/SIZE*N+N/2)), z1=Math.min(N,Math.ceil((o.z+R)/SIZE*N+N/2));
+      for(let iz=z0;iz<=z1;iz++)for(let ix=x0;ix<=x1;ix++){
+        const k=iz*NV+ix, d=Math.hypot(pos.getX(k)-o.x,pos.getZ(k)-o.z); if(d>R) continue;
+        const f=1-(o.k??0.35)*(1-S(o.r*0.3,R,d));
+        col[k*3]*=f*0.98; col[k*3+1]*=f; col[k*3+2]*=Math.min(1,f*1.04);
+      }
+    }
+    ca.needsUpdate=true;
+  }
+  return { mesh, heightTex:ht, colorAt, grassMask, heightHF, applyAO, NV };
 }
