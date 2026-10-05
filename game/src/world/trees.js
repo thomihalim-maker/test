@@ -100,7 +100,7 @@ export function bushGeo({variant='round',seed=3}={}){
   const pts=[];
   lobes.forEach(([x,y,z,s,sy],k)=>{
     blob(b,[x,y,z],s,sy,s,(nx,ny,nz,p)=>{ const t=clamp(p[1]/top,0,1); return mix(lo,hi,t*t*(3-2*t)); },
-      {seed:seed*7+k,disp:0.14,wd:9,hd:6,upBias:0.3,center:[0,top*0.4,0],cw:0.7,aoFn:(p)=>0.55+0.45*clamp(p[1]/(top*0.75),0,1)});
+      {seed:seed*7+k,disp:0.14,wd:8,hd:5,upBias:0.3,center:[0,top*0.4,0],cw:0.7,aoFn:(p)=>0.55+0.45*clamp(p[1]/(top*0.75),0,1)});
     if(variant==='flower') for(let i=0;i<4;i++){ const th=r()*6.283, ph=r()*1.1; pts.push([x+Math.sin(ph)*Math.cos(th)*s,y+Math.cos(ph)*sy,z+Math.sin(ph)*Math.sin(th)*s]); }
   });
   const fc=[hx('#ff7ca8'),hx('#fff4f0'),hx('#ffd23f'),hx('#ff6a5a')][seed%4];

@@ -149,7 +149,7 @@ export function buildSarong(D=1){
   // overlap fold flap (front-left)
   b.add(lathe([[.215,.04],[.219,0],[.236,-.1],[.258,-.2],[.274,-.272]],3,.12,.3),{slot:BOT, tone:.88, flex, scale:[1,1,.93]});
   const darkUV = (g)=>{ const u=g.attributes.uv; for(let i=0;i<u.count;i++) u.setXY(i,.04+(i%7)*.004,.05); };
-  b.add(new THREE.CircleGeometry(.21,Math.max(6,Math.round(16*D))).rotateX(-Math.PI/2),{pos:[0,.06,0], scale:[1,1,.93], slot:BOT, post:darkUV});
+  b.add(lathe([[.2,.05],[.18,.14],[.165,.24],[.13,.3],[.002,.31]],18),{scale:[.95,1,.8], slot:BOT, post:darkUV});
   return b.build();
 }
 export function buildSkirt(D=1){
@@ -157,7 +157,8 @@ export function buildSkirt(D=1){
   const flex = (x,y)=>Math.pow(Math.max(0,(.06-y)/.42),1.4);
   b.add(lathe([[.2,.06],[.21,-.02],[.245,-.12],[.29,-.23],[.33,-.35],[.334,-.36]],22),{slot:BOT, flex, scale:[1,1,.95]});
   b.add(lathe([[.33,-.33],[.338,-.345],[.335,-.362]],22,0,Math.PI*2,false),{slot:ACC, flex, scale:[1,1,.95]});
-  b.add(new THREE.CircleGeometry(.21,Math.max(6,Math.round(14*D))).rotateX(-Math.PI/2),{pos:[0,.06,0], scale:[1,1,.95], slot:BOT});
+  // hip bridge: hidden under the tunic when upright, closes the back when bowing
+  b.add(lathe([[.2,.04],[.18,.14],[.165,.24],[.13,.3],[.002,.31]],18),{scale:[.95,1,.8], slot:BOT});
   return b.build();
 }
 
@@ -168,7 +169,7 @@ function tuck(g, fn, r=.315){
   for(let i=0;i<p.count;i++){ const x=p.getX(i), y=p.getY(i), z=p.getZ(i); if(fn(x,y,z)){ const k=r/Math.max(1e-4,Math.hypot(x,y,z)); p.setXYZ(i,x*k,y*k,z*k); } }
   return g;
 }
-const earTuck = (x,y,z)=> Math.abs(x)>.22 && y<.07 && y>-.2 && z>-.13 && z<.15;
+const earTuck = (x,y,z)=> Math.abs(x)>.2 && (((z+.005)/.125)**2 + ((y+.035)/.115)**2 < 1 || (y<-.08 && z>-.06));
 function hairBack(b, D, R, slot){
   const { S } = makeKit(D);
   // back + sides down over the nape; ear region tucked so ears sit on skin
