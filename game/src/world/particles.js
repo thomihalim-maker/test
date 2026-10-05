@@ -12,7 +12,7 @@ export function createParticles(ctx){
   const NP=110; const pg=new THREE.BufferGeometry();
   pg.setAttribute('position',new THREE.Float32BufferAttribute([-0.07,0,-0.05, 0.07,0,-0.05, 0.0,0.02,0.08],3));
   pg.setAttribute('normal',new THREE.Float32BufferAttribute([0,1,0,0,1,0,0,1,0],3));
-  const pm=new THREE.MeshLambertMaterial({side:THREE.DoubleSide,color:0xffffff,transparent:true,opacity:1});
+  const pm=new THREE.MeshBasicMaterial({side:THREE.DoubleSide,color:0xffffff});
   const petals=new THREE.InstancedMesh(pg,pm,NP); petals.frustumCulled=false;
   const pcol=['#ffb3cf','#ffffff','#ffd1e0','#ffe38a','#ffc0a0'].map(c=>new THREE.Color(c));
   const P=[]; for(let i=0;i<NP;i++){ P.push({x:r()*40-20,y:r()*10,z:r()*40-20,ph:r()*6.28,sp:0.5+r()*0.8,rs:1+r()*2,s:0.8+r()*1.1}); petals.setColorAt(i,pcol[i%5]); }
@@ -52,7 +52,7 @@ export function createParticles(ctx){
     const day=1-atm.state.night;
     // petals around focus
     const wd=atm.state.windDir; const vis=day*0.95;
-    pm.opacity=1; petals.visible=vis>0.05;
+    pm.color.setScalar(0.25+0.75*day); petals.visible=vis>0.05;
     if(petals.visible){
       for(let i=0;i<NP;i++){ const p=P[i];
         p.x+=(wd.x*0.9+Math.sin(t*0.7+p.ph)*0.6)*p.sp*dt*2; p.z+=(wd.y*0.9+Math.cos(t*0.6+p.ph)*0.6)*p.sp*dt*2; p.y-=dt*(0.35+0.2*Math.sin(t+p.ph))*p.sp;
@@ -60,7 +60,7 @@ export function createParticles(ctx){
         // wrap relative to focus
         let dx=p.x-focus.x, dz=p.z-focus.z; if(dx>22)p.x-=44; if(dx<-22)p.x+=44; if(dz>22)p.z-=44; if(dz<-22)p.z+=44;
         const gh=heightAt(p.x,p.z); if(p.y<gh+0.15){ p.y=gh+6+r()*5; }
-        d.position.set(p.x,p.y,p.z); d.rotation.set(t*p.rs+p.ph,t*p.rs*0.7,t*p.rs*0.5); d.scale.setScalar(p.s*vis+0.0001); d.updateMatrix(); petals.setMatrixAt(i,d.matrix); }
+        d.position.set(p.x,p.y,p.z); d.rotation.set(t*p.rs+p.ph,t*p.rs*0.7,t*p.rs*0.5); d.scale.setScalar(p.s*1.5*vis+0.0001); d.updateMatrix(); petals.setMatrixAt(i,d.matrix); }
       petals.instanceMatrix.needsUpdate=true;
     }
     // fireflies

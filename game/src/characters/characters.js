@@ -166,7 +166,6 @@ export async function init(ctx){
     const maxSp = (input.run?6.2:4.2);
     let canMove = !act || (act.cancel && act.t>.35 && mag>.55 && act.name!=='jump');
     if(act && canMove && act.name!=='jump'){ act=null; player.anim='loco'; player.actEnd=false; }
-    if(forceAnim && !act) canMove = mag>0.1 && false || false;
     const lockMove = !!act || (forceAnim && !mag);
     const target = lockMove ? tmp2.set(0,0,0) : tmp2.copy(tmp).multiplyScalar(maxSp*Math.min(1,mag*1.05));
     const rate = target.lengthSq()>vel.lengthSq() ? 9 : 13;
@@ -211,7 +210,6 @@ export async function init(ctx){
         if(act.jt===2){ act.landT+=dt; if(act.landT>.28){ act=null; J.anim='loco'; J.actEnd=false; J.jumpPhase=-1; } }
       } else if(!act.fired && act.t>=act.hit){
         act.fired=true; if(act.emit) fireInteract(act);
-        if(act.name==='bedug'||act.name==='wave'){}
       }
       if(act && act.t>=act.dur && act.name!=='jump'){ act=null; }
     }

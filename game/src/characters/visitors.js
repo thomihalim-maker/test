@@ -183,7 +183,7 @@ export function createVisitors(ctx, people, env){
         case 'arrive': case 'gather': {
           v.waitT += v.state==='gather'?dt:0;
           if(v.path.length){ const w=v.path[0]; const d=moveTo(v,w.x,w.z,dt); if(d<.35){ v.path.shift(); if(!v.path.length){ v.state = v.mode==='sit'?'toSit':'gather'; v.waitT=0; } } p.pose('loco'); }
-          else { stand(v,dt,Math.atan2(-p.pos.x*.2,-4)+Math.PI*0+ (v.gx?0:0) + Math.sin(v.id)*1.2 + Math.PI); p.pose(v.id%2?'chat':'loco'); }
+          else { stand(v,dt,Math.sin(v.id*7.3)*1.4+Math.PI*.5); p.pose(v.id%2?'chat':'loco'); }
           if(v.state==='gather'&&v.waitT>((ctx.state?.masjid?.stage|0)>=1?80:14)){ leave(v); }
           break; }
         case 'static': { stand(v,dt,v.faceYaw); break; }
