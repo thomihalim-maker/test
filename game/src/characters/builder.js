@@ -169,7 +169,7 @@ export function buildSash(D=1){
 export function buildArm(D=1){
   const { sph, lathe, tor } = makeKit(D); const b = new GB();
   b.add(lathe([[.002,.035],[.055,.03],[.064,0],[.06,-.1],[.054,-.2],[.052,-.215]],10),{slot:TOP});
-  b.add(tor(.053,.012,4,12),{pos:[0,-.212,0], rot:[Math.PI/2,0,0], slot:ACC});
+  b.add(tor(.052,.008,3,12),{pos:[0,-.212,0], rot:[Math.PI/2,0,0], slot:ACC});
   b.add(sph(1,10,8),{pos:[0,-.278,.004], scale:[.056,.064,.05], slot:SKIN});
   return b.build();
 }
@@ -192,9 +192,10 @@ export function buildSarong(D=1){
   b.add(lathe([[.207,.065],[.212,.0],[.228,-.1],[.25,-.2],[.266,-.27],[.262,-.278]],22),{slot:BOT, flex, scale:[1,1,.93]});
   // overlap fold flap (front-left)
   b.add(lathe([[.215,.04],[.219,0],[.236,-.1],[.258,-.2],[.274,-.272]],3,.12,.3),{slot:BOT, tone:.88, flex, scale:[1,1,.93]});
-  b.add(new THREE.CircleGeometry(.21,Math.max(6,Math.round(16*D))).rotateX(-Math.PI/2),{pos:[0,.06,0], scale:[1,1,.93], slot:BOT, tone:.8});
-  // rolled waistband
-  b.add(tor(.214,.03,5,22),{pos:[0,.05,0], rot:[Math.PI/2,0,0], scale:[1,.93,1], slot:BOT, tone:.95});
+  const darkUV = (g)=>{ const u=g.attributes.uv; for(let i=0;i<u.count;i++) u.setXY(i,.04+(i%7)*.004,.05); };
+  b.add(new THREE.CircleGeometry(.21,Math.max(6,Math.round(16*D))).rotateX(-Math.PI/2),{pos:[0,.06,0], scale:[1,1,.93], slot:BOT, post:darkUV});
+  // rolled waistband (samples the dark plaid band)
+  b.add(tor(.214,.026,5,22),{pos:[0,-.06,0], rot:[Math.PI/2,0,0], scale:[1,.93,1], slot:BOT, tone:1.25, post:darkUV});
   return b.build();
 }
 export function buildSkirt(D=1){
@@ -219,9 +220,9 @@ export function buildHat(kind, D=1){
     hairBack(b,D,R,HAIR);
     for(const s of[-1,1]) b.add(sph(.06,6,5),{pos:[s*.33,.03,.06], scale:[.5,1.2,.9], slot:HAIR}); // sideburns
     // straight-sided, slightly tapered flat-top songkok, slight back tilt
-    const pts=[[.326,.07],[.33,.1],[.304,.335],[.298,.346],[.284,.352],[.002,.354]].map(p=>new THREE.Vector2(p[0],p[1]));
-    b.add(new THREE.LatheGeometry(pts,S(26)),{rot:[-.09,0,0], pos:[0,0,-.012], scale:[1.06,1,1.0], slot:HEAD});
-    b.add(tor(.33,.008,3,S(26)),{rot:[Math.PI/2-.09,0,0], pos:[0,.1,-.003], scale:[1.06,1,1], slot:HEAD, tone:1.9});
+    const pts=[[.302,.08],[.306,.12],[.288,.334],[.281,.345],[.268,.351],[.002,.353]].map(p=>new THREE.Vector2(p[0],p[1]));
+    b.add(new THREE.LatheGeometry(pts,S(26)),{rot:[-.09,0,0], pos:[0,0,-.012], scale:[1.05,1,1.0], slot:HEAD});
+    b.add(tor(.305,.007,3,S(26)),{rot:[Math.PI/2-.09,0,0], pos:[0,.13,-.001], scale:[1.05,1,1], slot:HEAD, tone:1.9});
   } else if(kind==='kopiah'){
     hairBack(b,D,R,HAIR);
     b.add(new THREE.SphereGeometry(R*1.05,S(20),S(9),0,Math.PI*2,0,Math.PI*.46),{scale:[1.07,.9,1.04],pos:[0,.06,-.012], rot:[-.08,0,0], slot:HEAD});
