@@ -145,11 +145,11 @@ export function buildShin(D=1){
 export function buildSarong(D=1){
   const { lathe, tor, sph } = makeKit(D); const b = new GB();
   const flex = (x,y)=>Math.pow(Math.max(0,(.06-y)/.33),1.5);
-  b.add(lathe([[.207,.065],[.212,.0],[.228,-.1],[.25,-.2],[.266,-.27],[.262,-.278]],22),{slot:BOT, flex, scale:[1,1,.93]});
+  b.add(lathe([[.185,.065],[.2,.0],[.226,-.1],[.25,-.2],[.266,-.27],[.262,-.278]],22),{slot:BOT, flex, scale:[1,1,.9]});
   // overlap fold flap (front-left)
-  b.add(lathe([[.215,.04],[.219,0],[.236,-.1],[.258,-.2],[.274,-.272]],3,.12,.3),{slot:BOT, tone:.88, flex, scale:[1,1,.93]});
+  b.add(lathe([[.2,.0],[.206,-.03],[.234,-.1],[.258,-.2],[.274,-.272]],3,.12,.3),{slot:BOT, tone:.88, flex, scale:[1,1,.9]});
   const darkUV = (g)=>{ const u=g.attributes.uv; for(let i=0;i<u.count;i++) u.setXY(i,.04+(i%7)*.004,.05); };
-  b.add(lathe([[.2,.05],[.18,.14],[.165,.24],[.13,.3],[.002,.31]],18),{scale:[.95,1,.8], slot:BOT, post:darkUV});
+  b.add(lathe([[.185,.06],[.17,.14],[.16,.24],[.13,.3],[.002,.31]],18),{scale:[.95,1,.8], slot:BOT, post:darkUV});
   return b.build();
 }
 export function buildSkirt(D=1){
@@ -173,7 +173,7 @@ const earTuck = (x,y,z)=> Math.abs(x)>.2 && (((z+.005)/.125)**2 + ((y+.035)/.115
 function hairBack(b, D, R, slot){
   const { S } = makeKit(D);
   // back + sides down over the nape; ear region tucked so ears sit on skin
-  const g = new THREE.SphereGeometry(R*1.045,S(22),S(16),Math.PI/2+1.25,Math.PI*2-2.5,0,Math.PI*.8);
+  const g = new THREE.SphereGeometry(R*1.045,S(30),S(22),Math.PI/2+1.25,Math.PI*2-2.5,0,Math.PI*.8);
   b.add(tuck(g,(x,y,z)=>earTuck(x,y,z) || (y<-.26 && z>-.05)),{scale:[1.08,1.0,1.03], pos:[0,0,-.012], slot});
   b.add(new THREE.SphereGeometry(R*1.045,S(22),S(6),0,Math.PI*2,0,Math.PI*.3),{scale:[1.08,1.0,1.03], pos:[0,0,-.012], slot});
 }
