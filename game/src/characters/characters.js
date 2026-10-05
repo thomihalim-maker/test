@@ -27,7 +27,7 @@ export async function init(ctx){
   const q = new URLSearchParams(location.search);
   const scene = ctx.scene, camera = ctx.camera;
   ctx.interactables ??= [];
-  const tr = (k)=>{ const lang = ctx.state?.settings?.lang==='en'?'en':'id'; return L10N[lang][k]||L10N.id[k]||k; };
+  const tr = (k)=>{ const lang = (ctx.state?.lang ?? ctx.state?.settings?.lang)==='en'?'en':'id'; return L10N[lang][k]||L10N.id[k]||k; };
 
   // ---------- dev scaffolding when world module is absent ----------
   let dev = null;
