@@ -96,7 +96,7 @@ function orient(pos,dir,up=new V3(0,1,0)){
 }
 
 // ---------- breed definitions ----------
-const COLLARS=['#ff6b81','#2ec4b6','#ffd166','#6c8cff','#b983ff','#ff9f43','#5fd38d'];
+const COLLARS=['#ff2e63','#00b8a9','#ffc400','#2f6bff','#9b4dff','#ff7a00','#22c55e','#ff3fa4'];
 const NAMES={
   goat:['Bleki','Mbek','Kiki','Cemong','Gembul','Sari','Tuti','Bagas','Upil','Joko','Mocha','Pelangi','Bimo','Lintang','Cokelat'],
   sheep:['Domba','Awan','Kapas','Wolly','Ndut','Melati','Bulu','Salju','Pudding','Cimol','Mochi','Bintang','Gula','Kuncung','Marsmallow'],
@@ -106,21 +106,23 @@ export function pickName(kind,rng,used){ const l=NAMES[kind]; for(let i=0;i<30;i
 const pick=(rng,a)=>a[Math.floor(rng()*a.length)];
 
 function goatBreed(rng){
-  const k=pick(rng,['boer','boer','kacang','etawa','pied','cream']);
+  const k=pick(rng,['boer','kacang','etawa','pied','golden','golden']);
   switch(k){
     case 'boer': return {k, base:'#f6eee0', belly:'#fffaf0', head:'#b4573a', muzzle:'#e8b9a0', ear:'#a24b32', leg:'#f1e6d3', patches:[], nose:'#6b4a45', beard:'#f6eee0', horn:'#e9ddc2'};
     case 'kacang': return {k, base:'#8e5f3e', belly:'#c99b72', head:'#7d5035', muzzle:'#d1a47c', ear:'#6e4630', leg:'#4a3022', patches:[{c:[0,.62,-.05],r:.2,col:'#3e2a1e',sx:3.6,sy:.35,sz:1.7}], nose:'#3a2a26', beard:'#4a3022', horn:'#cdbf9f'};
     case 'etawa': return {k, base:'#e2bf92', belly:'#f6e3c6', head:'#d1a06c', muzzle:'#f2d6b3', ear:'#b98055', leg:'#f6e3c6', patches:[{c:[.2,.5,.1],r:.17,col:'#fff4e2'},{c:[-.15,.55,-.2],r:.15,col:'#8a5a3a'}], nose:'#5a403a', beard:'#e2bf92', horn:'#d8c7a5'};
     case 'pied': return {k, base:'#fbf6ee', belly:'#ffffff', head:'#2f2a2c', muzzle:'#d9c9c3', ear:'#2f2a2c', leg:'#fbf6ee', patches:[{c:[.18,.55,.0],r:.2,col:'#2f2a2c'},{c:[-.2,.45,-.25],r:.17,col:'#3b3236'}], nose:'#e9a4a8', beard:'#2f2a2c', horn:'#e9ddc2'};
-    default: return {k:'cream', base:'#f3dcb4', belly:'#fff1d6', head:'#e8c590', muzzle:'#f9e6c8', ear:'#e0b783', leg:'#f3dcb4', patches:[], nose:'#b97c70', beard:'#fff1d6', horn:'#e7dcc4'};
+    default: return {k:'golden', base:'#eab35a', belly:'#fbe0a0', head:'#e29b3c', muzzle:'#fbe3b0', ear:'#cf8630', leg:'#f3cf86', patches:[{c:[0,.62,-.05],r:.18,col:'#c97a28',sx:3,sy:.4,sz:1.6}], nose:'#8a5a44', beard:'#fbe0a0', horn:'#e7dcc4', tip:'#a85f1c'};
   }
 }
 function sheepBreed(rng){
-  const k=pick(rng,['white','white','cream','darkface','garut','grey']);
+  const k=pick(rng,['white','caramel','lavender','darkface','garut','cream']);
   switch(k){
-    case 'white': return {k, wool:'#fffaf0', face:'#4a3a3a', ear:'#4a3a3a', leg:'#4a3a3a', muzzle:'#6b5555', nose:'#2c2224', horns:false};
+    case 'white': return {k, wool:'#fffaf0', face:'#8c7467', ear:'#7a6358', leg:'#6e5b52', muzzle:'#a58f82', nose:'#4a3434', horns:false};
+    case 'caramel': return {k, wool:'#e2a766', face:'#f0d2a8', ear:'#d9a870', leg:'#b9824a', muzzle:'#f8e2c0', nose:'#9a6650', horns:false};
+    case 'lavender': return {k, wool:'#cdbbf0', face:'#f4e2dc', ear:'#e0b8c4', leg:'#a893cf', muzzle:'#fff0ea', nose:'#c07a8a', horns:false};
     case 'cream': return {k, wool:'#f5e6c8', face:'#e7c9a2', ear:'#dcb68b', leg:'#e0bf95', muzzle:'#f2d9b8', nose:'#b87f78', horns:false};
-    case 'darkface': return {k, wool:'#fdf6ea', face:'#8a6a52', ear:'#7a5a44', leg:'#7a5a44', muzzle:'#a48064', nose:'#3c2a26', horns:false};
+    case 'darkface': return {k, wool:'#fdf6ea', face:'#b08a6a', ear:'#9a7452', leg:'#8a6648', muzzle:'#c9a584', nose:'#3c2a26', horns:false};
     case 'garut': return {k, wool:'#d9c8ae', face:'#a98462', ear:'#94704f', leg:'#8f6c4f', muzzle:'#c3a07e', nose:'#4b3630', horns:true};
     default: return {k:'grey', wool:'#cfd2d4', face:'#5f5c60', ear:'#55525a', leg:'#55525a', muzzle:'#7b777c', nose:'#2c2a2e', horns:false};
   }
@@ -128,7 +130,7 @@ function sheepBreed(rng){
 function cowBreed(rng){
   const k=pick(rng,['holstein','holstein','limousin','bali','brahman','jersey']);
   switch(k){
-    case 'holstein': { const pt=[]; for(let i=0;i<7;i++) pt.push({c:[(rng()-.5)*.6,.35+rng()*.35,(rng()-.5)*.9],r:.14+rng()*.12,col:'#2c2a2e'});
+    case 'holstein': { const pt=[]; for(let i=0;i<9;i++) pt.push({c:[(rng()-.5)*.7,.3+rng()*.4,(rng()-.5)*.8],r:.16+rng()*.14,col:rng()<.15?'#6b4a3a':'#2c2a2e'});
       return {k, base:'#fffdf8', belly:'#ffffff', head:'#fffdf8', muzzle:'#f6b6b6', ear:'#2c2a2e', leg:'#fffdf8', patches:pt, nose:'#f2a0a8', horn:'#efe6cf', hump:false, tail:'#2c2a2e'}; }
     case 'limousin': return {k, base:'#c4803f', belly:'#e6b982', head:'#bd7a3a', muzzle:'#f3d5b2', ear:'#a8672f', leg:'#b4712f', patches:[], nose:'#e9a8a0', horn:'#efe6cf', hump:false, tail:'#8e5424'};
     case 'bali': return {k, base:'#b25a35', belly:'#e8c9a6', head:'#a64f2e', muzzle:'#f3dcc0', ear:'#8f4328', leg:'#fff4e2', patches:[{c:[0,.5,-.45],r:.3,col:'#fff6e6'}], nose:'#3e2a26', horn:'#d8cdb4', hump:false, tail:'#3a2218'};
@@ -138,15 +140,16 @@ function cowBreed(rng){
 }
 
 // ---------- main builder ----------
-export function buildAnimal(kind,seed){
+export function buildAnimal(kind,seed,baby=false){
   const rng=mulberry32(seed|0); const M=new Mesher();
   const br = kind==='goat'?goatBreed(rng):kind==='sheep'?sheepBreed(rng):cowBreed(rng);
   const male=rng()<0.5;
   const collar=C(pick(rng,COLLARS));
   // layout parameters
-  const L = kind==='goat'? {S:.95,bR:[.27,.24,.37],hipY:.31,hR:[.225,.2,.205],hdz:.40,hdy:.26,lt:.056,lx:.14,lz:[.2,-.21]}
+  const L = kind==='goat'? {S:.95,bR:[.29,.27,.35],hipY:.31,hR:[.225,.2,.205],hdz:.40,hdy:.26,lt:.056,lx:.14,lz:[.2,-.21]}
           : kind==='sheep'?{S:.95,bR:[.27,.25,.33],hipY:.27,hR:[.185,.175,.18],hdz:.40,hdy:.2,lt:.046,lx:.13,lz:[.2,-.2]}
-          :                {S:1.5,bR:[.27,.25,.4],hipY:.36,hR:[.215,.2,.215],hdz:.43,hdy:.22,lt:.064,lx:.15,lz:[.24,-.26]};
+          :                {S:1.3,bR:[.3,.28,.36],hipY:.22,hR:[.27,.24,.25],hdz:.4,hdy:.2,lt:.09,lx:.17,lz:[.2,-.22]};
+  if(baby){ L.S*=.6; L.hR=L.hR.map(v=>v*1.22); L.hdy*=1.1; }
   const bodyC=[0,L.hipY+L.bR[1]*.7,0];
   const H=[0,bodyC[1]+L.hdy,L.hdz];                     // head centre
   const neckP=[0,bodyC[1]+L.hdy*.35,L.hdz*.7];          // head pivot
@@ -199,8 +202,8 @@ export function buildAnimal(kind,seed){
   for(const [nm,sx,bk] of legCfg){
     const x=sx*L.lx, z=L.lz[bk], t=L.lt;
     M.tube([[x,L.hipY+.08,z],[x,L.hipY*.55,z+(bk?-.012:.008)],[x,.05,z+(bk?-.0:.01)]],[t*1.5,t*1.05,t*.85],{bone:B[nm],color:legC,seg:8,rad:8});
-    M.blob([x,.032,z+.012],[t*1.0,.034,t*1.15],{bone:B[nm],color:hoofC,noAo:false,sw:9,sh:6});
-    if(kind==='sheep') M.blob([x,L.hipY+.05,z],[t*2.1,.075,t*2.1],{bone:B.body,color:C(br.wool),sw:9,sh:6});
+    M.blob([x,.034,z+.012],[t*1.15,.04,t*1.3],{bone:B[nm],color:hoofC,noAo:false,sw:9,sh:6});
+    if(kind==='sheep') M.blob([x,L.hipY+.0,z],[t*3.0,.11,t*3.0],{bone:B.body,color:C(br.wool),sw:9,sh:6});
   }
 
   // ---- neck ----
@@ -237,8 +240,8 @@ export function buildAnimal(kind,seed){
   // eyes (own bones => blinking)
   for(const s of[-1,1]){
     const ep=s<0?rest.eyeL:rest.eyeR; const d=eyeDir(s); const fr=orient(ep,[d.x*1.15,d.y*.8,d.z],new V3(0,1,0));
-    const k=kind==='cow'?1.1:kind==='sheep'?1.0:1.0; const eb={bone:s<0?B.eyeL:B.eyeR,frame:fr,noAo:true};
-    M.blob([0,0,0],[.078*k,.085*k,.05],{...eb,color:C('#fff6ea'),glow:.2,sw:14,sh:10});
+    const k=(kind==='cow'?1.3:kind==='sheep'?1.15:1.05)*(baby?1.15:1); const eb={bone:s<0?B.eyeL:B.eyeR,frame:fr,noAo:true};
+    M.blob([0,0,0],[.09*k,.097*k,.05],{...eb,color:C('#fff6ea'),glow:.2,sw:14,sh:10});
     M.blob([0,-.004,.016],[.07*k,.078*k,.04],{...eb,color:(p)=>{ const t=sstep(-.07,.07,p.y); return C('#8a4e2c').lerp(C('#2a1812'),t); },sw:14,sh:10});
     M.blob([0,.004,.034],[.036*k,.043*k,.016],{...eb,color:C('#0b0706'),sw:10,sh:8});
     M.blob([-.024*k,.034*k,.05],[.022*k,.026*k,.01],{...eb,color:C('#ffffff'),glow:1,sw:8,sh:6});
@@ -258,8 +261,8 @@ export function buildAnimal(kind,seed){
       M.blob(o(.08,-.015,0),[.1,.032,.055],{...eb,color:earC,rot:[0,0,-s*.35],sw:12,sh:8});
       M.blob(o(.085,-.025,.012),[.065,.012,.034],{...eb,color:C('#ec9fa0'),rot:[0,0,-s*.35],noAo:true});
     } else {
-      M.blob(o(.1,0,0),[.115,.035,.07],{...eb,color:earC,rot:[0,s*.1,-s*.25],sw:12,sh:8});
-      M.blob(o(.105,-.008,.012),[.075,.014,.045],{...eb,color:C('#f4a6a8'),rot:[0,s*.1,-s*.25],noAo:true});
+      M.blob(o(.13,0,0),[.15,.045,.095],{...eb,color:earC,rot:[0,s*.1,-s*.25],sw:12,sh:8});
+      M.blob(o(.135,-.008,.012),[.1,.016,.06],{...eb,color:C('#f4a6a8'),rot:[0,s*.1,-s*.25],noAo:true});
     }
   }
   // ---- horns / hair ----
@@ -268,7 +271,7 @@ export function buildAnimal(kind,seed){
   if(hornsOn) for(const s of[-1,1]){
     const o=(x,y,z)=>[H[0]+x*s,H[1]+y,H[2]+z];
     if(kind==='goat') M.tube([o(.08,L.hR[1]*.8,-.02),o(.1,L.hR[1]+.07,-.06),o(.12,L.hR[1]+.12,-.14),o(.12,L.hR[1]+.12,-.24)],[.032,.026,.018,.006],{...hb,color:hornC,seg:10,rad:7});
-    else if(kind==='cow') M.tube([o(.12,L.hR[1]*.75,-.02),o(.19,L.hR[1]+.02,-.03),o(.24,L.hR[1]+.1,-.02),o(.25,L.hR[1]+.18,.02)],[.032,.027,.02,.007],{...hb,color:hornC,seg:8,rad:7});
+    else if(kind==='cow') M.tube([o(.14,L.hR[1]*.78,-.02),o(.19,L.hR[1]+.0,-.03),o(.22,L.hR[1]+.05,-.02)],[.04,.034,.014],{...hb,color:hornC,seg:8,rad:7});
     else { const pts=[]; for(let i=0;i<=8;i++){ const a=i/8*4.0; pts.push(o(.1+Math.sin(a)*.08+a*.012,L.hR[1]*.55+Math.cos(a)*.09*(1-a*.08)-.02,-.03-Math.sin(a*.5)*.05+Math.cos(a)*.0)); }
       M.tube(pts,[.04,.036,.03,.024,.016,.006],{...hb,color:hornC,seg:16,rad:7}); }
   }
@@ -281,9 +284,9 @@ export function buildAnimal(kind,seed){
 
   // ---- tail ----
   const tp=rest.tail; const tb={bone:B.tail}; const tt=(x,y,z)=>[tp[0]+x,tp[1]+y,tp[2]+z];
-  if(kind==='goat') M.tube([tt(0,0,0),tt(0,.05,-.05),tt(0,.12,-.05)],[.05,.04,.016],{...tb,color:C(br.base),seg:6,rad:7});
+  if(kind==='goat'){ M.tube([tt(0,0,0),tt(0,.08,-.06),tt(0,.19,-.05)],[.065,.055,.022],{...tb,color:C(br.tip||br.head),seg:8,rad:7}); }
   else if(kind==='sheep') M.blob(tt(0,0,-.03),[.07,.07,.07],{...tb,color:C(br.wool),sw:8,sh:6});
-  else { M.tube([tt(0,0,0),tt(0,-.22,-.04),tt(0,-.44,-.03)],[.024,.02,.015],{...tb,color:C(br.tail),seg:8,rad:6}); M.blob(tt(0,-.5,-.03),[.05,.085,.05],{...tb,color:C(br.tail).multiplyScalar(.72),sw:8,sh:6}); }
+  else { M.tube([tt(0,0,0),tt(0,-.17,-.04),tt(0,-.32,-.03)],[.03,.025,.018],{...tb,color:C(br.tail),seg:8,rad:6}); M.blob(tt(0,-.38,-.03),[.07,.1,.07],{...tb,color:C(br.tail).multiplyScalar(.72),sw:8,sh:6}); }
 
   // ---- collar + bell/tag ----
   const nc=new V3().addVectors(neckA,neckB).multiplyScalar(.5); nc.z+=.0; nc.y-=.0;

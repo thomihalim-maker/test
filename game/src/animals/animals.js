@@ -13,7 +13,7 @@ const angDiff=(a,b)=>{ let d=(b-a)%(Math.PI*2); if(d>Math.PI)d-=Math.PI*2; if(d<
 const KIND = {
   goat :{ speed:1.05, rad:.36, reach:.6,  gain:.0085, w0:[16,24], wMax:42,  price:60,  bleat:'bleat_goat' },
   sheep:{ speed:.9,   rad:.40, reach:.6,  gain:.0105, w0:[20,30], wMax:55,  price:75,  bleat:'bleat_sheep' },
-  cow  :{ speed:.75,  rad:.66, reach:1.0, gain:.1,    w0:[190,260], wMax:520, price:220, bleat:'moo' },
+  cow  :{ speed:.75,  rad:.58, reach:.85, gain:.1,    w0:[190,260], wMax:520, price:220, bleat:'moo' },
 };
 const MAX_ANIMALS=16;
 const TXT={ id:{hay:'Hay habis!',water:'Air habis!',soap:'Sabun habis!',treat:'Camilan habis!',happy:'senang!',full:'sudah kenyang',fullw:'sudah puas minum',clean:'sudah bersih',full2:'Hewan sudah penuh',troughHay:'Palung diisi jerami',troughWater:'Bak air diisi'},
@@ -84,19 +84,22 @@ export async function init(ctx){
     }
     g.restore();
   }
+  const PLATE={hunger:'#ff9d1a',thirst:'#2f9bff',dirty:'#17c3b2',heart:'#ff4f87',love:'#ff4f87',zzz:'#6f7dff'};
   function drawBubble(a,b,kind,showName){
     const g=b.g; g.clearRect(0,0,256,200);
     if(kind){
-      const urgent=kind==='hunger'||kind==='thirst'||kind==='dirty'; const col=kind==='zzz'?'#9fb0ff':(urgent?(a.stats.hunger<.15||a.stats.thirst<.15||a.stats.clean<.12?'#ff6b6b':'#ffc24a'):'#ff8fb1');
-      g.fillStyle='#fffaf0'; g.strokeStyle=col; g.lineWidth=7; g.beginPath(); g.roundRect(78,2,100,92,28); g.fill(); g.stroke();
-      g.beginPath(); g.moveTo(116,92); g.lineTo(128,108); g.lineTo(140,92); g.fillStyle='#fffaf0'; g.fill(); g.strokeStyle=col; g.beginPath(); g.moveTo(113,92); g.lineTo(128,108); g.lineTo(143,92); g.stroke(); g.fillStyle='#fffaf0'; g.fillRect(118,88,20,8);
-      icon(g,kind,128,48);
+      const col=PLATE[kind]; g.lineJoin='round';
+      g.beginPath(); g.moveTo(108,92); g.lineTo(128,114); g.lineTo(148,92); g.closePath(); g.fillStyle=col; g.strokeStyle='#3a2418'; g.lineWidth=8; g.stroke(); g.fill();
+      g.beginPath(); g.roundRect(70,2,116,96,34); g.fillStyle=col; g.fill(); g.stroke();
+      g.fillStyle=col; g.fillRect(112,88,32,8);
+      g.fillStyle='#fffaf0'; g.beginPath(); g.arc(128,50,38,0,7); g.fill(); g.strokeStyle='rgba(58,36,24,.5)'; g.lineWidth=3; g.stroke();
+      icon(g,kind,128,50);
     }
     if(showName){
-      g.font='bold 30px "Trebuchet MS",sans-serif'; const w=Math.max(96,g.measureText(a.name).width+40);
-      g.fillStyle='rgba(255,248,230,.96)'; g.strokeStyle='#c9894a'; g.lineWidth=5; g.beginPath(); g.roundRect(128-w/2,128,w,48,24); g.fill(); g.stroke();
-      g.fillStyle='#5a3a1e'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(a.name,128,148);
-      g.font='bold 20px sans-serif'; g.fillStyle='#a06a30'; g.fillText(a.weight.toFixed(a.kind==='cow'?0:1)+' kg',128,188);
+      g.font='bold 30px "Trebuchet MS",sans-serif'; const w=Math.max(96,g.measureText(a.name).width+44);
+      g.fillStyle='rgba(52,32,20,.92)'; g.strokeStyle='#ffd27a'; g.lineWidth=4; g.beginPath(); g.roundRect(128-w/2,128,w,66,22); g.fill(); g.stroke();
+      g.fillStyle='#fff6e0'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(a.name,128,150);
+      g.font='bold 20px sans-serif'; g.fillStyle='#ffd27a'; g.fillText(a.weight.toFixed(a.kind==='cow'?0:1)+' kg',128,178);
     }
     b.tex.needsUpdate=true;
   }
@@ -105,9 +108,9 @@ export async function init(ctx){
   const list=[]; const used=new Set(); let nextId=1;
   function create(kind,opts={}){
     const seed=opts.seed??((Math.random()*1e9)|0); const rng=mulberry32(seed^0x9e37);
-    const m=buildAnimal(kind,seed); const K=KIND[kind];
+    const m=buildAnimal(kind,seed,!!opts.baby); const K0=KIND[kind]; const K=opts.baby?{...K0,rad:K0.rad*.62,reach:K0.reach*.62,speed:K0.speed*1.15,w0:K0.w0.map(v=>v*.3),wMax:K0.wMax*.5,gain:K0.gain*.5}:K0;
     const name=opts.name??pickName(kind,rng,used); used.add(name);
-    const a={ id:nextId++, kind, breed:m.breed, seed, name, male:m.male, model:m, mesh:m.group, pos:new V3(), heading:opts.heading??rng()*6.28,
+    const a={ id:nextId++, kind, baby:!!opts.baby, breed:m.breed, seed, name, male:m.male, model:m, mesh:m.group, pos:new V3(), heading:opts.heading??rng()*6.28,
       stats:{ hunger:.8, thirst:.8, clean:.9, happy:.7, ...(opts.stats||{}) },
       weight:opts.weight??(K.w0[0]+rng()*(K.w0[1]-K.w0[0])), rad:K.rad, K,
       state:'idle', stT:1+rng()*2, target:null, slot:null, after:null, speed:0, walkAmt:0, ph:rng()*6, sleepAmt:0, headDown:0, headLook:0, look:0,
@@ -122,10 +125,11 @@ export async function init(ctx){
   function spawnPoint(rng){ for(let i=0;i<40;i++){ const x=B.x0+1.5+rng()*(B.x1-B.x0-3), z=B.z0+1.5+rng()*(B.z1-B.z0-3); if(pen.obstacles.every(o=>Math.hypot(o.x-x,o.z-z)>o.r+.9) && list.every(l=>Math.hypot(l.pos.x-x,l.pos.z-z)>1.6)) return [x,0,z]; } return [B.x0+2,0,B.z0+6]; }
   const rs=mulberry32(1234);
   if(Array.isArray(S.animals)&&S.animals.length&&S.animals[0]?.seed!==undefined){
-    for(const d of S.animals){ if(!KIND[d.kind]) continue; create(d.kind,{seed:d.seed,name:d.name,stats:d.stats,weight:d.weight,at:spawnPoint(rs)}); }
+    for(const d of S.animals){ if(!KIND[d.kind]) continue; create(d.kind,{seed:d.seed,name:d.name,stats:d.stats,weight:d.weight,baby:d.baby,at:spawnPoint(rs)}); }
   }
   if(!list.length) ['goat','goat','sheep','sheep','cow','goat'].forEach((k,i)=>create(k,{seed:[101,205,309,412,517,623][i],at:spawnPoint(rs)}));
-  const persist=()=>{ S.animals=list.map(a=>({kind:a.kind,seed:a.seed,name:a.name,stats:{...a.stats},weight:a.weight})); };
+  if(!S.animals?.length){ create('goat',{seed:731,baby:true,at:spawnPoint(rs)}); create('sheep',{seed:842,baby:true,at:spawnPoint(rs)}); }
+  const persist=()=>{ S.animals=list.map(a=>({kind:a.kind,seed:a.seed,name:a.name,stats:{...a.stats},weight:a.weight,baby:a.baby})); };
   persist();
 
   // ---------------- helpers: station use / AI ----------------
@@ -196,8 +200,8 @@ export async function init(ctx){
     interact(a,tool){ switch(tool){ case 'hay': return api.feed(a,'hay'); case 'treat': return api.feed(a,'treat'); case 'water': return api.water(a); case 'soap': return api.wash(a); default: return api.pet(a); } },
     fillStation(type='feed'){ if(type==='water'){ if(st.water.fill>.9){ return false; } if(!useItem('water')) return false; st.water.fill=Math.min(1,st.water.fill+.55); toast(T('troughWater')); audio('splash',{pos:st.water.pos,vol:.5}); return true; }
       const f=st.feed.slice().sort((p,q)=>p.fill-q.fill)[0]; if(f.fill>.9) return false; if(!useItem('hay')) return false; f.fill=Math.min(1,f.fill+.55); toast(T('troughHay')); audio('munch',{pos:f.pos,vol:.5}); return true; },
-    add(kind){ if(!KIND[kind]||list.length>=MAX_ANIMALS){ if(list.length>=MAX_ANIMALS) toast(T('full2')); return null; }
-      const a=create(kind,{at:[B.x0+1.6,0,PEN.cz+(Math.random()-.5)*1.5],heading:Math.PI/2,stats:{hunger:.7,thirst:.7,clean:1,happy:.8}}); persist(); sparkles(a.pos.clone().setY(.6),10); audio('pop',{pos:a.pos}); ctx.emit('animal:added',{animal:a}); return a; },
+    add(kind,o={}){ if(!KIND[kind]||list.length>=MAX_ANIMALS){ if(list.length>=MAX_ANIMALS) toast(T('full2')); return null; }
+      const a=create(kind,{at:[B.x0+1.6,0,PEN.cz+(Math.random()-.5)*1.5],heading:Math.PI/2,baby:!!o.baby,stats:{hunger:.7,thirst:.7,clean:1,happy:.8}}); persist(); sparkles(a.pos.clone().setY(.6),10); audio('pop',{pos:a.pos}); ctx.emit('animal:added',{animal:a}); return a; },
     remove(a){ const i=list.indexOf(a); if(i<0) return; release(a); a.dead=true; scene.remove(a.mesh); scene.remove(a.bubble.sp); a.bubble.tex.dispose(); a.mesh.traverse(o=>o.geometry?.dispose?.()); list.splice(i,1); persist(); },
     price:(k)=>KIND[k]?.price??0,
     totalWeight:()=>list.reduce((s,a)=>s+a.weight,0),
@@ -344,11 +348,12 @@ export async function init(ctx){
     else { const m=Math.min(S2.hunger,S2.thirst,S2.clean); if(m<.3){ kind=S2.hunger===m?'hunger':S2.thirst===m?'thirst':'dirty'; } else if(S2.happy>.9&&(t*.2+a.seed)%1<.45) kind='heart'; }
     const showName=dist<9.5; const wk=a.weight.toFixed(a.kind==='cow'?0:1);
     const key=kind+'|'+showName+'|'+wk+'|'+(kind==='hunger'||kind==='thirst'||kind==='dirty'?(Math.min(S2.hunger,S2.thirst,S2.clean)<.15?'r':'y'):'');
-    if(key!==b.key){ b.key=key; drawBubble(a,b,kind,showName); }
+    if(key!==b.key){ if(key.split('|')[0]!==b.key.split('|')[0]) b.pop=0; b.key=key; drawBubble(a,b,kind,showName); }
+    b.pop=Math.min(1,(b.pop??1)+dt/.38); const pp=b.pop, popS=pp>=1?1:(1+Math.sin(pp*Math.PI*1.5)*.0)*(1-Math.pow(1-pp,3)*Math.cos(pp*9)*1);
     const vis=(kind&&dist<26)||showName; b.sp.visible=vis&&a.mesh.visible;
     const bob=Math.sin(t*2.5+a.seed)*.04;
     b.sp.position.set(a.pos.x,a.pos.y+a.model.dims.bubbleY*(1-a.sleepAmt*.25)+bob+(kind?.0:-.28),a.pos.z);
-    const s=clamp(.72+dist*.02,.72,1.35); b.sp.scale.set(1.28*s,1.0*s,1);
+    const s=clamp(dist*.1,.42,1.15)*Math.max(.01,popS); b.sp.scale.set(1.28*s,1.0*s,1);
     b.mat.opacity=clamp((28-dist)/6,0,1);
   }
 

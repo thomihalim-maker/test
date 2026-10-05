@@ -1,0 +1,11 @@
+<!doctype html><html><head><meta charset="utf-8"><script type="importmap">{"imports":{"three":"./vendor/three-build/three.module.js","three/addons/":"./vendor/addons/"}}</script></head>
+<body style="margin:0"><canvas id="c" style="width:100vw;height:100vh;display:block"></canvas>
+<script type="module">
+import * as THREE from 'three';
+import { createCtx } from './src/ctx.js'; import { load } from './src/state.js';
+const ctx=createCtx(document.getElementById('c')); ctx.state=load(); ctx.THREE=THREE;
+const w=innerWidth,h=innerHeight; ctx.renderer.setSize(w,h,false); ctx.camera.aspect=w/h; ctx.camera.updateProjectionMatrix();
+const m=await import('./src/animals/animals.js'); const inst=await m.init(ctx); ctx.modules.animals=inst;
+const clock=new THREE.Clock(); window.__ctx=ctx;
+ctx.renderer.setAnimationLoop(()=>{ const dt=Math.min(clock.getDelta(),1/30); ctx.time+=dt; inst.update(dt,ctx.time); ctx.renderer.render(ctx.scene,ctx.camera); });
+</script></body></html>
