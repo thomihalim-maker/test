@@ -14,6 +14,7 @@ export const WUDHU = { x: -11, z: 6.5 };
 
 const rep = (t, x, y) => { const c = t.clone(); c.repeat.set(x, y); c.needsUpdate = true; return c; };
 const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+const V2 = (x, y) => new THREE.Vector2(x, y);
 
 export function makeMaterials(ctx, night) {
   const std = (o) => new THREE.MeshStandardMaterial(o);

@@ -92,8 +92,8 @@ export function createAtmosphere(ctx){
   scene.fog=new THREE.FogExp2(0xbfe4fa,0.0068);
   const hemi=new THREE.HemisphereLight(0xbfe0ff,0x8bbf6a,1.0); scene.add(hemi); ctx.hemi=hemi;
   const sun=new THREE.DirectionalLight(0xfff0d0,3); sun.castShadow=true;
-  sun.shadow.mapSize.set(2048,2048);
-  const sc=sun.shadow.camera; const EXT=36; sc.left=-EXT; sc.right=EXT; sc.top=EXT; sc.bottom=-EXT; sc.near=5; sc.far=220;
+  const SM=ctx.quality==='low'?1024:2048; sun.shadow.mapSize.set(SM,SM);
+  const sc=sun.shadow.camera; const EXT=22; sc.left=-EXT; sc.right=EXT; sc.top=EXT; sc.bottom=-EXT; sc.near=20; sc.far=160;
   sun.shadow.bias=-0.0004; sun.shadow.normalBias=0.05; sun.shadow.radius=5;
   scene.add(sun); scene.add(sun.target); ctx.sun=sun;
   const fill=new THREE.DirectionalLight(0xbcd8ff,0.35); scene.add(fill); scene.add(fill.target);
@@ -101,7 +101,7 @@ export function createAtmosphere(ctx){
   const sunDir=new THREE.Vector3(), moonDir=new THREE.Vector3(), L=new THREE.Vector3(), R=new THREE.Vector3(), U=new THREE.Vector3(), T=new THREE.Vector3();
   const state={ night:0, elev:1, sunDir, moonDir, golden:0, info:null, windDir:new THREE.Vector2(1,0.4).normalize() };
   const lightTarget=new THREE.Vector3();
-  const step=(2*EXT)/2048;
+  const step=(2*EXT)/SM;
 
   function update(dt,t,hour,camPos,focus){
     const k=sample(hour);
@@ -145,8 +145,8 @@ export function createAtmosphere(ctx){
     T.copy(L); T.x*=-1; T.z*=-1; T.y=0.35; T.normalize();
     fill.position.copy(focus).addScaledVector(T,50); fill.target.position.copy(focus);
     fill.color.copy(k.mid).lerp(new THREE.Color(0.7,0.55,1.0),0.35+0.4*state.golden); fill.intensity=0.4+0.35*state.golden+0.1*state.night;
-    hemi.groundColor.lerp(new THREE.Color('#6a58a0'),0.25+0.25*state.golden); hemi.color.lerp(new THREE.Color('#ffb890'),0.25*state.golden);
-    sun.color.lerp(new THREE.Color('#ff9a40'),0.35*state.golden);
+    hemi.groundColor.lerp(new THREE.Color('#6a58a0'),0.25+0.25*state.golden); hemi.color.lerp(new THREE.Color('#a890e0'),0.3*state.golden);
+    sun.color.lerp(new THREE.Color('#ff8a50'),0.3*state.golden);
     ctx.renderer.toneMappingExposure=k.exp;
     return state;
   }
