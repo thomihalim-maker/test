@@ -12,7 +12,7 @@ const b = await chromium.launch({args:['--use-gl=angle','--use-angle=swiftshader
 const pg = await b.newPage({viewport:{width:+w,height:+h}});
 pg.on('console',m=>{ if(['error','warning'].includes(m.type())) console.log('['+m.type()+']',m.text()); });
 pg.on('pageerror',e=>console.log('[pageerror]',e.message));
-await pg.goto(`http://localhost:${port}/index.html${query}`);
+await pg.goto(`http://localhost:${port}/${process.env.PAGE||'index.html'}${query}`);
 await pg.waitForTimeout(+wait);
 await pg.screenshot({path:out,timeout:180000});
 console.log('saved',out);
