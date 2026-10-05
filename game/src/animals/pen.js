@@ -10,7 +10,7 @@ const V3=THREE.Vector3;
 export function buildPen(ctx){
   const root=new THREE.Group(); root.name='animalPen'; root.position.set(PEN.cx,0,PEN.cz);
   const rnd=mulberry32(99);
-  const B={wood:[],straw:[],thatch:[],misc:[]};
+  const B={wood:[],straw:[],thatch:[],misc:[],foam:[]};
   const obstacles=[];  // local coords {x,z,r}
   const colliders=[];  // local coords for player
   const tmpM=new THREE.Matrix4(), tmpQ=new THREE.Quaternion(), tmpE=new THREE.Euler();
@@ -60,16 +60,10 @@ export function buildPen(ctx){
   // bunting
   const flagCols=['#ff6b81','#ffd166','#2ec4b6','#6c8cff','#ffffff','#ff9f43','#b983ff'];
   const bunting=(a,b,sag,n)=>{ for(let i=0;i<n;i++){ const t=(i+.5)/n; const p=new V3().lerpVectors(a,b,t); p.y-=Math.sin(t*Math.PI)*sag;
-      const dir=new V3().subVectors(b,a).normalize(); const w=.17; const g=new THREE.BufferGeometry();
-      const q0=p.clone().addScaledVector(dir,-w), q1=p.clone().addScaledVector(dir,w), q2=p.clone().add(new V3(0,-.3,0));
-      g.setAttribute('position',new THREE.Float32BufferAttribute([q0.x,q0.y,q0.z,q1.x,q1.y,q1.z,q2.x,q2.y,q2.z, q0.x,q0.y,q0.z,q2.x,q2.y,q2.z,q1.x,q1.y,q1.z],3));
-      const nrm=new V3().crossVectors(new V3().subVectors(q1,q0),new V3().subVectors(q2,q0)).normalize();
-      g.setAttribute('normal',new THREE.Float32BufferAttribute([nrm.x,nrm.y,nrm.z,nrm.x,nrm.y,nrm.z,nrm.x,nrm.y,nrm.z,-nrm.x,-nrm.y,-nrm.z,-nrm.x,-nrm.y,-nrm.z,-nrm.x,-nrm.y,-nrm.z],3));
-      g.setAttribute('uv',new THREE.Float32BufferAttribute(new Array(12).fill(0),2));
-      put('misc',g,{c:flagCols[i%flagCols.length]}); } };
-  bunting(new V3(-8,2.0,-1.2),new V3(-8,1.05,-6),.35,9); bunting(new V3(-8,2.0,1.2),new V3(-8,1.05,6),.35,9);
-  bunting(new V3(-8,1.05,-6),new V3(8,1.05,-6),.5,16); bunting(new V3(-8,1.05,6),new V3(8,1.05,6),.5,16);
-  bunting(new V3(8,1.05,-6),new V3(8,1.05,6),.5,12);
+      put('misc',new THREE.SphereGeometry(i%3===1?.075:.05,8,6),{p:[p.x,p.y,p.z],c:flagCols[i%flagCols.length]}); } };
+  bunting(new V3(-8,2.0,-1.2),new V3(-8,1.05,-6),.35,18); bunting(new V3(-8,2.0,1.2),new V3(-8,1.05,6),.35,18);
+  bunting(new V3(-8,1.05,-6),new V3(8,1.05,-6),.5,30); bunting(new V3(-8,1.05,6),new V3(8,1.05,6),.5,30);
+  bunting(new V3(8,1.05,-6),new V3(8,1.05,6),.5,22);
 
   // ------------ hay bales (cylinders lying down) ------------
   // bales are boxy-round; twine rings placed manually per orientation
@@ -128,29 +122,37 @@ export function buildPen(ctx){
     const wm=new THREE.MeshStandardMaterial({color:'#9fe0f5',roughness:.1,transparent:true,opacity:.9,emissive:'#4aa7c9',emissiveIntensity:.2});
     const wat=new THREE.Mesh(new THREE.CircleGeometry(R*.93,28).rotateX(-Math.PI/2),wm); wat.position.set(tx,.58,tz); root.add(wat);
     // foam bubbles
-    for(let i=0;i<26;i++){ const a=rnd()*7,rr=Math.sqrt(rnd())*R*.82,s=.07+rnd()*.12; put('misc',new THREE.SphereGeometry(s,8,6),{p:[tx+Math.cos(a)*rr,.6+s*.5,tz+Math.sin(a)*rr],s:[1,.8,1],c:rnd()<.5?'#ffffff':'#e3f6ff'}); }
+    for(let i=0;i<26;i++){ const a=rnd()*7,rr=Math.sqrt(rnd())*R*.82,s=.07+rnd()*.12; put('foam',new THREE.SphereGeometry(s,8,6),{p:[tx+Math.cos(a)*rr,.6+s*.5,tz+Math.sin(a)*rr],s:[1,.8,1],c:rnd()<.5?'#ffffff':'#e3f6ff'}); }
     // rubber duck
     const dx=tx+.25,dz=tz-.2; put('misc',new THREE.SphereGeometry(.13,10,8),{p:[dx,.68,dz],s:[1.1,.85,1],c:'#ffd43b'}); put('misc',new THREE.SphereGeometry(.085,10,8),{p:[dx+.07,.79,dz],c:'#ffd43b'}); put('misc',new THREE.ConeGeometry(.035,.07,6).rotateZ(-Math.PI/2),{p:[dx+.17,.78,dz],c:'#ff8a3d'});
     put('misc',new THREE.SphereGeometry(.015,6,5),{p:[dx+.14,.82,dz+.05],c:'#222'}); put('misc',new THREE.SphereGeometry(.015,6,5),{p:[dx+.14,.82,dz-.05],c:'#222'});
     // soap + bucket + sponge on a stool
     put('wood',rbox(.5,.06,.4,.02),{p:[tx+1.5,.3,tz+.2],c:'#c79a63'}); for(const sx of[-1,1]) for(const sz of[-1,1]) put('wood',rbox(.06,.3,.06,.01),{p:[tx+1.5+sx*.2,.15,tz+.2+sz*.15],c:'#8a5e38'});
     put('misc',rbox(.16,.07,.1,.03),{p:[tx+1.4,.36,tz+.2],c:'#ff9ec1'}); put('misc',rbox(.14,.06,.1,.03),{p:[tx+1.62,.36,tz+.15],r:[0,.4,0],c:'#ffe066'});
+    // scrub brush on stool + bucket beside the tub
+    put('wood',rbox(.22,.05,.08,.02),{p:[tx+1.5,.36,tz+.34],r:[0,.3,0],c:'#c9964f'}); put('misc',rbox(.2,.035,.06,.01),{p:[tx+1.5,.325,tz+.34],r:[0,.3,0],c:'#f5e3a8'});
+    put('misc',new THREE.CylinderGeometry(.22,.17,.32,14),{p:[tx-1.45,.16,tz+.5],c:'#ff7a59'}); put('misc',new THREE.TorusGeometry(.2,.015,5,14).rotateX(Math.PI/2),{p:[tx-1.45,.32,tz+.5],c:'#6b4a2e'}); put('foam',new THREE.SphereGeometry(.13,8,6),{p:[tx-1.45,.34,tz+.5],s:[1,.7,1],c:'#ffffff'});
+    colliders.push({x:tx-1.45,z:tz+.5,r:.25});
     stations.wash={pos:new V3(tx,0,tz),slots:[new V3(tx+1.5,0,tz-1.1),new V3(tx-.4,0,tz-1.5),new V3(tx+.6,0,tz+1.6)],occ:[null,null,null],face:0,water:wat};
     obstacles.push({x:tx,z:tz,r:1.05},{x:tx+1.5,z:tz+.2,r:.4}); colliders.push({x:tx,z:tz,r:1.0},{x:tx+1.5,z:tz+.2,r:.4}); }
 
   // ------------ shade shelter (thatched, bamboo posts) ------------
-  { const sx=4.6,sz=3.4, W=4.4, D=3.2, ph=2.0;
-    put('straw',new THREE.PlaneGeometry(W-.2,D-.2,1,1).rotateX(-Math.PI/2),{p:[sx,.04,sz],c:'#f1d27c',uv:2.2});
-    for(const a of[-1,1]) for(const b of[-1,1]){ const x=sx+a*(W/2-.12),z=sz+b*(D/2-.12); put('wood',new THREE.CylinderGeometry(.09,.11,ph,10),{p:[x,ph/2,z],c:'#b98652'}); obstacles.push({x,z,r:.35}); colliders.push({x,z,r:.3}); }
-    put('wood',rbox(W,.12,.14,.03),{p:[sx,ph,sz-D/2+.12],c:'#a9774a'}); put('wood',rbox(W,.12,.14,.03),{p:[sx,ph,sz+D/2-.12],c:'#a9774a'});
-    put('wood',rbox(.14,.12,D,.03),{p:[sx-W/2+.12,ph,sz],c:'#a9774a'}); put('wood',rbox(.14,.12,D,.03),{p:[sx+W/2-.12,ph,sz],c:'#a9774a'});
-    // roof: two slopes (ridge along X)
-    const slope=.45, rw=D/2+.45, th=.16; const rl=Math.hypot(rw,rw*slope);
-    for(const s of[-1,1]){ const g=rbox(W+.9,th,rl,.05,2); put('thatch',g,{p:[sx,ph+.28+(rw*slope)/2,sz+s*rw/2*.98],r:[s*Math.atan(slope),0,0],c:'#fff1c8',uv:2.5}); }
-    put('thatch',new THREE.CylinderGeometry(.13,.13,W+.5,10).rotateZ(Math.PI/2),{p:[sx,ph+.28+rw*slope+.06,sz],c:'#b88a4c'});
-    // hanging lantern
-    put('misc',new THREE.SphereGeometry(.12,10,8),{p:[sx,ph-.3,sz],s:[1,1.2,1],c:'#ffd27a'});
-    stations.shade={pos:new V3(sx,0,sz),rx:W/2-.5,rz:D/2-.5,sleep:[new V3(sx-1.2,0,sz-.4),new V3(sx,0,sz-.5),new V3(sx+1.2,0,sz-.4),new V3(sx-.7,0,sz+.7),new V3(sx+.6,0,sz+.7),new V3(sx+1.5,0,sz+.6)]};
+  let lantern=null;
+  { const sx=4.6,sz=3.4, W=3.9, D=2.9, ph=1.85;
+    put('straw',new THREE.PlaneGeometry(W-.1,D-.1,1,1).rotateX(-Math.PI/2),{p:[sx,.04,sz],c:'#f6d98a',uv:2.2});
+    for(const a of[-1,1]) for(const b of[-1,1]){ const x=sx+a*(W/2-.12),z=sz+b*(D/2-.12); put('wood',new THREE.CylinderGeometry(.11,.13,ph,10),{p:[x,ph/2,z],c:'#d6a566'}); put('wood',new THREE.SphereGeometry(.14,8,6),{p:[x,.1,z],s:[1,.5,1],c:'#a9774a'}); obstacles.push({x,z,r:.35}); colliders.push({x,z,r:.3}); }
+    put('wood',rbox(W,.14,.16,.03),{p:[sx,ph,sz-D/2+.12],c:'#c18f5a'}); put('wood',rbox(W,.14,.16,.03),{p:[sx,ph,sz+D/2-.12],c:'#c18f5a'});
+    put('wood',rbox(.16,.14,D,.03),{p:[sx-W/2+.12,ph,sz],c:'#c18f5a'}); put('wood',rbox(.16,.14,D,.03),{p:[sx+W/2-.12,ph,sz],c:'#c18f5a'});
+    // roof: two steeper slopes (ridge along X) with wooden eave trim
+    const slope=.62, over=.32, rw=D/2+over, th=.12; const rl=Math.hypot(rw,rw*slope); const ang=Math.atan(slope);
+    for(const s2 of[-1,1]){ const cy=ph+.14+(rw*slope)/2, cz=sz+s2*rw/2; put('thatch',rbox(W+.5,th,rl,.04,2),{p:[sx,cy,cz],r:[s2*ang,0,0],c:'#fff3cf',uv:2.0});
+      const ey=ph+.14+.0, ez=sz+s2*rw; put('wood',rbox(W+.56,.07,.07,.02),{p:[sx,ey+.02,ez],c:'#e0b377'});
+      for(const e of[-1,1]) put('wood',rbox(.06,.07,rl,.02),{p:[sx+e*(W+.5)/2,cy,cz],r:[s2*ang,0,0],c:'#e0b377'}); }
+    put('thatch',new THREE.CylinderGeometry(.12,.12,W+.6,10).rotateZ(Math.PI/2),{p:[sx,ph+.14+rw*slope+.05,sz],c:'#d4a45c'});
+    lantern=new THREE.Mesh(new THREE.SphereGeometry(.13,12,10),new THREE.MeshStandardMaterial({color:'#ffd27a',emissive:'#ffb347',emissiveIntensity:.3,roughness:.5})); lantern.scale.set(1,1.25,1); lantern.position.set(sx,ph-.35,sz); root.add(lantern);
+    put('misc',new THREE.CylinderGeometry(.008,.008,.35,4),{p:[sx,ph-.12,sz],c:'#4a3a2a'});
+    stations.shade={pos:new V3(sx,0,sz),rx:W/2-.5,rz:D/2-.5,sleep:[new V3(sx-1.05,0,sz-.35),new V3(sx,0,sz-.4),new V3(sx+1.05,0,sz-.35),new V3(sx-.6,0,sz+.6),new V3(sx+.55,0,sz+.6),new V3(sx+1.3,0,sz+.55),
+      new V3(sx-1.2,0,sz+2.2),new V3(sx,0,sz+2.4),new V3(sx+1.3,0,sz+2.3),new V3(sx-2.4,0,sz+.2)]};
   }
   // sacks & bucket & lantern props
   { for(const [x,z,s] of[[7,-2.6,1],[7.2,-3.2,.9],[-6.8,-1.0,.8]]){ put('misc',new THREE.SphereGeometry(.3*s,12,10),{p:[x,.3*s,z],s:[1,1.15,.85],c:'#d9c29a'}); put('misc',new THREE.SphereGeometry(.12*s,8,6),{p:[x,.68*s,z],c:'#c4a97a'}); put('misc',new THREE.TorusGeometry(.12*s,.015,5,12).rotateX(Math.PI/2),{p:[x,.6*s,z],c:'#8a5e38'}); colliders.push({x,z,r:.3}); obstacles.push({x,z,r:.45}); }
@@ -192,11 +194,12 @@ export function buildPen(ctx){
   const mats={ wood:new THREE.MeshStandardMaterial({vertexColors:true,map:woodTexture(),roughness:.88}),
     straw:new THREE.MeshStandardMaterial({vertexColors:true,map:strawTexture(),roughness:1}),
     thatch:new THREE.MeshStandardMaterial({vertexColors:true,map:thatchTexture(),roughness:1}),
-    misc:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.7,side:THREE.DoubleSide}) };
+    misc:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.7,side:THREE.DoubleSide}),
+    foam:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.4,emissive:'#bfe8ff',emissiveIntensity:.05}) };
   for(const k of Object.keys(B)){
     if(!B[k].length) continue;
     const list=B[k].map(g=>{ let q=g.index?g.toNonIndexed():g; for(const n of Object.keys(q.attributes)) if(!['position','normal','uv','color'].includes(n)) q.deleteAttribute(n); return q; });
-    const m=new THREE.Mesh(mergeGeometries(list),mats[k]); m.castShadow=true; m.receiveShadow=true; m.name='pen_'+k; root.add(m);
+    const m=new THREE.Mesh(mergeGeometries(list),mats[k]); m.castShadow=(k!=='thatch'&&k!=='foam'); m.receiveShadow=true; m.name='pen_'+k; root.add(m);
   }
   // legacy sub-group for troughs (kept empty-safe)
   ctx.scene.add(root);
@@ -210,7 +213,10 @@ export function buildPen(ctx){
   stations.wash.pos=toWorld(stations.wash.pos); stations.wash.slots=stations.wash.slots.map(toWorld);
   stations.shade.pos=toWorld(stations.shade.pos); stations.shade.sleep=stations.shade.sleep.map(toWorld); stations.shade.occ=stations.shade.sleep.map(()=>null);
 
+  const warm=new THREE.PointLight('#ffb35c',0,9,1.6); warm.position.set(PEN.cx+4.6,1.5,PEN.cz+3.4); ctx.scene.add(warm);
   function update(dt,t){
+    const h=ctx.hour??8; const night=Math.max(Math.min(1,Math.max(0,(h-17.3)/1.8)),Math.min(1,Math.max(0,(6.8-h)/1.5)));
+    warm.intensity=night*7*(.94+.06*Math.sin(t*7)); lantern.material.emissiveIntensity=.3+night*2.2; mats.foam.emissiveIntensity=.05+night*.5;
     for(const st of stations.feed){ const f=Math.max(0,st.fill); st.mesh.visible=f>0.01; st.mesh.scale.set(1,.06+.34*f,.2+.08*f); st.mesh.position.y=.42+.12*f; }
     const w=stations.water; w.mesh.position.y=.46+.28*Math.max(.05,w.fill)+Math.sin(t*2.2)*.004; w.mesh.material.emissiveIntensity=.2+Math.sin(t*1.7)*.05; w.mesh.visible=w.fill>.01;
     stations.wash.water.position.y=.58+Math.sin(t*1.5)*.006;

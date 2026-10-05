@@ -129,7 +129,7 @@ export async function init(ctx){
   persist();
 
   // ---------------- helpers: station use / AI ----------------
-  const isNight=()=>{ const h=ctx.hour??8; return h>=21.5||h<5; };
+  const isNight=()=>{ const h=ctx.hour??8; return h>=19.5||h<5.5; };
   const fwd=(h)=>[Math.sin(h),Math.cos(h)];
   function standFor(a,station,i){ // stand position so the head reaches the station
     const pt=station.slots[i]; if(station.direct) return pt.clone();
@@ -149,10 +149,10 @@ export async function init(ctx){
   function chooseNext(a){
     const S2=a.stats, r=Math.random();
     release(a);
-    if(isNight() && a.state!=='sleep'){ // go to bed in the shelter
+    if(isNight() && a.state!=='sleep'){ a.bed=true; // go to bed in the shelter
       const sh=st.shade; let i=-1; for(let k=0;k<sh.sleep.length;k++){ const o=sh.occ[k]; if(!o||o.dead){ i=k; break; } }
-      if(i>=0){ sh.occ[i]=a; a.slot={st:sh,i}; const p=sh.sleep[i]; go(a,p.x,p.z,()=>{ startState(a,'sleep',1e9); a.heading=Math.PI*(.2+i*.3); },{r:.2}); return; }
-      const p=sh.pos; go(a,p.x+(Math.random()-.5)*3,p.z+(Math.random()-.5)*2,()=>startState(a,'sleep',1e9)); return;
+      if(i>=0){ sh.occ[i]=a; a.slot={st:sh,i}; const p=sh.sleep[i]; go(a,p.x,p.z,()=>{ startState(a,'sleep',1e9); a.heading=Math.PI*(.2+i*.3); },{r:.25,run:true}); return; }
+      const p=sh.pos; go(a,p.x+(Math.random()-.5)*3,p.z+2.2+Math.random(),()=>startState(a,'sleep',1e9),{run:true}); return;
     }
     if(S2.thirst<.5 && st.water.fill>.04){ const i=freeSlot(st.water); if(i>=0){ claim(a,st.water,i); const p=standFor(a,st.water,i); go(a,p.x,p.z,()=>{ a.heading=st.water.face; startState(a,'drink',14); },{r:.15}); return; } }
     if(S2.hunger<.55){ const cand=st.feed.filter(f=>f.fill>.04).sort((p,q)=>p.pos.distanceTo(a.pos)-q.pos.distanceTo(a.pos));
@@ -176,7 +176,7 @@ export async function init(ctx){
   }
   function evPos(a){ return a.pos.clone().setY(a.pos.y+.6); }
   const useItem=(it)=>{ if((S.inventory[it]||0)<=0){ toast(T(it)); return false; } S.inventory[it]--; ctx.emit('inventory:change',S.inventory); return true; };
-  function wakeUp(a){ if(a.state==='sleep'){ release(a); a.state='idle'; a.stT=2; a.wake=3; } }
+  function wakeUp(a){ if(a.state==='sleep'){ a.bed=false; release(a); a.state='idle'; a.stT=2; a.wake=3; } }
   const api={
     list, pen, stations:st, KIND,
     nearest(pos,r=3){ let best=null,bd=r*r; for(const a of list){ const dx=a.pos.x-pos.x,dz=a.pos.z-pos.z,d=dx*dx+dz*dz; if(d<bd){bd=d;best=a;} } return best; },
@@ -231,9 +231,10 @@ export async function init(ctx){
         const r=.05*dt; f.fill=Math.max(0,f.fill-r); S2.hunger=clamp(S2.hunger+r*1.0); S2.happy=clamp(S2.happy+.004*dt); break; }
       case 'drink': { const f=a.slot?.st; a.stT-=dt; if(!f||f.fill<=.005||S2.thirst>=.92||a.stT<=0){ release(a); startState(a,'idle',1+Math.random()*2); break; }
         const r=.08*dt; f.fill=Math.max(0,f.fill-r*.8); S2.thirst=clamp(S2.thirst+r); break; }
-      case 'sleep': if(!night||a.wake>0&&false){ release(a); startState(a,'idle',1+Math.random()*3); a.wake=0; } else if(a.wake>0){ /* petted: stays asleep, smiling */ } break;
+      case 'sleep': if(!night){ a.bed=false; release(a); startState(a,'idle',1+Math.random()*3); a.wake=0; } else if(a.wake>0){ /* petted: stays asleep, smiling */ } break;
     }
-    if(night&&a.state!=='sleep'&&a.state!=='walk'&&!reacting&&a.stT>1.0){ a.stT=Math.min(a.stT,.5+Math.random()*3); }
+    if(night&&!a.bed&&a.state!=='sleep'&&!reacting){ chooseNext(a); }
+    if(!night&&a.bed&&a.state!=='sleep'){ a.bed=false; }
   }
 
   const tmpA=new V3();
