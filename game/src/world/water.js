@@ -45,23 +45,23 @@ void main(){
   vec3 body=mix(uShallow,uMid,smoothstep(0.0,1.2,depth)); body=mix(body,uDeep,smoothstep(0.9,4.5,depth));
   body=mix(body,uDeep*vec3(0.75,0.85,1.0),smoothstep(85.0,170.0,rr)*sea);
   // pond: teal-olive shallows -> deep green-teal centre
-  vec3 pondC=mix(vec3(0.16,0.27,0.13),vec3(0.05,0.17,0.15),smoothstep(0.05,0.8,depth)); pondC=mix(pondC,vec3(0.015,0.075,0.085),smoothstep(0.7,1.5,depth));
+  vec3 pondC=mix(vec3(0.075,0.12,0.05),vec3(0.022,0.065,0.055),smoothstep(0.05,0.7,depth)); pondC=mix(pondC,vec3(0.006,0.028,0.034),smoothstep(0.6,1.4,depth));
   body=mix(pondC,body,sea);
   body*=uAmb;
   // sky reflection tint
   vec3 sky=mix(uSkyH,uSkyT,clamp(1.0-V.y*0.0+N.y*0.0,0.0,1.0)*0.55);
   vec3 Rf0=reflect(-V,N);
   // faint treeline reflection on the pond (low reflected rays hit the surrounding greenery)
-  sky=mix(sky,vec3(0.05,0.12,0.05)*uAmb,(1.0-sea)*smoothstep(0.6,0.1,Rf0.y));
+  sky=mix(sky,sky*0.55,1.0-sea); sky=mix(sky,vec3(0.03,0.07,0.03)*uAmb,(1.0-sea)*smoothstep(0.65,0.1,Rf0.y));
   // sea: hue-lock the sky reflection toward teal (keeps the ocean blue under pink/peach skies)
   float sl=dot(sky,vec3(0.2126,0.7152,0.0722)); vec3 teal=vec3(0.22,0.58,0.78); vec3 skyLock=teal*(sl/dot(teal,vec3(0.2126,0.7152,0.0722)));
   sky=mix(sky,skyLock,0.8*sea);
-  vec3 col=mix(body,sky,min(0.06+0.5*fres,mix(0.2,1.0,sea)));
+  vec3 col=mix(body,sky,min(0.06+0.5*fres,mix(0.16,1.0,sea)));
   // sun glint
   vec3 Rf=reflect(-V,N);
   float spec=pow(max(dot(Rf,uSunDir),0.0),mix(260.0,60.0,uGolden))*smoothstep(-0.02,0.08,uSunDir.y)*mix(1.0,0.55,uGolden);
   float spark=smoothstep(0.78,0.95,vn(p*5.0+uTime*vec2(0.7,0.4)))*pow(max(dot(Rf,uSunDir),0.0),12.0);
-  col+=uSunCol*(spec*3.0+spark*0.9)*mix(0.2,1.0,sea);
+  col+=uSunCol*(spec*3.0+spark*0.9)*mix(0.1,1.0,sea);
   // soft foam at shorelines
   float wob=fbm(p*0.8+uTime*0.03);
   float edge=1.0-smoothstep(0.0,mix(0.1,0.22,sea)+wob*0.1,depth);

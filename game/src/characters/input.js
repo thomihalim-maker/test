@@ -21,7 +21,9 @@ const CSS = `
 
 // emoji -> clay SVG icon from the UI sprite (#i-*), falls back to the emoji text
 const ICO={'✋':'hand','🌾':'hay','💧':'water','🧼':'soap','🤍':'heart','🥁':'drum','🥕':'treat','👋':'people','🍎':'treat'};
-const icoSvg=e=>ICO[e]?`<svg viewBox="0 0 48 48"><use href="#i-${ICO[e]}"/></svg>`:`<span style="font-size:28px">${e??''}</span>`;
+// Accepts a legacy emoji key or a sprite id from the UI's icon set (e.g. 'hammer').
+const icoId=e=>ICO[e]??(typeof e==='string'&&/^[a-z][a-z0-9-]*$/.test(e)&&document.getElementById('i-'+e)?e:null);
+const icoSvg=e=>{const id=icoId(e);return id?`<svg viewBox="0 0 48 48"><use href="#i-${id}"/></svg>`:`<span style="font-size:28px">${e??''}</span>`;};
 export function createInput(ctx){
   const input = { move:new THREE.Vector2(), actionPressed:false, actionJustPressed:false, run:false, touch:false, tool:null, hasTool:false };
   const style = document.createElement('style'); style.textContent = CSS; document.head.appendChild(style);

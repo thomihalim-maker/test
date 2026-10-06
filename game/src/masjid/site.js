@@ -150,11 +150,12 @@ export function createSite(ctx, M, parent, api) {
     const parts = [];
     const box = (w, h, d, x, y, z) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(x, y + h / 2, z); parts.push(g.toNonIndexed()); };
     const pyr = (a0, a1, h, y, z, x = 0) => { const g = new THREE.CylinderGeometry(a1 * Math.SQRT2, a0 * Math.SQRT2, h, 4, 1); g.rotateY(Math.PI / 4); g.translate(x, y + h / 2, z); parts.push(g.toNonIndexed()); };
-    box(17.6, PL, 20, 0, 0, -1); box(11, 4.4, 10.5, 0, PL, -2.75);
+    box(17.6, PL, 20, 0, 0, -1); const nPlinth = parts.length; box(11, 4.4, 10.5, 0, PL, -2.75);
     pyr(7.6, 4.0, 2.1, 5.05, -2.75); box(7.2, .95, 7.2, 0, 6.9, -2.75); pyr(5.0, 2.45, 2.1, 7.75, -2.75); box(4.4, .75, 4.4, 0, 9.45, -2.75); pyr(3.0, .08, 3.3, 10.1, -2.75);
     box(3.4, 9.5, 3.4, MINARET.x, 0, MINARET.z); pyr(2.95, .06, 2.4, 11.7, MINARET.z, MINARET.x);
-    const merged = merge(parts.map(g => { g.deleteAttribute('uv'); return g; }));
-    const fillM = new THREE.Mesh(merged, ghostFill); fillM.renderOrder = 3;
+    parts.forEach(g => g.deleteAttribute('uv'));
+    const merged = merge(parts), upper = merge(parts.slice(nPlinth).map(g => g.clone()));
+    const fillM = new THREE.Mesh(upper, ghostFill); fillM.renderOrder = 3; // no fill on the plinth: it would haze the whole ground view
     const lines = new THREE.LineSegments(new THREE.EdgesGeometry(merged, 25), ghostLine); lines.renderOrder = 3;
     ghost.add(fillM, lines);
     parent.add(ghost);
@@ -175,7 +176,7 @@ export function createSite(ctx, M, parent, api) {
   }
 
   // --- build marker: saturated gold ring decal with a dark rim, soft gold column, floating hammer icon, periodic sparkles
-  const gold = new THREE.MeshBasicMaterial({ color: 0xffb81c, vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
+  const gold = new THREE.MeshBasicMaterial({ color: 0xffb81c, vertexColors: true, transparent: true, toneMapped: false, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
   const rgba = (g, fn, rgb = [1, 1, 1]) => { const p = g.attributes.position, c = new Float32Array(p.count * 4); for (let i = 0; i < p.count; i++) { const [r, gg, b] = typeof rgb === 'function' ? rgb(p.getX(i), p.getY(i), p.getZ(i)) : rgb; c[i * 4] = r; c[i * 4 + 1] = gg; c[i * 4 + 2] = b; c[i * 4 + 3] = fn(p.getX(i), p.getY(i), p.getZ(i)); } g.setAttribute('color', new THREE.BufferAttribute(c, 4)); return g.index ? g.toNonIndexed() : g; };
   const DK = [.28, .14, .02];
   const rim = rgba(new THREE.RingGeometry(2.05, 2.35, 48, 1).rotateX(-Math.PI / 2), () => .75, DK);
@@ -219,7 +220,7 @@ export function createSite(ctx, M, parent, api) {
       // blueprint ghost: fades out once the foundation is placed
       ghostVis += ((st === 0 ? 1 : 0) - ghostVis) * Math.min(1, dt * 2);
       ghost.visible = ghostVis > .01;
-      if (ghost.visible) { const pz = .5 + .5 * Math.sin(t * 1.6); ghostFill.opacity = (.06 + .06 * pz) * ghostVis; ghostLine.opacity = (.3 + .25 * pz) * ghostVis; }
+      if (ghost.visible) { const pz = .5 + .5 * Math.sin(t * 1.6); ghostFill.opacity = (.04 + .04 * pz) * ghostVis; ghostLine.opacity = (.3 + .25 * pz) * ghostVis; }
       // marker
       const next = st + 1, show = next < MARK.length && !api.building;
       markVis += ((show ? 1 : 0) - markVis) * Math.min(1, dt * 4);

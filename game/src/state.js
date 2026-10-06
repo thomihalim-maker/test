@@ -10,7 +10,7 @@ export const defaultState = ()=>({
   pettedToday:[],                           // names petted today (unique-pet quest)
   quests:{ day:0, list:[], claimed:{} },    // today's rolled quests (game/progress)
   event:{ day:0, id:'cerah' },              // today's daily event
-  stats:{ fed:0, watered:0, washed:0, petted:0, happy:0, built:0, visitors:0, donations:0, bedug:0, bedugDusk:0, decorPlaced:0, eids:0, eid3:0, jumatDone:0, years:0 },
+  stats:{ fed:0, watered:0, washed:0, petted:0, happy:0, built:0, visitors:0, donations:0, bedug:0, bedugDusk:0, decorPlaced:0, bought:0, eids:0, eid3:0, jumatDone:0, years:0 },
   streak:0, bestStreak:0, berkahSeen:0, penLevel:0, outfit:'klasik',
   decor:{ owned:{}, placed:[] },            // placed: [{slot, kind}]
   stickers:{},                              // id -> day unlocked
