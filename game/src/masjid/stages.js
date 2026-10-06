@@ -30,25 +30,25 @@ export function makeMaterials(ctx, night) {
   } catch (e) { env = null; }
   const M = {};
   // whitewash: warm daytime emissive keeps the green sky/ground bounce from turning it olive
-  M.wash = std({ map: rep(tex.whitewash(), .45, .45), color: 0xfff4e0, vertexColors: true, roughness: .95, emissive: 0x5a4428, emissiveIntensity: .5 });
-  night.push({ m: M.wash, day: .5, night: .75 });
+  M.wash = std({ map: rep(tex.whitewash(), .45, .45), color: 0xfffaf0, vertexColors: true, roughness: .95, emissive: 0x806040, emissiveIntensity: .6 });
+  night.push({ m: M.wash, day: .6, night: .8 });
   M.marble = std({ map: tex.marble(), vertexColors: true, roughness: .38, metalness: .02, envMap: env, envMapIntensity: .35 });
-  M.dado = std({ map: tex.marble(), color: 0xaaa69e, vertexColors: true, roughness: .8 });
-  M.stone = std({ map: tex.marble(), color: 0xd9c7aa, vertexColors: true, roughness: .8 });
+  M.dado = std({ map: tex.batu(), color: 0xffffff, vertexColors: true, roughness: .85, emissive: 0x403020, emissiveIntensity: .25 }); // batu putih; andesite pieces are vertex-tinted
+  M.stone = M.dado;
   M.wood = std({ map: tex.wood(), vertexColors: true, roughness: .6, emissive: 0x2a160a, emissiveIntensity: .25 });
   M.cream = std({ color: 0xf3e2bf, vertexColors: true, roughness: .7 });
-  M.gold = std({ map: tex.gold(), vertexColors: true, roughness: .3, metalness: .75, envMap: env, envMapIntensity: 1.1, emissive: 0x6a4108, emissiveIntensity: .35 });
+  M.gold = std({ map: tex.gold(), vertexColors: true, roughness: .3, metalness: .75, envMap: env, envMapIntensity: 1.1, emissive: 0x6a4108, emissiveIntensity: .08 });
   M.brass = std({ color: 0xa0804c, vertexColors: true, roughness: .45, metalness: .55, envMap: env, envMapIntensity: .6 });
   M.iron = std({ color: 0x3c3632, vertexColors: true, roughness: .5, metalness: .4 });
-  M.sirap = std({ map: tex.sirap(), vertexColors: true, roughness: .85, emissive: 0x3a3438, emissiveIntensity: .12 });
-  night.push({ m: M.sirap, day: .12, night: .75 });
-  M.louver = std({ map: tex.louver(), vertexColors: true, roughness: .7, emissive: 0xffa040, emissiveIntensity: 0 });
-  night.push({ m: M.louver, day: 0, night: .35 });
+  M.sirap = std({ map: tex.sirap(), vertexColors: true, roughness: .8, emissive: 0x3a2410, emissiveIntensity: .18 });
+  night.push({ m: M.sirap, day: .18, night: .6 });
+  M.louver = std({ map: tex.louver(), emissiveMap: tex.louverGlow(), vertexColors: true, roughness: .7, emissive: 0xffa040, emissiveIntensity: 0 });
+  night.push({ m: M.louver, day: 0, night: .3 });
   M.arabTeal = std({ map: tex.arabesque('teal'), vertexColors: true, roughness: .45, emissive: 0x0b3d40, emissiveIntensity: .25 });
   M.arabCream = std({ map: tex.arabesque('cream'), vertexColors: true, roughness: .6 });
   M.kraw = std({ map: tex.krawangan(), alphaTest: .5, side: THREE.DoubleSide, roughness: .65 });
-  M.winBack = std({ color: 0x2a1c12, emissive: 0xffb45a, emissiveIntensity: 0, roughness: 1 });
-  night.push({ m: M.winBack, day: 0, night: 1.9 });
+  M.winBack = std({ color: 0x5a3c22, emissive: 0xffb45a, emissiveIntensity: .15, roughness: 1 });
+  night.push({ m: M.winBack, day: .15, night: 1.9 });
   M.glass = std({ map: tex.transom(), emissiveMap: tex.transom(), emissive: 0xffffff, emissiveIntensity: .3, roughness: .2, side: THREE.DoubleSide, envMap: env, envMapIntensity: .6 });
   night.push({ m: M.glass, day: .3, night: 1.6 });
   M.sajadah = std({ map: tex.sajadah(), roughness: .95 });
@@ -62,9 +62,10 @@ export function makeMaterials(ctx, night) {
   M.flame = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 1.15, .5), toneMapped: false });
   M.hide = std({ color: 0xf0dcb4, roughness: .85, vertexColors: true });
   M.leaf = std({ color: 0xffffff, vertexColors: true, roughness: .8, side: THREE.DoubleSide });
-  M.bush = std({ color: 0xffffff, vertexColors: true, roughness: .9, flatShading: true });
+  M.bush = std({ color: 0xffffff, vertexColors: true, roughness: .85, emissive: 0x1a3010, emissiveIntensity: .35 });
   M.soil = std({ color: 0x5b3b24, roughness: 1, vertexColors: true });
   M.petal = std({ color: 0xffffff, roughness: .6 });
+  M.flower = std({ color: 0xffffff, vertexColors: true, roughness: .6, side: THREE.DoubleSide });
   M.brick = std({ map: tex.brick(), vertexColors: true, roughness: .85, emissive: 0x3a1408, emissiveIntensity: .15 });
   night.push({ m: M.brick, day: .15, night: .6 });
   M.plate = std({ map: tex.plate(), vertexColors: true, roughness: .25, envMap: env, envMapIntensity: .7 });
@@ -120,10 +121,10 @@ function s1(S) {
   const P = 1.62, list = [];
   for (let i = -9; i <= 9; i++) for (let j = -10; j <= 9; j++) {
     const x = i * P, z = j * P + 1.0, r = Math.hypot(x, z);
-    if (r > 15.4 || (Math.abs(x) < 9.6 && z > -12.2 && z < 10.9)) continue;
+    if (r > 13.6 || (Math.abs(x) < 9.6 && z > -12.2 && z < 10.3)) continue;
     list.push([x, z, r]);
   }
-  const tg = new THREE.BoxGeometry(1.5, .1, 1.5); tg.translate(0, .05, 0);
+  const tg = new THREE.BoxGeometry(1.5, .12, 1.5); tg.translate(0, .08, 0);
   const inst = new THREE.InstancedMesh(tg, M.tile, list.length); inst.receiveShadow = true;
   const mm = new THREE.Matrix4(), col = new THREE.Color();
   list.forEach(([x, z, r], i) => {
@@ -138,7 +139,7 @@ function s1(S) {
   G.add(med); R.add(med, { delay: 1.1, dur: .8, kind: 'pop', fx: 'sparkle', amp: .3 });
   // grounding: rough stone curb at the plinth foot + soft contact shadow
   const kb = [];
-  const curb = (w, d, x, z) => { const g = rbox(w, .18, d, .06, 1); g.translate(x, 0, z); uvScale(g, Math.max(w, d) / 1.5, 1); kb.push(shade(g, { lo: .5, hi: .95 })); };
+  const curb = (w, d, x, z) => { const g = rbox(w, .18, d, .06, 1); g.translate(x, 0, z); uvScale(g, Math.max(w, d) / 1.5, 1); kb.push(shade(g, { lo: .55, hi: .95, tint: 0x9a8c7a })); };
   curb(18.6, .5, 0, -11.25); curb(.5, 20.5, -9.05, -1); curb(.5, 20.5, 9.05, -1);
   curb(5.4, .5, -6.55, 9.25); curb(5.4, .5, 6.55, 9.25); curb(.5, 1.5, -3.95, 9.9); curb(.5, 1.5, 3.95, 9.9);
   const curbM = mesh(S, merge(kb), M.dado); G.add(curbM); R.add(curbM, { delay: .5, dur: .6, kind: 'pop', amp: .2 });
@@ -176,20 +177,20 @@ function knob(S, s = 1) {
 function s2(S) {
   const { M, G, R } = S;
   const T = .5, Lside = 10.5, Lfb = 10;
-  const win = (u) => ({ u, v: .9, w: 1.25, h: 2.5 });
+  const win = (u, w = 1.6) => ({ u, v: .9, w, h: 2.5 });
   const walls = [
     { name: 'W', L: Lside, holes: [win(-3.3), win(0), win(3.3)], x: -5.25, z: HALL_Z, ry: -Math.PI / 2 },
     { name: 'E', L: Lside, holes: [win(-3.3), win(0), win(3.3)], x: 5.25, z: HALL_Z, ry: Math.PI / 2 },
-    { name: 'N', L: Lfb, holes: [win(-4.0), { u: 0, v: 0, w: 2.4, h: 3.7, arch: true, frame: 'mihrab' }, win(4.0)], x: 0, z: -7.75, ry: Math.PI },
+    { name: 'N', L: Lfb, holes: [win(-4.0, 1.3), { u: 0, v: 0, w: 2.4, h: 3.7, arch: true, frame: 'mihrab' }, win(4.0, 1.3)], x: 0, z: -7.75, ry: Math.PI },
     { name: 'S', L: Lfb, holes: [win(-3.4), { u: 0, v: 0, w: 2.4, h: 3.1, frame: 'door' }, win(3.4)], x: 0, z: 2.25, ry: 0 },
   ];
   walls.forEach((w, wi) => {
     const grp = new THREE.Group(); place(grp, w.x, PL, w.z, w.ry);
-    grp.add(mesh(S, shade(wallGeom(w.L, WH, T, w.holes), { lo: .88, hi: 1, y0: 0, y1: 2.6, top: 1 }), M.wash));
+    grp.add(mesh(S, shade(wallGeom(w.L, WH, T, w.holes), { lo: .95, hi: 1, y0: 0, y1: 2.6, top: 1 }), M.wash));
     const fr = [], gf = [], lat = [], gl = [], bk = [];
     for (const h of w.holes) {
       if (h.frame === 'mihrab') { const f = archFrame(h.w, h.h, .22, T + .1); f.translate(h.u, h.v, 0); gf.push(flat(f, 1)); continue; }
-      const f = rectFrame(h.w, h.h, .16, T + .1, h.frame !== 'door'); f.translate(h.u, h.v, 0); fr.push(f);
+      const f = rectFrame(h.w, h.h, .2, T + .12, h.frame !== 'door'); f.translate(h.u, h.v, 0); fr.push(f);
       if (h.frame === 'door') {
         // carved teak lintel board over the doorway
         const lb = new THREE.BoxGeometry(3.3, .6, .12); lb.translate(0, h.h + .55, T / 2 + .06); fr.push(flat(lb, 1));
@@ -263,40 +264,41 @@ function s2(S) {
   const ar = new THREE.Group(); place(ar, 0, PL, 6.1); G.add(ar);
   const cgeo = [], ugeo = [], bgeo = [];
   for (const x of [-6, -3, 3, 6]) {
-    const c = cyl(.2, .23, 2.75, 10); c.translate(x, .3, 0); cgeo.push(shade(c, { lo: .75 }));
-    const cap = rbox(.5, .22, .5, .04, 1); cap.translate(x, 3.05, 0); cgeo.push(shade(cap, { lo: .9 }));
-    const u = new THREE.CylinderGeometry(.24, .34, .3, 8); u.translate(x, .15, 0); ugeo.push(shade(u, { lo: .6 }));
-    S.col(x, 6.1, .4);
+    const c = cyl(.29, .33, 2.72, 10); c.translate(x, .34, 0); cgeo.push(shade(c, { lo: .75 }));
+    const cap = rbox(.74, .24, .74, .05, 1); cap.translate(x, 3.05, 0); cgeo.push(shade(cap, { lo: .9 }));
+    const u = new THREE.CylinderGeometry(.36, .5, .36, 8); u.translate(x, .18, 0); ugeo.push(shade(u, { lo: .6, tint: 0x9a8c7a }));
+    S.col(x, 6.1, .5);
   }
   const bm = new THREE.BoxGeometry(12.6, .32, .3); bm.translate(0, 3.27 + .16, 0); cgeo.push(shade(bm, { lo: .85 }));
   for (const sx of [-1, 1]) { const sb = new THREE.BoxGeometry(.24, .26, 3.6); sb.translate(sx * 6, 3.3 + .13, -1.8); cgeo.push(shade(sb, { lo: .85 })); }
   const band = new THREE.BoxGeometry(12.0, .2, .04); band.translate(0, 3.33, .17); uvScale(band, 60, 1); bgeo.push(flat(band, 1));
   ar.add(mesh(S, merge(cgeo), M.wood), mesh(S, merge(ugeo), M.dado), mesh(S, merge(bgeo), M.arabTeal, false));
   R.add(ar, { delay: 1.5, dur: .9, kind: 'grow', amp: .1, fx: 'dust', snd: 'pop' });
-  // ---- paduraksa gate at the plaza edge: red brick piers, short wall wings, stepped brick crown, ceramic plates
-  const gate = new THREE.Group(); place(gate, 0, 0, 12.6); G.add(gate);
+  // ---- candi bentar (split gate) at the plaza edge: two mirrored red-brick halves, axis to the mustaka stays open
+  const GZ = 13.1, gate = new THREE.Group(); place(gate, 0, 0, GZ); G.add(gate);
   const br = [], st = [], pl = [];
-  const gb = (w, h, d, x, y, z = 0, lo = .72) => { const g = rbox(w, h, d, .03, 1); g.translate(x, y, z); uvScale(g, Math.max(w, d) / 2, h / 2); br.push(shade(g, { lo, hi: 1, y0: 0, y1: 5 })); };
+  const gb = (w, h, d, x, y, z = 0, lo = .74, tint = null) => { const g = rbox(w, h, d, .03, 1); g.translate(x, y, z); uvScale(g, Math.max(w, d) / 2, h / 2); br.push(shade(g, { lo, hi: 1, y0: 0, y1: 5, tint })); };
   const plate = (x, y, z, r = .15, face = 1) => { const d = new THREE.CylinderGeometry(r, r, .03, 10); d.rotateX(face * Math.PI / 2); d.translate(x, y, z); pl.push(flat(d, 1)); };
-  { const f = rbox(10.6, .25, 1.5, .05, 1); uvScale(f, 6, 1); st.push(shade(f, { lo: .6 })); }
+  const IN = 1.35; // half-width of the open passage
   for (const sx of [-1, 1]) {
-    const px = sx * 1.75;
-    gb(1.3, .4, 1.3, px, .25, 0, .65); gb(1.1, 3.25, 1.1, px, .65);
-    for (const y of [1.5, 2.6]) for (const fz of [-1, 1]) plate(px, y, fz * .56, .17, fz);
-    // wing wall with stepped cap + end post
-    gb(2.6, 1.45, .5, sx * 3.6, .25); gb(2.7, .16, .62, sx * 3.6, 1.7, 0, .9); gb(2.4, .14, .46, sx * 3.6, 1.86, 0, .95);
-    for (const fz of [-1, 1]) plate(sx * 3.6, 1.0, fz * .26, .14, fz);
-    gb(.6, 1.95, .7, sx * 5.05, .25); gb(.72, .14, .82, sx * 5.05, 2.2, 0, .9); gb(.5, .14, .6, sx * 5.05, 2.34, 0, .95);
-    S.col(px, 12.6, .8); for (const xx of [2.7, 3.6, 4.5, 5.05]) S.col(sx * xx, 12.6, .45);
+    const cx = (w) => sx * (IN + w / 2); // inner faces stay flush: the "split"
+    { const f = rbox(2.7, .3, 2.0, .05, 1); f.translate(cx(2.7), 0, 0); uvScale(f, 2, 1); st.push(shade(f, { lo: .6, tint: 0x9a8c7a })); }
+    let y = .3;
+    for (const [w, h, d, tint] of [[2.4, 1.75, 1.5, null], [2.6, .24, 1.7, null], [2.1, .75, 1.3, 0xb09080], [2.35, .2, 1.5, null], [1.75, .6, 1.1, null], [1.4, .52, .9, null], [1.05, .48, .72, null], [.7, .42, .54, null]]) {
+      gb(w, h, d, cx(w), y, 0, .78, tint); y += h;
+    }
+    for (const fz of [-1, 1]) { plate(cx(2.4), 1.25, fz * .76, .2, fz); plate(cx(2.1), 2.7, fz * .66, .15, fz); }
+    const k = knob(S, .8); k.position.set(cx(.7), y, 0); gate.add(k);
+    // short wing wall + end post
+    gb(1.3, 1.2, .5, sx * 4.4, .3, 0, .75); gb(1.4, .14, .62, sx * 4.4, 1.5, 0, .9);
+    gb(.55, 1.75, .65, sx * 5.1, .3, 0, .75); gb(.68, .14, .78, sx * 5.1, 2.05, 0, .9); gb(.48, .14, .56, sx * 5.1, 2.19, 0, .95);
+    { const f = rbox(1.9, .3, .9, .05, 1); f.translate(sx * 4.65, 0, 0); st.push(shade(f, { lo: .6, tint: 0x9a8c7a })); }
+    for (const fz of [-1, 1]) plate(sx * 4.4, .9, fz * .26, .14, fz);
+    S.col(sx * 2.6, GZ, 1.0); S.col(sx * 2.6 + sx * .2, GZ, 1.0); S.col(sx * 4.4, GZ, .5); S.col(sx * 5.1, GZ, .45);
   }
-  // stepped brick crown over the opening (no tile roof)
-  const steps2 = [[4.7, .3], [4.2, .28], [3.5, .28], [2.8, .3], [2.0, .3], [1.25, .32], [.6, .34]];
-  let yy = 3.9; for (const [w, h] of steps2) { gb(w, h, 1.3 - (4.7 - w) * .12, 0, yy, 0, .85); yy += h; }
-  plate(0, 4.35, .68, .2, 1); plate(0, 4.35, -.68, .2, -1);
   gate.add(mesh(S, merge(br), M.brick), mesh(S, merge(st), M.dado), mesh(S, merge(pl), M.plate, false));
-  const gk = knob(S, .9); gk.position.set(0, yy, 0); gate.add(gk);
-  gate.add(contactBand(S, 5.3, .75, 0, 0, .8, .35).translateY(0));
-  R.add(gate, { delay: 2.0, dur: 1.0, kind: 'grow', amp: .12, fx: 'dust', snd: 'pop', fxOff: V3(0, 0, .8) });
+  gate.add(contactBand(S, 5.4, .9, 0, 0, .8, .35));
+  R.add(gate, { delay: 2.0, dur: 1.0, kind: 'grow', amp: .12, fx: 'dust', snd: 'pop', fxOff: V3(0, 0, 1) });
   S.finale(V3(0, 3, 0), 2.3);
 }
 
@@ -308,14 +310,12 @@ function roofGroup(S, p) {
   g.add(mesh(S, r.tiles, M.sirap), mesh(S, merge([r.wood, r.soffit]), M.wood), mesh(S, r.trim, M.cream, false));
   return g;
 }
-/** the single gold mustaka with crescent (main hall only) */
+/** the single gold mustaka (main hall only): squat stacked bulbs, short spike, small crescent */
 function finial(S) {
-  const { M } = S, g = [];
-  const add = (geo, y) => { geo.translate(0, y, 0); g.push(flat(geo, 1)); };
-  add(new THREE.CylinderGeometry(.42, .55, .22, 12), .11); add(new THREE.SphereGeometry(.34, 12, 9), .5);
-  add(new THREE.CylinderGeometry(.14, .22, .45, 10), .95); add(new THREE.SphereGeometry(.21, 10, 8), 1.28);
-  add(new THREE.ConeGeometry(.11, .9, 8), 1.85);
-  const cr = new THREE.TorusGeometry(.48, .085, 6, 18, Math.PI * 1.55); cr.rotateZ(.72 * Math.PI); cr.translate(0, 2.55, 0); g.push(flat(cr, 1));
+  const { M } = S;
+  const prof = [[.02, 0], [.62, 0], [.66, .08], [.5, .16], [.56, .3], [.6, .46], [.5, .62], [.24, .72], [.2, .8], [.36, .9], [.4, 1.02], [.32, 1.14], [.14, 1.2], [.12, 1.26], [.2, 1.32], [.18, 1.42], [.08, 1.48], [.05, 1.75], [.01, 1.8]].map(([r, h]) => new THREE.Vector2(r, h));
+  const g = [flat(new THREE.LatheGeometry(prof, 12), 1)];
+  const cr = new THREE.TorusGeometry(.24, .05, 5, 14, Math.PI * 1.55); cr.rotateZ(.72 * Math.PI); cr.translate(0, 2.02, 0); g.push(flat(cr, 1));
   return mesh(S, merge(g), M.gold, true);
 }
 
@@ -327,19 +327,19 @@ function s3(S) {
   const cgeo = [], ugeo = [];
   for (const sx of [-1, 1]) for (const z of [-4.1, -.9]) {
     const x = sx * 3.1;
-    const c = cyl(.24, .29, 3.75, 10); c.translate(x, PL + .3, z); cgeo.push(shade(c, { lo: .85 }));
-    for (const yy of [PL + 1.2, y0 - .8]) { const r = cyl(.32, .32, .12, 10); r.translate(x, yy, z); cgeo.push(shade(r, { lo: .7 })); }
-    const b = new THREE.CylinderGeometry(.42, .55, .3, 8); b.translate(x, PL + .15, z); ugeo.push(shade(b, { lo: .55 }));
-    S.col(x, z, .4);
+    const c = cyl(.33, .4, 3.7, 10); c.translate(x, PL + .35, z); cgeo.push(shade(c, { lo: .85 }));
+    for (const yy of [PL + 1.2, y0 - .8]) { const r = cyl(.44, .44, .14, 10); r.translate(x, yy, z); cgeo.push(shade(r, { lo: .7 })); }
+    const b = new THREE.CylinderGeometry(.5, .66, .36, 8); b.translate(x, PL + .18, z); ugeo.push(shade(b, { lo: .6, tint: 0x9a8c7a }));
+    S.col(x, z, .55);
   }
   const cols = mesh(S, merge(cgeo), M.wood), umpak = mesh(S, merge(ugeo), M.dado);
   G.add(cols, umpak);
   R.add(umpak, { delay: .2, dur: .5, kind: 'pop' }); R.add(cols, { delay: .3, dur: .8, kind: 'grow', amp: .12, fx: 'dust', fxOff: V3(0, .2, -2.5) });
   // three straight tiers, each smaller and steeper (~25°, ~35°, ~45°)
   const tiers = [
-    { p: { a0: 7.6, a1: 4.0, h: 1.7 }, y: y0 - .05, d: 1.1 },
-    { p: { a0: 5.0, a1: 2.45, h: 1.8 }, y: y0 + 2.35, d: 2.1, drum: { w: 7.2, h: .95, y: y0 + 1.45 } },
-    { p: { a0: 3.0, a1: .08, h: 2.9 }, y: y0 + 4.65, d: 3.1, drum: { w: 4.4, h: .75, y: y0 + 3.95 } },
+    { p: { a0: 7.6, a1: 4.0, h: 2.1 }, y: y0 - .05, d: 1.1 },
+    { p: { a0: 5.0, a1: 2.45, h: 2.1 }, y: y0 + 2.65, d: 2.1, drum: { w: 7.2, h: .95, y: y0 + 1.8 } },
+    { p: { a0: 3.0, a1: .08, h: 3.3 }, y: y0 + 5.0, d: 3.1, drum: { w: 4.4, h: .75, y: y0 + 4.35 } },
   ];
   tiers.forEach((t) => {
     if (!t.drum) return;
@@ -359,7 +359,7 @@ function s3(S) {
     const g = roofGroup(S, t.p); place(g, 0, t.y, HALL_Z); G.add(g);
     R.add(g, { delay: t.d, dur: 1.15, kind: 'drop', drop: 7 - i, amp: .12 + i * .03, fx: 'dust', fxOff: V3(0, 0, 0), snd: 'pop' });
   });
-  const fin = finial(S); place(fin, 0, y0 + 4.65 + 2.9 - .05, HALL_Z); G.add(fin);
+  const fin = finial(S); place(fin, 0, y0 + 5.0 + 3.3 - .08, HALL_Z); G.add(fin);
   R.add(fin, { delay: 4.0, dur: .9, kind: 'pop', amp: .5, fx: 'sparkle', snd: 'chime', fxOff: V3(0, 2.6, 0) });
   // veranda lean-to roof (straight sirap), kept below the first tier's eave
   const vr = roofGroup(S, { a0: 6.9, b0: 2.7, a1: 5.1, b1: .25, h: .72 });
@@ -367,95 +367,114 @@ function s3(S) {
   S.finale(V3(0, 11, HALL_Z), 4.3, 'confetti');
 }
 
-/* ------------------------------------------------------------------ 4: Menara Kudus: red-brick candi-like tower, ceramic plates, open teak pavilion with 2-tier sirap roof */
+/* ------------------------------------------------------------------ 4: Menara Kudus: stepped kaki, deep cornices, tapered badan with recessed dark-brick panels + plate columns, open teak kepala pavilion */
 function s4(S) {
   const { M, G, R } = S, { x, z } = MINARET;
   const root = new THREE.Group(); place(root, x, 0, z); G.add(root);
   const part = (geo, mat, d, o = {}) => { const m = mesh(S, geo, mat, o.cast !== false); root.add(m); R.add(m, { delay: d, dur: o.dur ?? .9, kind: o.kind ?? 'grow', amp: o.amp ?? .12, fx: o.fx, fxOff: o.fxOff, snd: o.snd }); return m; };
-  const bk = (w, h, y, d = w, lo = .75) => { const g = rbox(w, h, d, .03, 1); g.translate(0, y, 0); uvScale(g, w / 2, h / 2); return shade(g, { lo, hi: 1, y0: y, y1: y + h }); };
-  // kaki: stepped temple-like base
-  part(merge([bk(5.8, .45, 0, 5.8, .6), bk(5.2, .45, .45, 5.2, .7), bk(4.6, .45, .9, 4.6, .8)]), M.brick, 0, { fx: 'dust', snd: 'pop' });
-  // badan: body with corner pilasters, recessed panels framed by stepped cornices
-  const BH = 10.0, body = [bk(3.4, BH, 1.35, 3.4, .8)], pil = [];
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const p = rbox(.55, BH, .55, .03, 1); p.translate(sx * 1.6, 1.35, sz * 1.6); uvScale(p, .3, 5); pil.push(shade(p, { lo: .8, y0: 1.35, y1: 1.35 + BH })); }
-  for (const [y, w] of [[1.35, 3.95], [5.9, 3.75], [6.12, 3.9], [10.95, 3.85], [11.15, 4.15], [11.37, 4.45], [11.61, 4.7]]) body.push(bk(w, .22, y, w, .9));
-  part(merge(body.concat(pil)), M.brick, .3, { fx: 'dust' });
-  // Kudus ceramic plates set into the panels
-  const pl = [];
+  const bk = (w, h, y, d = w, lo = .78, tint = null) => { const g = rbox(w, h, d, .03, 1); g.translate(0, y, 0); uvScale(g, w / 2, h / 2); return shade(g, { lo, hi: 1, y0: y, y1: y + h, tint }); };
+  const DARK = 0x8c6a5e;
+  // kaki: stepped base, plinth body with a plate row, deep cornice
+  const kaki = [bk(5.6, .4, 0, 5.6, .6), bk(5.0, .4, .4, 5.0, .7), bk(4.5, .4, .8, 4.5, .78), bk(3.9, 1.8, 1.2, 3.9, .8), bk(4.3, .2, 3.0, 4.3, .9), bk(4.65, .24, 3.2, 4.65, .92)];
+  part(merge(kaki), M.brick, 0, { fx: 'dust', snd: 'pop' });
+  // badan: tapered square shaft 3.4 -> 3.0
+  const B0 = 3.44, BHt = 4.76, w0 = 3.4, w1 = 3.0, half = (y) => (w0 + (w1 - w0) * (y - B0) / BHt) / 2;
+  const sh = new THREE.CylinderGeometry(w1 / Math.SQRT2, w0 / Math.SQRT2, BHt, 4, 1, true).rotateY(Math.PI / 4).toNonIndexed();
+  sh.computeVertexNormals(); uvScale(sh, 4 * w0 / 2, BHt / 2); sh.translate(0, B0 + BHt / 2, 0);
+  const body = [shade(sh, { lo: .78, y0: B0, y1: B0 + BHt })], dark = [], pl = [];
+  const tilt = Math.atan2((w0 - w1) / 2, BHt);
+  const onFace = (g, f, u, y) => { g.rotateX(-tilt); g.translate(u, y, half(y)); g.applyMatrix4(new THREE.Matrix4().makeRotationY(f * Math.PI / 2)); return g; };
+  const plate = (f, u, y, r) => { const d = new THREE.CylinderGeometry(r, r, .04, 10); d.rotateX(Math.PI / 2); pl.push(flat(onFace(d, f, u, y), 1)); };
   for (let f = 0; f < 4; f++) {
-    const q = new THREE.Matrix4().makeRotationY(f * Math.PI / 2);
-    for (const [u, y, r] of [[-.75, 2.8, .17], [.75, 2.8, .17], [0, 3.9, .25], [-.75, 5.0, .15], [.75, 5.0, .15], [-.75, 7.3, .17], [.75, 7.3, .17], [0, 8.4, .25], [-.75, 9.5, .15], [.75, 9.5, .15]]) {
-      const d = new THREE.CylinderGeometry(r, r, .04, 10); d.rotateX(Math.PI / 2); d.translate(u, y, 1.72); d.applyMatrix4(q); pl.push(flat(d, 1));
+    for (const u of [-1.35, 0, 1.35]) { const g = new THREE.BoxGeometry(u === 0 ? .32 : .4, BHt - .3, .2); uvScale(g, .2, 2.2); body.push(shade(onFace(g, f, u * (1 - .02), B0 + BHt / 2), { lo: .8, y0: B0, y1: B0 + BHt })); }
+    for (const y of [B0 + .32, B0 + BHt - .32]) { const g = new THREE.BoxGeometry(3.1, .24, .2); uvScale(g, 1.5, .2); body.push(shade(onFace(g, f, 0, y), { lo: .85 })); }
+    for (const u of [-.68, .68]) {
+      const g = new THREE.BoxGeometry(.98, BHt - .88, .06); uvScale(g, .5, 2); dark.push(shade(onFace(g, f, u, B0 + BHt / 2), { lo: .82, tint: DARK }));
+      for (const y of [4.55, 5.8, 7.05]) plate(f, u, y, .18);
     }
+    for (const u of [-1.0, 0, 1.0]) { const d = new THREE.CylinderGeometry(.15, .15, .04, 10); d.rotateX(Math.PI / 2); d.translate(u, 2.1, 1.97); d.applyMatrix4(new THREE.Matrix4().makeRotationY(f * Math.PI / 2)); if (!(f === 1 && u === 0)) pl.push(flat(d, 1)); }
   }
+  // kepala: deep stepped cornice + short head band with plates
+  const head = [bk(3.4, .2, 8.2, 3.4, .9), bk(3.85, .22, 8.4, 3.85, .92), bk(4.35, .26, 8.62, 4.35, .95), bk(3.3, .5, 8.88, 3.3, .85, DARK), bk(3.75, .14, 9.38, 3.75, .95)];
+  for (let f = 0; f < 4; f++) for (const u of [-1.0, 0, 1.0]) { const d = new THREE.CylinderGeometry(.12, .12, .04, 10); d.rotateX(Math.PI / 2); d.translate(u, 9.13, 1.67); d.applyMatrix4(new THREE.Matrix4().makeRotationY(f * Math.PI / 2)); pl.push(flat(d, 1)); }
+  part(merge(body.concat(dark, head)), M.brick, .35, { fx: 'dust' });
   part(merge(pl), M.plate, 1.0, { kind: 'pop', dur: .5, cast: false });
-  // doorway on the side facing the hall
-  { const dg = new THREE.BoxGeometry(.06, 2.0, 1.05); dg.translate(1.72, 1.35 + 1.0, 0); const fr = rectFrame(1.05, 2.0, .14, .14, false); fr.rotateY(Math.PI / 2); fr.translate(1.72, 1.35, 0); part(merge([flat(dg, .45), fr]), M.wood, .9, { kind: 'pop', dur: .5 }); }
-  // kepala: open teak pavilion
-  const py = 11.91, posts = [];
+  // doorway facing the hall (+x)
+  { const dg = new THREE.BoxGeometry(.06, 1.65, 1.0); dg.translate(1.97, 1.2 + .83, 0); const fr = rectFrame(1.0, 1.65, .16, .16, false); fr.rotateY(Math.PI / 2); fr.translate(1.97, 1.2, 0); part(merge([flat(dg, .45), fr]), M.wood, .9, { kind: 'pop', dur: .5 }); }
+  // open teak pavilion
+  const py = 9.52, posts = [];
   { const fl = new THREE.BoxGeometry(3.7, .14, 3.7); fl.translate(0, py + .07, 0); posts.push(shade(fl, { lo: .85 })); }
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const c = cyl(.13, .15, 2.2, 8); c.translate(sx * 1.5, py, sz * 1.5); posts.push(shade(c, { lo: .8 })); }
-  for (const yy of [py + .7, py + 2.05]) for (const s2 of [-1, 1]) { const a1 = new THREE.BoxGeometry(3.2, .12, .12); a1.translate(0, yy, s2 * 1.5); posts.push(flat(a1, .95)); const a2 = new THREE.BoxGeometry(.12, .12, 3.2); a2.translate(s2 * 1.5, yy, 0); posts.push(flat(a2, .95)); }
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const c = cyl(.18, .21, 2.2, 8); c.translate(sx * 1.45, py, sz * 1.45); posts.push(shade(c, { lo: .8 })); }
+  for (const yy of [py + .7, py + 2.05]) for (const s2 of [-1, 1]) { const a1 = new THREE.BoxGeometry(3.2, .14, .14); a1.translate(0, yy, s2 * 1.45); posts.push(flat(a1, .95)); const a2 = new THREE.BoxGeometry(.14, .14, 3.2); a2.translate(s2 * 1.45, yy, 0); posts.push(flat(a2, .95)); }
   part(merge(posts), M.wood, 2.0, { amp: .08, fx: 'dust' });
-  // a small bedug hanging inside, as at Kudus
   { const dr = new THREE.CylinderGeometry(.34, .34, .8, 12); dr.rotateZ(Math.PI / 2); dr.translate(0, py + 1.0, 0); part(shade(dr, { lo: .7, y0: py + .66, y1: py + 1.34 }), M.wood, 2.3, { kind: 'pop', dur: .5 }); }
   part(new THREE.CylinderGeometry(.16, .13, .3, 8).translate(0, py + 1.85, 0), M.lantern, 2.4, { kind: 'pop', dur: .4, cast: false });
-  const r1 = roofGroup(S, { a0: 2.45, a1: 1.3, h: .62 }); r1.position.set(0, py + 2.2, 0); root.add(r1); R.add(r1, { delay: 2.6, dur: .9, kind: 'drop', drop: 3, fx: 'dust', snd: 'pop' });
-  const r2 = roofGroup(S, { a0: 1.55, a1: .06, h: 1.45 }); r2.position.set(0, py + 2.75, 0); root.add(r2); R.add(r2, { delay: 3.0, dur: .9, kind: 'drop', drop: 3, amp: .13, fx: 'dust', snd: 'pop' });
-  const kn = knob(S, 1); kn.position.set(0, py + 4.15, 0); root.add(kn);
+  const r1 = roofGroup(S, { a0: 2.95, a1: 1.55, h: .75 }); r1.position.set(0, py + 2.2, 0); root.add(r1); R.add(r1, { delay: 2.6, dur: .9, kind: 'drop', drop: 3, fx: 'dust', snd: 'pop' });
+  const r2 = roofGroup(S, { a0: 1.85, a1: .06, h: 1.75 }); r2.position.set(0, py + 2.9, 0); root.add(r2); R.add(r2, { delay: 3.0, dur: .9, kind: 'drop', drop: 3, amp: .13, fx: 'dust', snd: 'pop' });
+  const kn = knob(S, 1); kn.position.set(0, py + 4.6, 0); root.add(kn);
   R.add(kn, { delay: 3.6, dur: .7, kind: 'pop', amp: .5, fx: 'sparkle', snd: 'chime', fxOff: V3(0, .5, 0) });
-  S.col(x, z, 2.8);
-  { const cb = contactBand(S, 2.9, 2.9, x, z, 1.0, .4); G.add(cb); R.add(cb, { delay: .2, dur: .4, kind: 'fade' }); }
-  S.finale(V3(x, 13, z), 3.8, 'confetti');
+  S.col(x, z, 2.9);
+  { const cb = contactBand(S, 2.8, 2.8, x, z, 1.0, .4); G.add(cb); R.add(cb, { delay: .2, dur: .4, kind: 'fade' }); }
+  S.finale(V3(x, 12.5, z), 3.8, 'confetti');
 }
 
-/* ------------------------------------------------------------------ 5: wudhu fountain under a limasan pavilion */
+/* ------------------------------------------------------------------ 5: wudhu: square kolam with bamboo pancuran spouts + padasan clay jars, under a limasan pavilion */
 function s5(S) {
   const { M, G, R } = S, { x, z } = WUDHU;
   const root = new THREE.Group(); place(root, x, 0, z); G.add(root);
   const part = (geo, mat, d, o = {}) => { const m = mesh(S, geo, mat, o.cast !== false); root.add(m); R.add(m, { delay: d, dur: o.dur ?? .8, kind: o.kind ?? 'grow', amp: o.amp ?? .15, fx: o.fx, fxOff: o.fxOff, snd: o.snd }); return m; };
-  const oct = (rt, rb, h, y0 = 0, seg = 8) => { const g = new THREE.CylinderGeometry(rt, rb, h, seg, 1); g.translate(0, y0 + h / 2, 0); return g; };
-  part(shade(uvScale(rbox(5.8, .22, 5.8, .06, 1), 2, 2), { lo: .7 }), M.marble, 0, { fx: 'dust', snd: 'pop' });
-  part(shade(uvScale(oct(2.15, 2.2, .45, .22), 6, .5), { lo: .85 }), M.arabTeal, .25, { kind: 'pop', cast: false });
-  part(shade(uvScale(oct(1.85, 1.95, .95, .22), 3, 1), { lo: .6 }), M.marble, .3, { fx: 'dust' });
-  part(flat(oct(1.95, 1.95, .1, 1.12), 1), M.dado, .55, { kind: 'pop', dur: .4, cast: false });
-  const water = mesh(S, new THREE.CylinderGeometry(1.6, 1.6, .05, 8).translate(0, .98, 0), M.water, false, false); root.add(water);
+  const AND = 0x9a8c7a;
+  part(shade(uvScale(rbox(5.8, .22, 5.8, .06, 1), 2, 2), { lo: .7 }), M.dado, 0, { fx: 'dust', snd: 'pop' });
+  // kolam: andesite rim, teal-tiled floor, water surface
+  const KX = .35, KW = 3.0, KD = 3.3, RH = .62, rim = [];
+  const rb = (w, d, px, pz) => { const g = rbox(w, RH, d, .05, 1); g.translate(KX + px, .22, pz); uvScale(g, Math.max(w, d) / 1.5, .4); rim.push(shade(g, { lo: .7, tint: AND })); };
+  rb(KW, .32, 0, KD / 2 - .16); rb(KW, .32, 0, -KD / 2 + .16); rb(.32, KD - .64, KW / 2 - .16, 0); rb(.32, KD - .64, -KW / 2 + .16, 0);
+  part(merge(rim), M.dado, .3, { fx: 'dust' });
+  { const t = new THREE.BoxGeometry(KW - .6, .04, KD - .6); t.translate(KX, .3, 0); uvScale(t, 4, 4); part(flat(t, 1), M.arabTeal, .45, { kind: 'pop', cast: false }); }
+  const water = mesh(S, new THREE.PlaneGeometry(KW - .64, KD - .64).rotateX(-Math.PI / 2).translate(KX, .7, 0), M.water, false, false); root.add(water);
   R.add(water, { delay: .8, dur: .6, kind: 'pop', amp: .1 }); S.waterMat = M.water;
-  const fp = [[.01, 0], [.55, 0], [.4, .25], [.2, .5], [.2, .8], [.55, 1.05], [.5, 1.15], [.1, 1.12], [.1, 1.4], [.32, 1.62], [.28, 1.7], [.02, 1.66]].map(([r, h]) => new THREE.Vector2(r, h));
-  const pg = new THREE.LatheGeometry(fp, 10); pg.translate(0, .95, 0);
-  part(shade(pg, { lo: .7 }), M.marble, .9, { kind: 'pop', amp: .35, fx: 'water', fxOff: V3(0, 2.5, 0), snd: 'splash' });
-  // teak posts on umpak + limasan sirap roof
+  // pancuran wall (west) with bamboo spouts
+  const WX = -1.85, pw = [];
+  { const g = rbox(.45, 1.75, 3.7, .05, 1); g.translate(WX, .22, 0); uvScale(g, 2, 1); pw.push(shade(g, { lo: .65, tint: AND })); const c = rbox(.62, .14, 3.9, .04, 1); c.translate(WX, 1.97, 0); pw.push(shade(c, { lo: .9, tint: AND })); }
+  part(merge(pw), M.dado, 1.0, { fx: 'dust' });
+  const bam = [], spouts = [];
+  for (const zz of [-1.2, -.4, .4, 1.2]) {
+    const g = new THREE.CylinderGeometry(.065, .065, .7, 7); g.rotateZ(-Math.PI / 2 + .12); g.translate(WX + .5, 1.36, zz); bam.push(shade(g, { lo: 1, tint: 0xc8b25e }));
+    const n = new THREE.CylinderGeometry(.075, .075, .05, 7); n.rotateZ(-Math.PI / 2); n.translate(WX + .4, 1.37, zz); bam.push(shade(n, { lo: 1, tint: 0x8a7a3a }));
+    spouts.push({ p: V3(WX + .84, 1.31, zz), v: V3(1.1, .25, 0), yEnd: .7 });
+  }
+  // padasan: clay jars with little spouts on a stone ledge (south side)
+  const ledge = []; { const g = rbox(3.2, .62, .5, .05, 1); g.translate(.3, .22, 2.2); uvScale(g, 2, .4); ledge.push(shade(g, { lo: .7, tint: AND })); }
+  part(merge(ledge), M.dado, 1.1, { kind: 'grow' });
+  const jarP = [[.02, 0], [.2, .02], [.3, .14], [.33, .3], [.28, .46], [.16, .55], [.14, .62], [.19, .66], [.01, .66]].map(([r, h]) => new THREE.Vector2(r, h));
+  for (const jx of [-.7, .3, 1.3]) {
+    const j = new THREE.LatheGeometry(jarP, 10); j.translate(jx, .84, 2.2); bam.push(shade(j, { lo: .7, tint: 0xb8673a, y0: .84, y1: 1.5 }));
+    const sp = new THREE.CylinderGeometry(.035, .045, .26, 6); sp.rotateX(Math.PI / 2 - .4); sp.translate(jx, 1.0, 2.5); bam.push(shade(sp, { lo: 1, tint: 0xa85a30 }));
+    spouts.push({ p: V3(jx, .97, 2.62), v: V3(0, -.1, .35), yEnd: .24, slow: true });
+  }
+  part(merge(bam), M.paint, 1.3, { kind: 'pop', amp: .3, fx: 'water', fxOff: V3(0, 1.4, 0), snd: 'splash' });
+  // teak posts on andesite umpak + limasan sirap roof
   const posts = [], ump = [];
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    const c = cyl(.15, .17, 2.8, 8); c.translate(sx * 2.45, .42, sz * 2.45); posts.push(shade(c, { lo: .75 }));
-    const b = new THREE.CylinderGeometry(.22, .3, .2, 8); b.translate(sx * 2.45, .32, sz * 2.45); ump.push(shade(b, { lo: .6 }));
-    S.col(x + sx * 2.45, z + sz * 2.45, .35);
+    const c = cyl(.21, .24, 2.75, 8); c.translate(sx * 2.45, .48, sz * 2.45); posts.push(shade(c, { lo: .75 }));
+    const b = new THREE.CylinderGeometry(.31, .42, .26, 8); b.translate(sx * 2.45, .35, sz * 2.45); ump.push(shade(b, { lo: .6, tint: AND }));
+    S.col(x + sx * 2.45, z + sz * 2.45, .4);
   }
-  for (const s of [-1, 1]) { const b1 = new THREE.BoxGeometry(5.2, .2, .2); b1.translate(0, 3.15, s * 2.45); posts.push(flat(b1, .95)); const b2 = new THREE.BoxGeometry(.2, .2, 5.2); b2.translate(s * 2.45, 3.15, 0); posts.push(flat(b2, .95)); }
+  for (const s of [-1, 1]) { const b1 = new THREE.BoxGeometry(5.2, .22, .22); b1.translate(0, 3.15, s * 2.45); posts.push(flat(b1, .95)); const b2 = new THREE.BoxGeometry(.22, .22, 5.2); b2.translate(s * 2.45, 3.15, 0); posts.push(flat(b2, .95)); }
   part(merge(posts), M.wood, 1.2, { amp: .1, fx: 'dust' }); part(merge(ump), M.dado, 1.1, { kind: 'pop', dur: .4 });
   const roof = roofGroup(S, { a0: 3.4, b0: 3.25, a1: 1.5, b1: .06, h: 1.75 });
   roof.position.set(0, 3.3, 0); root.add(roof);
   R.add(roof, { delay: 1.6, dur: 1.0, kind: 'drop', drop: 5, amp: .13, fx: 'dust', snd: 'pop' });
   for (const sx of [-1, 1]) { const k = knob(S, .7); k.position.set(sx * 1.5, 5.08, 0); root.add(k); R.add(k, { delay: 2.5, dur: .6, kind: 'pop', amp: .5, fx: 'sparkle' }); }
-  // tap wall (west) with steel taps + small basins
-  const wall = new THREE.Group(); place(wall, -3.5, 0, 0); root.add(wall);
-  wall.add(mesh(S, shade(uvScale(rbox(.7, .95, 6.0, .06, 1), 1, 3), { lo: .6 }), M.stone)); R.add(wall, { delay: 1.3, dur: .8, kind: 'grow', fx: 'dust' });
-  const tgeo = [], bgeo = [];
-  for (let k = 0; k < 5; k++) {
-    const zz = -2.2 + k * 1.1;
-    tgeo.push(flat(new THREE.CylinderGeometry(.045, .05, .3, 6).rotateZ(Math.PI / 2).translate(.45, 1.15, zz), 1), flat(new THREE.CylinderGeometry(.03, .03, .16, 6).translate(.6, 1.08, zz), 1), flat(new THREE.SphereGeometry(.06, 6, 5).translate(.35, 1.22, zz), 1));
-    bgeo.push(shade(new THREE.CylinderGeometry(.34, .26, .1, 8).translate(.7, .52, zz), { lo: .8 }));
-    const stool = new THREE.BoxGeometry(.34, .32, .34); stool.translate(1.35, .16, zz); bgeo.push(shade(stool, { lo: .6 }));
-  }
-  wall.add(mesh(S, merge(tgeo), M.brass, false), mesh(S, merge(bgeo), M.marble));
   { const cb = contactBand(S, 2.9, 2.9, x, z, .9, .38); G.add(cb); R.add(cb, { delay: .2, dur: .4, kind: 'fade' }); }
-  S.col(x - 3.5, z, 2.2); S.col(x - 3.5, z + 2.5, .9); S.col(x - 3.5, z - 2.5, .9); S.col(x, z, 1.9);
-  const dg = new THREE.SphereGeometry(.05, 5, 4); dg.scale(1, 1.5, 1);
-  const NJ = 8 * 3, NT = 5 * 3;
-  const di = new THREE.InstancedMesh(dg, M.drop, NJ + NT); di.frustumCulled = false; di.visible = false;
+  S.col(x + KX, z, 1.75); S.col(x + WX, z - 1.2, .6); S.col(x + WX, z + 1.2, .6); S.col(x + .3, z + 2.2, .7);
+  // water droplets (instanced, animated in update): parabolic arcs from each spout
+  for (const s of spouts) { const a = -4.9, b = s.v.y, c = s.p.y - s.yEnd; s.T = (-b - Math.sqrt(b * b - 4 * a * c)) / (2 * a); }
+  const dg = new THREE.SphereGeometry(.045, 5, 4); dg.scale(1, 1.6, 1);
+  const PER = 3, di = new THREE.InstancedMesh(dg, M.drop, spouts.length * PER); di.frustumCulled = false; di.visible = false;
   root.add(di);
-  S.droplets = { mesh: di, NJ, NT, root, ready: false };
-  R.add(new THREE.Object3D(), { delay: 1.4, dur: .1, onLand: () => { di.visible = true; S.droplets.ready = true; } });
+  S.droplets = { mesh: di, spouts, PER, root, ready: false };
+  R.add(new THREE.Object3D(), { delay: 1.5, dur: .1, onLand: () => { di.visible = true; S.droplets.ready = true; } });
   S.finale(V3(x, 3, z), 3.0, 'confetti');
 }
 
@@ -469,17 +488,17 @@ function s6(S) {
   const posts = [], ump = [];
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     const px = sx * 1.9, pz = sz * 1.9;
-    const c = cyl(.15, .17, 2.75, 8); c.translate(px, .7, pz); posts.push(shade(c, { lo: .75 }));
-    const b = new THREE.CylinderGeometry(.22, .3, .2, 8); b.translate(px, .74, pz); ump.push(shade(b, { lo: .6 }));
+    const c = cyl(.21, .24, 2.72, 8); c.translate(px, .72, pz); posts.push(shade(c, { lo: .75 }));
+    const b = new THREE.CylinderGeometry(.31, .42, .26, 8); b.translate(px, .77, pz); ump.push(shade(b, { lo: .6, tint: 0x9a8c7a }));
     S.col(x + px, z + pz, .45);
   }
   for (const s of [-1, 1]) { const b1 = new THREE.BoxGeometry(4.2, .24, .24); b1.translate(0, 3.42, s * 1.9); posts.push(shade(b1, { lo: .85 })); const b2 = new THREE.BoxGeometry(.24, .24, 4.2); b2.translate(s * 1.9, 3.42, 0); posts.push(shade(b2, { lo: .85 })); }
   part(merge(posts), M.wood, .5, { fx: 'dust' }); part(merge(ump), M.dado, .45, { kind: 'pop', dur: .4 });
   // joglo: shallow lower skirt + steep upper brunjung with a short ridge
-  const ro1 = roofGroup(S, { a0: 3.2, a1: 2.0, h: .55 }); ro1.position.set(0, 3.6, 0); root.add(ro1);
-  const ro2 = roofGroup(S, { a0: 2.15, b0: 2.15, a1: .7, b1: .05, h: 1.65 }); ro2.position.set(0, 4.0, 0); root.add(ro2);
+  const ro1 = roofGroup(S, { a0: 3.35, a1: 1.9, h: .5 }); ro1.position.set(0, 3.6, 0); root.add(ro1); // penanggap: low, flat
+  const ro2 = roofGroup(S, { a0: 2.0, b0: 1.6, a1: .95, b1: .04, h: 2.3 }); ro2.position.set(0, 3.98, 0); root.add(ro2); // brunjung: tall, steep, ridged
   R.add(ro1, { delay: 1.3, dur: 1.0, kind: 'drop', drop: 5, amp: .13, fx: 'dust', snd: 'pop' }); R.add(ro2, { delay: 1.55, dur: 1.0, kind: 'drop', drop: 5, amp: .13, fx: 'dust' });
-  for (const sx of [-1, 1]) { const k = knob(S, .65); k.position.set(sx * .7, 5.68, 0); root.add(k); R.add(k, { delay: 2.3, dur: .6, kind: 'pop', amp: .5, fx: 'sparkle' }); }
+  for (const sx of [-1, 1]) { const k = knob(S, .65); k.position.set(sx * .95, 6.32, 0); root.add(k); R.add(k, { delay: 2.3, dur: .6, kind: 'pop', amp: .5, fx: 'sparkle' }); }
   { const cb = contactBand(S, 2.5, 2.5, x, z, .9, .38); G.add(cb); R.add(cb, { delay: .2, dur: .4, kind: 'fade' }); }
   // the bedug (hanging drum, axis along X)
   const drum = new THREE.Group(); drum.userData.keep = true; drum.position.set(0, 1.95, 0); root.add(drum);
@@ -516,7 +535,7 @@ function s7(S) {
   // sajadah rows: instanced
   const mg = new THREE.PlaneGeometry(.78, 1.3).rotateX(-Math.PI / 2);
   const rows = 5, cols = 6, spots = [];
-  for (let r = 0; r < rows; r++) for (let k = 0; k < cols; k++) { const x = (k - 2.5) * 1.55, zz = -6.35 + r * 1.62; if (!(Math.abs(x - 2.55) < 1.0 && zz < -4.3)) spots.push([x, zz, r, k]); }
+  for (let r = 0; r < rows; r++) for (let k = 0; k < cols; k++) { const x = (k - 2.5) * 1.55, zz = -6.35 + r * 1.62; const nearCol = [-4.1, -.9].some(cz => Math.abs(Math.abs(x) - 3.1) < 1.1 && Math.abs(zz - cz) < 1.25); if (!(Math.abs(x - 2.55) < 1.0 && zz < -4.3) && !nearCol) spots.push([x, zz, r, k]); }
   const inst = new THREE.InstancedMesh(mg, M.sajadah, spots.length); inst.receiveShadow = true;
   const tints = ['#8a1f2d', '#1f6b4a', '#16707a', '#a3362a', '#24806a', '#6e1f3a'], mm = new THREE.Matrix4(), c = new THREE.Color();
   let i = 0;
@@ -532,6 +551,7 @@ function s7(S) {
   const side = []; for (const s of [-1, 1]) { const g = new THREE.PlaneGeometry(1.4, 3.7).rotateY(-s * Math.PI / 2).translate(s * 1.19, 1.85, -.7); uvScale(g, 1.5, 3); side.push(g); }
   mh.add(mesh(S, merge(side), M.arabTeal, false));
   const fr = archFrame(2.4, 3.7, .26, .3); fr.translate(0, 0, .1); mh.add(mesh(S, flat(fr, 1), M.gold, false));
+  const frd = archFrame(2.0, 3.5, .2, .34); frd.translate(0, 0, .02); mh.add(mesh(S, flat(frd, .55), M.wood, false));
   const fr2 = archFrame(3.2, 4.3, .18, .2); fr2.translate(0, -.05, .06); mh.add(mesh(S, flat(fr2, 1), M.marbleTint, false));
   // half-dome shell + hanging lamp
   const lamp = new THREE.Group(); lamp.position.set(0, 3.0, -.5);
@@ -576,33 +596,22 @@ function s7(S) {
   const panels = mesh(S, merge(wp), M.arabCream, false); G.add(panels); R.add(panels, { delay: 1.6, dur: .5, kind: 'pop' });
   const pfg = []; for (const s of [-1, 1]) for (const u of [-1.65, 1.65]) { const f = new THREE.TorusGeometry(.72, .05, 4, 4).rotateZ(Math.PI / 4).rotateY(Math.PI / 2).translate(s * 4.94, PL + 2.5, HALL_Z + u); pfg.push(flat(f, 1)); }
   const pf = mesh(S, merge(pfg), M.wood, false); G.add(pf); R.add(pf, { delay: 1.7, dur: .5, kind: 'pop' });
-  // chandeliers
+  // Javanese brass lampu gantung: canopy, chain, brass bowl with a glowing glass chimney and a small cap
   const ch = new THREE.Group(); G.add(ch);
-  const hy = PL + WH - .45;
-  const chg = [], fl = [], dr = [];
-  const zs = [-5.6, -2.75, .1];
-  zs.forEach((zz, k) => {
-    const cg = new THREE.Group(); cg.position.set(0, 0, zz);
-    const cc = [];
-    cc.push(flat(new THREE.CylinderGeometry(.015, .015, 1.0, 4).translate(0, hy - .5 + .2 + .0, 0), 1));
-    const hang = hy - 1.0; // ring height
-    cc.push(flat(new THREE.TorusGeometry(.7, .045, 5, 16).rotateX(Math.PI / 2).translate(0, hang, 0), 1));
-    cc.push(flat(new THREE.TorusGeometry(.38, .03, 4, 12).rotateX(Math.PI / 2).translate(0, hang + .22, 0), 1));
-    cc.push(flat(new THREE.SphereGeometry(.16, 8, 6).translate(0, hang - .22, 0), 1));
-    cc.push(flat(new THREE.ConeGeometry(.1, .3, 8).translate(0, hang - .45, 0).rotateX(Math.PI), 1));
-    cc.push(flat(new THREE.CylinderGeometry(.12, .05, .18, 8).translate(0, hy + .0, 0), 1));
-    const candles = [], flames = [], drops = [];
-    for (let j = 0; j < 8; j++) {
-      const a = j / 8 * Math.PI * 2, rx = Math.sin(a) * .7, rz = Math.cos(a) * .7;
-      candles.push(flat(new THREE.CylinderGeometry(.04, .04, .22, 5).translate(rx, hang + .16, rz), 1));
-      flames.push(new THREE.SphereGeometry(.055, 5, 4).scale(1, 1.4, 1).translate(rx, hang + .36, rz));
-      drops.push(flat(new THREE.OctahedronGeometry(.07).translate(rx * .9, hang - .2, rz * .9), 1));
-    }
-    cg.add(mesh(S, merge(cc.concat(drops)), M.brass, false), mesh(S, merge(candles), M.hide, false), new THREE.Mesh(GE.mergeGeometries(flames, false), M.flame));
-    ch.add(cg);
-  });
+  const ceilY = PL + WH - .4, br2 = [], gl2 = [];
+  for (const [lx, lz, sc] of [[0, -5.6, 1], [0, -2.75, 1.15], [0, .1, 1], [-3.1, -2.5, .8], [3.1, -2.5, .8]]) {
+    const hang = ceilY - 1.15 * sc;
+    const add = (g, y) => { g.scale(sc, sc, sc); g.translate(lx, y, lz); br2.push(flat(g, 1)); };
+    add(new THREE.CylinderGeometry(.06, .2, .1, 8), ceilY - .05);
+    add(new THREE.CylinderGeometry(.012, .012, (ceilY - hang - .55 * sc) / sc, 4), (ceilY + hang + .55 * sc) / 2);
+    add(new THREE.ConeGeometry(.3, .22, 8), hang + .62 * sc); // top cap / smoke hood
+    add(new THREE.CylinderGeometry(.3, .16, .16, 8), hang); // bowl
+    add(new THREE.SphereGeometry(.06, 6, 4), hang - .13 * sc);
+    for (let k = 0; k < 3; k++) { const a2 = k / 3 * Math.PI * 2; const b3 = new THREE.CylinderGeometry(.01, .01, .5, 3); b3.scale(sc, sc, sc); b3.translate(lx + Math.cos(a2) * .26 * sc, hang + .33 * sc, lz + Math.sin(a2) * .26 * sc); br2.push(flat(b3, 1)); }
+    const chim = new THREE.CylinderGeometry(.13, .17, .44, 10); chim.scale(sc, sc, sc); chim.translate(lx, hang + .3 * sc, lz); gl2.push(chim);
+  }
+  ch.add(mesh(S, merge(br2), M.brass, false), new THREE.Mesh(GE.mergeGeometries(gl2, false), M.lantern));
   R.add(ch, { delay: 1.9, dur: .9, kind: 'pop', amp: .25, fx: 'sparkle', fxOff: V3(0, 3.5, -2.75), snd: 'chime' });
-  ch.position.set(0, 0, 0);
   S.hallLight = true;
   S.finale(V3(0, 2, -3), 2.6);
 }
@@ -610,28 +619,33 @@ function s7(S) {
 /* ------------------------------------------------------------------ 8: garden + lanterns */
 function s8(S) {
   const { M, G, R } = S;
-  // flagstone path from stairs south
-  const fs = flat(rbox(1.5, .08, 1.0, .03, 1), 1); const pst = [];
-  for (let k = 0; k < 8; k++) pst.push([(rnd() - .5) * .35, 14.2 + k * 1.4]);
-  const pin = new THREE.InstancedMesh(fs, M.stone, pst.length); pin.receiveShadow = true; const mm = new THREE.Matrix4(), c = new THREE.Color();
-  pst.forEach(([x, z], i) => { mm.compose(V3(x, 0, z), new THREE.Quaternion().setFromAxisAngle(V3(0, 1, 0), (rnd() - .5) * .2), V3(1 + rnd() * .2, 1, 1)); pin.setMatrixAt(i, mm); c.set('#ffffff').multiplyScalar(.85 + rnd() * .15); pin.setColorAt(i, c); });
+  const mm = new THREE.Matrix4(), c = new THREE.Color();
+  // path from the gate out to the village road (world road centre = 2.2·sin(0.07z+0.5)), flagstones + curb edging
+  const roadX = (z) => 2.2 * Math.sin(z * .07 + .5), pathX = (z) => roadX(z) * THREE.MathUtils.smoothstep(z, 13.8, 18.5);
+  const fs = flat(rbox(1.5, .1, 1.0, .03, 1), 1); const pst = [];
+  for (let k = 0; k < 8; k++) { const zz = 14.6 + k * 1.35; pst.push([pathX(zz) + (rnd() - .5) * .25, zz]); }
+  const pin = new THREE.InstancedMesh(fs, M.stone, pst.length); pin.receiveShadow = true;
+  pst.forEach(([x, z], i) => { mm.compose(V3(x, .02, z), new THREE.Quaternion().setFromAxisAngle(V3(0, 1, 0), (rnd() - .5) * .2), V3(1 + rnd() * .2, 1, 1)); pin.setMatrixAt(i, mm); c.set('#f2e8d4').multiplyScalar(.85 + rnd() * .15); pin.setColorAt(i, c); });
   G.add(pin); R.addInst(pin, { delay: 0, delayFn: (i) => i * .12, dur: .4, kind: 'pop' });
-  // path edging: small curb stones on both sides
-  { const eg = flat(rbox(.34, .15, .44, .05, 1), 1), ep = [];
-    for (const sx of [-1, 1]) for (let z = 14.8; z < 25; z += .5) ep.push([sx * (1.18 + (rnd() - .5) * .05), z]);
+  { const eg = flat(rbox(.34, .16, .44, .05, 1), 1), ep = [];
+    for (const sx of [-1, 1]) for (let z = 14.6; z < 25; z += .55) ep.push([pathX(z) + sx * (1.2 + (rnd() - .5) * .05), z]);
     const ei = new THREE.InstancedMesh(eg, M.stone, ep.length); ei.receiveShadow = true;
-    ep.forEach(([x, z], i) => { mm.compose(V3(x, 0, z), new THREE.Quaternion().setFromAxisAngle(V3(0, 1, 0), (rnd() - .5) * .25), V3(1, .8 + rnd() * .4, 1)); ei.setMatrixAt(i, mm); ei.setColorAt(i, c.set('#ffffff').multiplyScalar(.7 + rnd() * .2)); });
-    G.add(ei); R.addInst(ei, { delayFn: (i, p) => .3 + (p.z - 14.8) * .05, dur: .4, kind: 'pop', amp: .5 }); }
-  // hedges / bushes (instanced faceted blobs, colour variety)
-  const bg = new THREE.IcosahedronGeometry(1, 1); { const p = bg.attributes.position; for (let i = 0; i < p.count; i++) { const k = 1 + (Math.sin(p.getX(i) * 7 + p.getZ(i) * 5) * .08); p.setXYZ(i, p.getX(i) * k, p.getY(i) * k * .8, p.getZ(i) * k); } bg.computeVertexNormals(); shade(bg, { lo: .6, hi: 1, y0: -.8, y1: .8 }); }
+    ep.forEach(([x, z], i) => { mm.compose(V3(x, 0, z), new THREE.Quaternion().setFromAxisAngle(V3(0, 1, 0), (rnd() - .5) * .25), V3(1, .8 + rnd() * .4, 1)); ei.setMatrixAt(i, mm); ei.setColorAt(i, c.set('#a89a86').multiplyScalar(.85 + rnd() * .2)); });
+    G.add(ei); R.addInst(ei, { delayFn: (i, p) => .3 + (p.z - 14.6) * .05, dur: .4, kind: 'pop', amp: .5 }); }
+  // hedges / bushes: subdivided, smooth-shaded lumpy blobs with a light top gradient
+  let bg = new THREE.IcosahedronGeometry(1, 2); bg.deleteAttribute('normal'); bg.deleteAttribute('uv'); bg = GE.mergeVertices(bg);
+  { const p = bg.attributes.position; for (let i = 0; i < p.count; i++) { const k = 1 + Math.sin(p.getX(i) * 5 + p.getZ(i) * 3.5) * .07 + Math.sin(p.getY(i) * 6) * .04; p.setXYZ(i, p.getX(i) * k, p.getY(i) * k * .82, p.getZ(i) * k); }
+    bg.computeVertexNormals(); const col = new Float32Array(p.count * 3);
+    for (let i = 0; i < p.count; i++) { const t = THREE.MathUtils.clamp((p.getY(i) + .82) / 1.64, 0, 1), f = .55 + .55 * t * t; col[i * 3] = f; col[i * 3 + 1] = f; col[i * 3 + 2] = f * .92; }
+    bg.setAttribute('color', new THREE.BufferAttribute(col, 3)); bg.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(p.count * 2), 2)); }
   const bushes = [];
   const addB = (x, z, s) => bushes.push([x, z, s]);
   for (const sx of [-1, 1]) { for (let z = -10; z <= -8; z += 1.4) addB(sx * 9.4, z, .8 + rnd() * .2); addB(sx * 9.3, 8.4, .8); addB(sx * 9.3, 7.0, .65); }
   for (let x = -8; x <= 8; x += 1.8) if (Math.abs(x) > 3.3) addB(x, -11.9, .9 + rnd() * .3);
-  for (const sx of [-1, 1]) for (let k = 0; k < 5; k++) addB(sx * (2.35 + rnd() * .15), 15.2 + k * 2.1, .55 + rnd() * .12);
+  for (const sx of [-1, 1]) for (let k = 0; k < 4; k++) { const zz = 15.4 + k * 2.5; addB(pathX(zz) + sx * (2.3 + rnd() * .15), zz, .55 + rnd() * .12); }
   const bi = new THREE.InstancedMesh(bg, M.bush, bushes.length); bi.castShadow = true; bi.receiveShadow = true;
-  const greens = ['#3f9a4f', '#4fae4a', '#2f8545', '#62b84f', '#3a8f5e'];
-  bushes.forEach(([x, z, s], i) => { mm.compose(V3(x, .6 * s + (x * x + z * z < 190 ? .02 : 0), z), new THREE.Quaternion().setFromAxisAngle(V3(0, 1, 0), rnd() * 6), V3(s * 1.1, s, s * 1.1)); bi.setMatrixAt(i, mm); c.set(greens[(rnd() * greens.length) | 0]); bi.setColorAt(i, c); });
+  const greens = ['#4f8f3a', '#5c9c40', '#478636', '#64a646', '#58954a'];
+  bushes.forEach(([x, z, s], i) => { mm.compose(V3(x, .55 * s, z), new THREE.Quaternion().setFromAxisAngle(V3(0, 1, 0), rnd() * 6), V3(s * 1.1, s, s * 1.1)); bi.setMatrixAt(i, mm); c.set(greens[(rnd() * greens.length) | 0]); bi.setColorAt(i, c); });
   G.add(bi); R.addInst(bi, { delayFn: (i, p) => .2 + Math.hypot(p.x, p.z) * .035, dur: .7, kind: 'pop', amp: .5 });
   // flower beds with instanced blossoms
   const beds = [[-7.6, 14.2], [7.6, 14.2], [-12.8, 11.5], [12.8, 13.5]];
@@ -639,11 +653,24 @@ function s8(S) {
   beds.forEach(([x, z]) => { const b = rbox(3.2, .38, 1.6, .1, 2); b.translate(x, 0, z); bedG.push(shade(b, { lo: .65 })); const s = rbox(2.8, .1, 1.2, .03, 1); s.translate(x, .36, z); soilG.push(shade(s, { lo: 1 })); S.col(x, z, 1.0); });
   const bedM = mesh(S, merge(bedG), M.marble), soilM = mesh(S, merge(soilG), M.soil, false);
   G.add(bedM, soilM); R.add(bedM, { delay: .6, dur: .7, kind: 'grow', fx: 'dust' }); R.add(soilM, { delay: .9, dur: .3, kind: 'pop' });
-  const fgeo = new THREE.IcosahedronGeometry(.13, 0), fl = [], fcols = ['#ff7aa8', '#ffd24a', '#ff5a5a', '#ffffff', '#c58bff'];
-  beds.forEach(([x, z]) => { for (let k = 0; k < 24; k++) fl.push([x + (rnd() - .5) * 2.6, z + (rnd() - .5) * 1.1, fcols[(rnd() * fcols.length) | 0]]); });
-  const fi = new THREE.InstancedMesh(fgeo, M.petal, fl.length);
-  fl.forEach(([x, z, col], i) => { mm.compose(V3(x, .55 + rnd() * .12, z), new THREE.Quaternion(), V3(1, 1, 1).multiplyScalar(.8 + rnd() * .6)); fi.setMatrixAt(i, mm); fi.setColorAt(i, c.set(col)); });
+  const fgeo = (() => { // 5 petals + raised light centre, smooth upward normals; tinted per instance
+    const pos = [], nor = [], col = [];
+    const v = (p, n, c2) => { pos.push(...p); nor.push(...n); col.push(...c2); };
+    for (let k = 0; k < 5; k++) {
+      const a2 = k / 5 * Math.PI * 2, ca = Math.cos(a2), sa = Math.sin(a2), pa = Math.cos(a2 + .6), pb = Math.sin(a2 + .6), qa = Math.cos(a2 - .6), qb = Math.sin(a2 - .6);
+      const n = [ca * .35, 1, sa * .35], i0 = [ca * .02, .02, sa * .02], i1 = [pa * .09, .045, pb * .09], i2 = [ca * .17, .06, sa * .17], i3 = [qa * .09, .045, qb * .09];
+      for (const [p2, cc] of [[i0, .85], [i2, 1], [i1, 1.05], [i0, .85], [i3, 1.05], [i2, 1]]) v(p2, n, [cc, cc, cc]);
+    }
+    for (let k = 0; k < 5; k++) { const a2 = k / 5 * Math.PI * 2, b2 = (k + 1) / 5 * Math.PI * 2; v([0, .09, 0], [0, 1, 0], [1.6, 1.45, .7]); v([Math.cos(b2) * .045, .055, Math.sin(b2) * .045], [0, 1, 0], [1.4, 1.2, .5]); v([Math.cos(a2) * .045, .055, Math.sin(a2) * .045], [0, 1, 0], [1.4, 1.2, .5]); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); return g;
+  })();
+  const fl = [], fcols = ['#ff8fb8', '#ffd24a', '#ff6a6a', '#ffffff', '#c99bff', '#ff9d4a'];
+  beds.forEach(([x, z]) => { for (let k = 0; k < 26; k++) fl.push([x + (rnd() - .5) * 2.6, z + (rnd() - .5) * 1.1, fcols[(rnd() * fcols.length) | 0]]); });
+  const fi = new THREE.InstancedMesh(fgeo, M.flower, fl.length);
+  fl.forEach(([x, z, col], i) => { mm.compose(V3(x, .5 + rnd() * .08, z), new THREE.Quaternion().setFromEuler(new THREE.Euler((rnd() - .5) * .4, rnd() * 6, (rnd() - .5) * .4)), V3(1, 1, 1).multiplyScalar(.9 + rnd() * .6)); fi.setMatrixAt(i, mm); fi.setColorAt(i, c.set(col)); });
   G.add(fi); R.addInst(fi, { delayFn: (i) => 1.1 + i * .012, dur: .5, kind: 'pop', amp: .6 });
+  { const lg = []; beds.forEach(([x, z]) => { for (let k = 0; k < 7; k++) { const b2 = new THREE.SphereGeometry(.28, 7, 5); b2.scale(1, .55, 1); b2.translate(x + (k - 3) * .4 + (rnd() - .5) * .1, .44, z + (rnd() - .5) * .5); lg.push(shade(b2, { lo: .6, tint: 0x4f8f3a })); } });
+    const lm = mesh(S, merge(lg), M.bush); G.add(lm); R.add(lm, { delay: 1.0, dur: .5, kind: 'pop', amp: .4 }); }
   // palms: curved trunks (merged) + instanced fronds
   const palms = [[-13.5, -9], [13.8, -9.5], [-14.5, 12], [15, 8], [-9.5, -14], [8.5, -14.5]];
   const trunk = [], frond = new THREE.PlaneGeometry(.55, 3.0, 2, 8); {
@@ -667,13 +694,13 @@ function s8(S) {
   fInst.forEach((f, i) => { mm.compose(f.p, f.q, V3(f.s, f.s, f.s)); fi2.setMatrixAt(i, mm); });
   G.add(fi2); R.addInst(fi2, { delayFn: (i) => 1.4 + (i % 10) * .05 + Math.floor(i / 10) * .1, dur: .7, kind: 'pop', amp: .4 });
   // lantern posts (instanced pole + glowing paper lantern)
-  const lpos = [[-3.6, 16.2], [3.6, 16.2], [-3.6, 20.6], [3.6, 20.6], [-9.6, 11.2], [9.6, 11.2], [-12.5, -9], [12.5, -9.5]];
+  const lpos = [[pathX(17) - 2.9, 17], [pathX(17) + 2.9, 17], [pathX(22) - 2.9, 22], [pathX(22) + 2.9, 22]];
   const pole = new THREE.CylinderGeometry(.07, .1, 2.6, 6).translate(0, 1.3, 0); const arm = new THREE.CylinderGeometry(.035, .035, .5, 6).rotateZ(Math.PI / 2).translate(.25, 2.55, 0);
   const pg = merge([flat(pole, 1), flat(arm, 1), flat(new THREE.SphereGeometry(.12, 8, 6).translate(0, 0, 0), 1), flat(new THREE.ConeGeometry(.15, .2, 6).translate(.5, 2.52, 0), 1)]);
   const lanternG = new THREE.CylinderGeometry(.19, .15, .36, 8).translate(.5, 2.25, 0);
   const pi = new THREE.InstancedMesh(pg, M.wood, lpos.length), li = new THREE.InstancedMesh(lanternG, M.lantern, lpos.length);
   pi.castShadow = true;
-  lpos.forEach(([x, z], i) => { const ry = Math.atan2(-z, -x) + Math.PI / 2 * 0; mm.compose(V3(x, 0, z), new THREE.Quaternion().setFromAxisAngle(V3(0, 1, 0), -Math.atan2(z - 0, x) + Math.PI), V3(1, 1, 1)); pi.setMatrixAt(i, mm); li.setMatrixAt(i, mm); });
+  lpos.forEach(([x, z], i) => { const ry = x < pathX(z) ? 0 : Math.PI; mm.compose(V3(x, 0, z), new THREE.Quaternion().setFromAxisAngle(V3(0, 1, 0), ry), V3(1, 1, 1)); pi.setMatrixAt(i, mm); li.setMatrixAt(i, mm); });
   G.add(pi, li); R.addInst(pi, { delayFn: (i) => 2.0 + i * .06, dur: .6, kind: 'grow', amp: .1 }); R.addInst(li, { delayFn: (i) => 2.3 + i * .06, dur: .6, kind: 'pop', amp: .5 });
   S.lanternSpots = lpos;
   S.finale(V3(0, 1.5, 8), 3.5, 'confetti');

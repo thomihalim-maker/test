@@ -1,8 +1,8 @@
 // Geometry helpers: bevelled boxes, arch shapes, curved tajug roof frusta, AO-style vertex shading
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-export { mergeGeometries };
+import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+export { mergeGeometries, mergeVertices };
 
 const V2 = (x, y) => new THREE.Vector2(x, y);
 
@@ -150,7 +150,7 @@ export function tajugRoof({ a0, b0 = a0, a1 = .15, b1 = a1, h, k = 1.25, flick =
  * Straight-sloped Javanese roof (tajug when a1=b1, limasan when b1 small). Origin at the eave centre (y=0).
  * Returns { tiles (faces + hip ridges, vertex-coloured), wood (fascia), trim (cream drip strip), soffit }.
  */
-export function pyramidRoof({ a0, b0 = a0, a1 = .08, b1 = a1, h, tile = 1.4, ridgeR = .07, fascia = .16 }) {
+export function pyramidRoof({ a0, b0 = a0, a1 = .08, b1 = a1, h, tile = 2.2, ridgeR = .09, fascia = .26 }) {
   const C = [[1, 1], [-1, 1], [-1, -1], [1, -1]];
   const lo = C.map(([sx, sz]) => new THREE.Vector3(sx * a0, 0, sz * b0)), hi = C.map(([sx, sz]) => new THREE.Vector3(sx * a1, h, sz * b1));
   const pos = [], uv = [], col = [];
@@ -176,7 +176,7 @@ export function pyramidRoof({ a0, b0 = a0, a1 = .08, b1 = a1, h, tile = 1.4, rid
   const tiles = mergeGeometries(parts.map(g => { if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); return g; }), false);
   const wood = [], trim = [];
   const board = (arr, w, hh, d, x, y, z) => { const g = new THREE.BoxGeometry(w, hh, d); g.translate(x, y, z); arr.push(flat(g, 1)); };
-  const F = fascia, T = .09;
+  const F = fascia, T = .14;
   board(wood, 2 * a0 + T, F, T, 0, -F / 2 + .02, b0); board(wood, 2 * a0 + T, F, T, 0, -F / 2 + .02, -b0);
   board(wood, T, F, 2 * b0 + T, a0, -F / 2 + .02, 0); board(wood, T, F, 2 * b0 + T, -a0, -F / 2 + .02, 0);
   board(trim, 2 * a0 + T + .04, .045, T + .04, 0, -F + .02, b0); board(trim, 2 * a0 + T + .04, .045, T + .04, 0, -F + .02, -b0);

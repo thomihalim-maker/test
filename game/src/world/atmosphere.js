@@ -144,12 +144,12 @@ export function createAtmosphere(ctx){
     lightTarget.set(0,0,0).addScaledVector(R,tr).addScaledVector(U,tu).addScaledVector(L,tl);
     sun.target.position.copy(lightTarget); sun.position.copy(lightTarget).addScaledVector(L,90);
     sun.target.updateMatrixWorld();
-    hemi.color.copy(k.hs); hemi.groundColor.copy(k.hg); hemi.intensity=k.hI*(0.95+0.25*state.night); hemi.intensity+= (0.62-hemi.intensity)*g;
+    hemi.color.copy(k.hs); hemi.groundColor.copy(k.hg); hemi.intensity=k.hI*(0.95+0.25*state.night); hemi.intensity+= (0.78-hemi.intensity)*g;
     // opposite soft fill tinted by sky
     T.copy(L); T.x*=-1; T.z*=-1; T.y=0.35; T.normalize();
     fill.position.copy(focus).addScaledVector(T,50); fill.target.position.copy(focus);
-    fill.color.copy(k.mid).lerp(new THREE.Color(0.62,0.55,1.0),0.35+0.3*state.golden); fill.intensity=0.4+(0.3-0.4)*g+0.1*state.night;
-    hemi.groundColor.lerp(_g.set('#6a58a0'),0.25+0.35*g); hemi.color.lerp(_g.set('#9a88e0'),0.5*g);
+    fill.color.copy(k.mid).lerp(new THREE.Color(0.62,0.55,1.0),0.35+0.3*state.golden); fill.intensity=0.4+(0.36-0.4)*g+0.1*state.night;
+    hemi.groundColor.lerp(_g.set('#7a70b8'),0.25+0.4*g); hemi.color.lerp(_g.set('#8e9cf0'),0.6*g);
     if(useSun) sun.color.lerp(_g.set('#ffb070'),0.3*g);
     ctx.renderer.toneMappingExposure=k.exp;
     return state;

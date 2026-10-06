@@ -51,8 +51,8 @@ export function createDecor(ctx, blobs){
   function P2(list,x,z,h,ry,lx,ly,lz,sx,sy,sz,c,yaw){ part(list,x,z,h,ry,lx,ly,lz,sx,sy,sz,c,yaw); }
   // ---- vignettes: [anchor x, z, layout] ----
   const V={
-    rest:[['bench',0,0],['bed',-2.2,0.15],['lamp',1.45,-0.45]],
-    rest2:[['bench',0,0],['bed',2.2,0.15],['lamp',-1.45,-0.45]],
+    rest:[['bench',0,0],['bed',-2.2,0.15]],
+    rest2:[['bench',0,0],['bed',2.2,0.15]],
     wood:[['woodpile',0,0],['crates',2.2,0.5],['bucket',-1.4,0.7]],
     well:[['well',0,0],['bucket',1.35,0.7],['bed',-2.4,0.2]],
   };

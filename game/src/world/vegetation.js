@@ -35,7 +35,7 @@ export function createVegetation(ctx, terrain, blobs){
     if(rnd()<0.12) tmpC.lerp(tc.set('#e6e060'),0.35);
     grassItems.push({x,y:h-0.03,z,ry:rnd()*6.28,s:1.25*(0.8+rnd()*0.6),c:tmpC.clone()});
   }
-  inst(G.grassTri({n:5,height:0.6,width:0.13,spread:0.22,seed:4}),patchWind(lamb(),{amp:0.22,height:0.6,speed:1.2}),grassItems,{}).name='grass';
+  inst(G.grassTri({n:5,height:0.6,width:0.13,spread:0.22,seed:4}),patchWind(lamb(),{amp:0.22,height:0.6,speed:1.2,fade:2.5}),grassItems,{}).name='grass';
 
   // ---------- flowers ----------
   const FP=['#ff7fb0','#ffffff','#ffd23f','#b69cff','#ff9248','#ff6b6b','#7fd4ff'].map(c=>new THREE.Color(c));
@@ -51,8 +51,8 @@ export function createVegetation(ctx, terrain, blobs){
       fl.push({x,y:h-0.02,z,ry:rnd()*6.28,s:0.9+rnd()*0.9,c:(rnd()<0.7?c1:c2).clone().multiplyScalar(0.9+rnd()*0.2)}); }
   }
   const fg=G.flowerGeo();
-  const fMat=patchWind(lamb(),{amp:0.12,height:0.35,speed:1.1});
-  const fStemMat=patchWind(lamb(),{amp:0.12,height:0.35,speed:1.1});
+  const fMat=patchWind(lamb(),{amp:0.12,height:0.35,speed:1.1,fade:2.5});
+  const fStemMat=patchWind(lamb(),{amp:0.12,height:0.35,speed:1.1,fade:2.5});
   const petalMesh=inst(fg.petals,fMat,fl,{}); petalMesh.name='flowerPetals';
   const stemItems=fl.map(f=>({...f,c:null}));
   inst(fg.stem,fStemMat,stemItems,{}).name='flowerStems';
@@ -116,12 +116,12 @@ export function createVegetation(ctx, terrain, blobs){
     const n=3+((rnd()*3)|0), main=VAR[(rnd()*4)|0];
     for(let k=0;k<n;k++){ const b=rnd()*6.283, d=k?0.9+rnd()*1.1:0, x=cx+Math.cos(b)*d, z=cz+Math.sin(b)*d;
       if(clearance(x,z)<0.7||slopeAt(x,z)>0.5) continue; const v=k===0?main:(rnd()<0.6?main:VAR[(rnd()*4)|0]);
-      addBush(x,z,(k?0.6:0.9)+rnd()*0.55,v); }
+      addBush(x,z,((k?0.6:0.9)+rnd()*0.5)*0.82,v); }
     place(cx,cz,1.6);
   }
   // plaza edge hedge ring
   for(let i=0;i<24;i++){ const a=i/24*6.283+rnd()*0.15, r=15.6+rnd()*0.9, x=Math.cos(a)*r, z=Math.sin(a)*r;
-    if(clearance(x,z)<0.6) continue; place(x,z,0.5); addBush(x,z,0.6+rnd()*0.35,i%3===0?'flower':(i%3===1?'round':'flat')); }
+    if(clearance(x,z)<0.6) continue; place(x,z,0.5); addBush(x,z,0.45+rnd()*0.25,i%3===0?'flower':(i%3===1?'round':'flat')); }
   const bushMat=()=>patchWind(std(),{amp:0.1,height:1.2,speed:1.0,rim:0.4});
   VAR.forEach((v,i)=>{ if(bushes[v].length) inst(G.bushGeo({variant:v,seed:3+i}),bushMat(),bushes[v],{cast:false}).name='bush_'+v; });
 
@@ -132,7 +132,7 @@ export function createVegetation(ctx, terrain, blobs){
     for(let k=0;k<n;k++){ const b=rnd()*6.283, d=Math.sqrt(rnd())*R, x=cx+Math.cos(b)*d, z=cz+Math.sin(b)*d;
       if(clearance(x,z)<0.15) continue; const h=heightAt(x,z); if(h<0.3) continue; terrain.colorAt(x,z,tmpC);
       clov.push({x,y:h-0.02,z,ry:rnd()*6.28,s:0.9+rnd()*0.9,c:tmpC.clone().multiplyScalar(1.6+rnd()*0.4)}); } }
-  inst(G.cloverGeo(),patchWind(lamb(),{amp:0.03,height:0.12,speed:1.2}),clov,{}).name='clover';
+  inst(G.cloverGeo(),patchWind(lamb(),{amp:0.03,height:0.12,speed:1.2,fade:2.5}),clov,{}).name='clover';
 
   // ---------- rocks ----------
   const rocks=[]; let rt=0;

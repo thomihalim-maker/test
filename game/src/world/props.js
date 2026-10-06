@@ -22,8 +22,8 @@ export function createLamps(ctx, blobs, extra=[]){
   const group=new THREE.Group(); group.name='lamps';
   const spots=[];
   // street lamps stay outside r~16 of the plaza (the masjid has its own lanterns)
-  for(const z of [21,31,41,51]) for(const sd of [-1,1]) spots.push([roadX(z)+sd*3.0,z]);
-  spots.push([17,9.2],[POND.x+7,POND.z-5],[POND.x-6,POND.z+7],...extra);
+  [[21,-1],[31,1],[41,-1],[51,1]].forEach(([z,sd])=>spots.push([roadX(z)+sd*2.7,z]));
+  spots.push([17,8.9]);
   const post=new THREE.CylinderGeometry(0.1,0.14,2.4,8); post.translate(0,1.2,0);
   const cap=new THREE.ConeGeometry(0.34,0.26,6); cap.translate(0,2.86,0);
   const lamp=new THREE.BoxGeometry(0.32,0.42,0.32); lamp.translate(0,2.55,0);

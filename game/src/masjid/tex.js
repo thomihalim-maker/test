@@ -180,8 +180,8 @@ export const tex = {
     g.strokeStyle = '#e2c26a'; g.lineWidth = 6; g.strokeRect(8, 8, w - 16, h - 16);
     g.strokeStyle = '#8a1f2d'; g.lineWidth = 10; g.strokeRect(24, 24, w - 48, h - 48);
     g.strokeStyle = '#e2c26a'; g.lineWidth = 3; g.strokeRect(38, 38, w - 76, h - 76);
-    g.fillStyle = '#e2c26a';
-    for (let x = 64; x < w - 40; x += 32) for (let y = 64; y < h - 40; y += 32) { g.beginPath(); g.moveTo(x, y - 7); g.lineTo(x + 7, y); g.lineTo(x, y + 7); g.lineTo(x - 7, y); g.fill(); }
+    g.fillStyle = 'rgba(190,160,90,.45)';
+    for (let x = 64; x < w - 40; x += 32) for (let y = 64; y < h - 40; y += 32) { g.beginPath(); g.moveTo(x, y - 4); g.lineTo(x + 4, y); g.lineTo(x, y + 4); g.lineTo(x - 4, y); g.fill(); }
   })),
   brick: () => once('brick', () => mk(256, 256, (g, w, h) => {
     g.fillStyle = '#eadcbf'; g.fillRect(0, 0, w, h);
@@ -215,21 +215,39 @@ export const tex = {
   }, { repeat: false })),
   // wooden shingles (sirap): dark grey-brown, soft stagger
   sirap: () => once('sirap', () => mk(256, 256, (g, w, h) => {
-    g.fillStyle = '#4a3c33'; g.fillRect(0, 0, w, h);
-    const rows = 8, rh = h / rows;
+    g.fillStyle = '#5a4028'; g.fillRect(0, 0, w, h);
+    const rows = 6, rh = h / rows;
     for (let r = rows - 1; r >= 0; r--) {
-      let x = (r % 2) * -16;
+      let x = (r % 2) * -22;
       while (x < w) {
-        const sw = 22 + rnd() * 14, v = rnd(), y = r * rh;
-        const base = [[112, 94, 80], [98, 82, 70], [124, 104, 88], [90, 76, 66]][(v * 4) | 0];
-        const gr = g.createLinearGradient(0, y, 0, y + rh * 1.1);
-        gr.addColorStop(0, `rgb(${base[0] * .92},${base[1] * .92},${base[2] * .92})`); gr.addColorStop(.7, `rgb(${base[0]},${base[1]},${base[2]})`); gr.addColorStop(1, `rgb(${base[0] * .62},${base[1] * .6},${base[2] * .58})`);
-        g.fillStyle = gr; g.fillRect(x + 1, y, sw - 2, rh * 1.08);
-        g.fillStyle = 'rgba(255,240,220,.06)'; g.fillRect(x + 2, y, 2, rh);
+        const sw = 34 + rnd() * 18, v = rnd(), y = r * rh;
+        const base = [[154, 115, 80], [176, 132, 88], [164, 122, 82], [186, 140, 94]][(v * 4) | 0];
+        const gr = g.createLinearGradient(0, y, 0, y + rh);
+        gr.addColorStop(0, `rgb(${base[0] * .9},${base[1] * .9},${base[2] * .9})`); gr.addColorStop(.55, `rgb(${base[0]},${base[1]},${base[2]})`);
+        gr.addColorStop(.8, `rgb(${base[0] * .9},${base[1] * .88},${base[2] * .86})`); gr.addColorStop(1, `rgb(${base[0] * .42},${base[1] * .38},${base[2] * .34})`);
+        g.fillStyle = gr; g.fillRect(x + 1.5, y, sw - 3, rh);
+        g.fillStyle = 'rgba(255,236,200,.12)'; g.fillRect(x + 3, y + 2, sw * .3, 3); // soft top highlight
+        g.fillStyle = 'rgba(60,36,18,.35)'; g.fillRect(x + sw - 3, y, 1.5, rh); // gap shadow
         x += sw;
       }
     }
-    noise(g, w, h, 900, .12, ['#2a201a', '#a89080']);
+    noise(g, w, h, 500, .08, ['#4a3020', '#d8b080']);
+  })),
+  // warm limestone (batu putih) blocks with low-contrast veins
+  batu: () => once('batu', () => mk(256, 256, (g, w, h) => {
+    g.fillStyle = '#c9b996'; g.fillRect(0, 0, w, h);
+    const bh = 64;
+    for (let r = 0; r < 4; r++) for (let c = -1; c < 3; c++) {
+      const bw = 128, x = c * bw + (r % 2 ? 64 : 0) + 2, y = r * bh + 2, v = .92 + rnd() * .1;
+      g.fillStyle = `rgb(${217 * v | 0},${204 * v | 0},${178 * v | 0})`; g.fillRect(x, y, bw - 4, bh - 4);
+      for (let k = 0; k < 3; k++) { g.strokeStyle = 'rgba(170,150,115,.25)'; g.lineWidth = 1; g.beginPath(); let vx = x + rnd() * bw, vy = y; g.moveTo(vx, vy); while (vy < y + bh - 4) { vx += (rnd() - .5) * 14; vy += 8; g.lineTo(vx, vy); } g.stroke(); }
+    }
+    noise(g, w, h, 900, .1, ['#a89470', '#f4ead4']);
+  })),
+  // glow mask for the louvers: only the slat gaps emit
+  louverGlow: () => once('louverGlow', () => mk(128, 128, (g, w, h) => {
+    g.fillStyle = '#000'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#fff'; for (let y = 6; y < h - 6; y += 12) g.fillRect(8, y + 9, w - 16, 3);
   })),
   whitewash: () => once('whitewash', () => mk(256, 256, (g, w, h) => {
     g.fillStyle = '#fff6e6'; g.fillRect(0, 0, w, h);
@@ -248,16 +266,17 @@ export const tex = {
   // carved wooden lattice (krawangan) with transparent holes: use with alphaTest
   krawangan: () => once('kraw', () => mk(128, 128, (g, w, h) => {
     g.clearRect(0, 0, w, h);
-    g.fillStyle = '#a8703c'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#b98250'; g.fillRect(0, 0, w, h);
     g.globalCompositeOperation = 'destination-out';
     const c = 32;
     for (let y = 0; y < h; y += c) for (let x = 0; x < w; x += c) {
       g.beginPath(); // 4-petal kawung motif hole
-      for (const [dx, dy] of [[.5, .2], [.8, .5], [.5, .8], [.2, .5]]) { g.moveTo(x + dx * c + 6, y + dy * c); g.ellipse(x + dx * c, y + dy * c, 6.5, 6.5, 0, 0, 7); }
+      for (const [dx, dy] of [[.5, .2], [.8, .5], [.5, .8], [.2, .5]]) { g.moveTo(x + dx * c + 4.5, y + dy * c); g.ellipse(x + dx * c, y + dy * c, 4.5, 4.5, 0, 0, 7); }
       g.fill();
     }
     g.globalCompositeOperation = 'source-over';
-    g.strokeStyle = '#7a4a22'; g.lineWidth = 3; g.strokeRect(1.5, 1.5, w - 3, h - 3);
+    g.strokeStyle = '#8a5a30'; g.lineWidth = 3; g.strokeRect(1.5, 1.5, w - 3, h - 3);
+    g.fillStyle = 'rgba(120,76,36,.5)'; for (let y = 0; y < h; y += 32) for (let x = 0; x < w; x += 32) { g.beginPath(); g.arc(x + 16, y + 16, 3, 0, 7); g.fill(); }
   }, { srgb: true })),
   // small coloured transom glass (no rose)
   transom: () => once('transom', () => mk(128, 64, (g, w, h) => {

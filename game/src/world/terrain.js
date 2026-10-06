@@ -42,7 +42,7 @@ const C=(hex)=>new THREE.Color(hex);
 const gA=C('#7cc444'), gB=C('#55a840'), gC=C('#aed15a'), gD=C('#3a9552'), gE=C('#6db848'), gBlue=C('#3d9a66'), gYel=C('#a8c456');
 const dWorn=C('#9a7450'), dDamp=C('#6f5638'), dA=C('#a97a4c'), dB=C('#e0c48c'), dC=C('#8f7a50'), _dc=new THREE.Color(), _g0=new THREE.Color();
 const dirtPath=C('#c4905a'), dirtPlaza=C('#c9a875'), dirtPen=C('#bf9254'), straw=C('#d9bd6a');
-const sandC=C('#f3dfa4'), sandWet=C('#cdb581'), mud=C('#7d6a45'), bed=C('#4aa5a0'), bedDeep=C('#2b6f8f');
+const mudDark=C('#4e4030'), sandC=C('#e8cfa0'), sandWet=C('#c9ad7c'), mud=C('#7d6a45'), bed=C('#4aa5a0'), bedDeep=C('#2b6f8f');
 const earth=C('#8d6a3f'), rice1=C('#b9d34c'), rice2=C('#86cf4a'), rock=C('#9a9486');
 
 // terrain surface shading at a point -> writes color into out, returns [grass,dirt,sand] weights
@@ -85,12 +85,12 @@ export function shadeAt(x,z,h,ny,out){
     // sand/shore/seabed
     const dp=Math.hypot(x-POND.x,z-POND.z);
     const coastal=S(36,48,r)||0;
-    let sand=coastal*(1-S(0.05,0.85+n3*0.5,h)), underwater=S(WATER_Y+0.15,WATER_Y-0.35,h);
+    let sand=coastal*(1-S(-0.1+n4*0.35,0.55+n4*0.45+n3*0.35,h)), underwater=S(WATER_Y+0.15,WATER_Y-0.35,h);
     if(sand>0){ tmp.lerp(sandWet,0); const wet=S(0.25,-0.5,h); const sc=sandC.clone().lerp(sandWet,wet*0.85); tmp.lerp(sc,sand); }
     // pond banks: mud ring + shallow tint
     const pond=(1-S(5.2,9.5,dp+n3*1.5))*(1-S(-0.1,0.4,h-0.0));
-    if(pond>0){ const mw=S(0.55,-0.45,h); tmp.lerp(mud,pond*mw*0.8); }
-    if(underwater>0){ const deep=S(WATER_Y,-3.8,h); const bc=(dp<14? mud.clone().lerp(C('#4f8a7a'),0.5): bed.clone()); bc.lerp(bedDeep,deep); tmp.lerp(bc,underwater); }
+    if(pond>0){ const mw=S(0.55,-0.45,h); tmp.lerp(mudDark,pond*mw*0.95); }
+    if(underwater>0){ const deep=S(WATER_Y,-3.8,h); const bc=(dp<14? mudDark.clone().lerp(C('#2f5446'),0.5): bed.clone()); bc.lerp(bedDeep,deep); tmp.lerp(bc,underwater); }
     const sw=Math.max(sand,underwater*0.6), dw=dirt*(1-sw);
   return [Math.max(0,1-dw-sw),dw,sw];
 }

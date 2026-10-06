@@ -89,6 +89,18 @@ function blob(b, c, rx,ry,rz, color, {wd=9,hd=6,disp=0.18,seed=1,upBias=0.35,aoF
       row.push(b.v(p,nrm(nx,ny+upBias,nz),col)); } rows.push(row); }
   for(let j=0;j<hd;j++)for(let i=0;i<wd;i++){ const i2=(i+1)%wd; b.q(rows[j][i],rows[j+1][i],rows[j+1][i2],rows[j][i2]); }
 }
+// small 5-petal flower lying on a surface (normal n), petals cupped slightly outward
+function petalCluster(b,c,n,col,size,r){
+  const nn=nrm(n[0],n[1],n[2]); let t1=Math.abs(nn[1])<0.9?[0,1,0]:[1,0,0];
+  t1=nrm(t1[1]*nn[2]-t1[2]*nn[1],t1[2]*nn[0]-t1[0]*nn[2],t1[0]*nn[1]-t1[1]*nn[0]);
+  const t2=[nn[1]*t1[2]-nn[2]*t1[1],nn[2]*t1[0]-nn[0]*t1[2],nn[0]*t1[1]-nn[1]*t1[0]];
+  const at=(u,v,w)=>[c[0]+t1[0]*u+t2[0]*v+nn[0]*w,c[1]+t1[1]*u+t2[1]*v+nn[1]*w,c[2]+t1[2]*u+t2[2]*v+nn[2]*w];
+  const inner=mul(col,0.82), tip=mul(col,1.18), gold=hx('#ffc83a'), up=[nn[0]*0.7,nn[1]*0.7+0.3,nn[2]*0.7];
+  const rot=r()*6.283;
+  for(let k=0;k<5;k++){ const a=rot+k/5*6.283, ca=Math.cos(a), sa=Math.sin(a), pa=Math.cos(a+1.57), pb=Math.sin(a+1.57);
+    b.q(b.v(at(0,0,0.012),up,inner), b.v(at(ca*size*0.45+pa*size*0.3,sa*size*0.45+pb*size*0.3,0.02),up,col), b.v(at(ca*size,sa*size,0.035),up,tip), b.v(at(ca*size*0.45-pa*size*0.3,sa*size*0.45-pb*size*0.3,0.02),up,col)); }
+  b.t(b.v(at(-size*0.18,-size*0.1,0.03),up,gold),b.v(at(size*0.18,-size*0.1,0.03),up,gold),b.v(at(0,size*0.2,0.03),up,gold));
+}
 export function bushGeo({variant='round',seed=3}={}){
   const b=new B(), r=mulberry32(seed);
   const pal={round:['#2a7340','#86c45a'],tall:['#1f6646','#6cb868'],flat:['#36752f','#a2cc56'],flower:['#2b7040','#80c25c']}[variant];
@@ -101,10 +113,10 @@ export function bushGeo({variant='round',seed=3}={}){
   lobes.forEach(([x,y,z,s,sy],k)=>{
     blob(b,[x,y,z],s,sy,s,(nx,ny,nz,p)=>{ const t=clamp(p[1]/top,0,1); return mix(lo,hi,t*t*(3-2*t)); },
       {seed:seed*7+k,disp:0.14,wd:8,hd:5,upBias:0.3,center:[0,top*0.4,0],cw:0.7,aoFn:(p)=>0.55+0.45*clamp(p[1]/(top*0.75),0,1)});
-    if(variant==='flower') for(let i=0;i<4;i++){ const th=r()*6.283, ph=r()*1.1; pts.push([x+Math.sin(ph)*Math.cos(th)*s,y+Math.cos(ph)*sy,z+Math.sin(ph)*Math.sin(th)*s]); }
+    if(variant==='flower') for(let i=0;i<6;i++){ const th=r()*6.283, ph=r()*1.15; const n=[Math.sin(ph)*Math.cos(th),Math.cos(ph),Math.sin(ph)*Math.sin(th)]; pts.push([[x+n[0]*s*1.0,y+n[1]*sy*1.0,z+n[2]*s*1.0],n]); }
   });
   const fc=[hx('#ff7ca8'),hx('#fff4f0'),hx('#ffd23f'),hx('#ff6a5a')][seed%4];
-  for(const p of pts) blob(b,p,0.11,0.08,0.11,mul(fc,1.15),{wd:4,hd:2,disp:0,seed:1,upBias:0.6});
+  for(const [p,n] of pts) petalCluster(b,p,n,fc,0.1,r);
   return b.geo();
 }
 export function broadleafGeo(variant=0,seed=1){
@@ -123,27 +135,42 @@ export function broadleafGeo(variant=0,seed=1){
     {seed:seed*5+k,disp:0.1,wd:12,hd:8,upBias:0.25,center:[0,cy+0.2,0],cw:0.7,aoFn:(p)=>{ const dc=Math.hypot(p[0],p[2]); return 0.62+0.38*clamp(dc/2.2+(p[1]-cy)*0.3,0,1); }}));
   return b.geo();
 }
-// flamboyan (Delonix regia): short trunk, spreading branches, wide flat umbrella canopy packed with red-orange blossom
+// flamboyan (Delonix regia): short trunk, dark forking branches, wide umbrella crown made of 5 clumped sub-canopies
 function flamboyanGeo(seed=1){
   const b=new B(), r=mulberry32(seed);
-  const H=2.3;
-  const pts=[],rad=[]; for(let i=0;i<=4;i++){ const t=i/4; pts.push([0.15*Math.sin(t*2),H*t,0]); rad.push(0.34-0.1*t); }
-  const bark=(t,k)=>mul(mix(hx('#6a5038'),hx('#9a8062'),0.5+0.5*Math.sin(k*2.3)),0.8+0.3*t);
+  const H=2.0;
+  const pts=[],rad=[]; for(let i=0;i<=4;i++){ const t=i/4; pts.push([0.12*Math.sin(t*2),H*t,0]); rad.push(0.36-0.1*t); }
+  const bark=(t,k)=>mul(mix(hx('#5a4230'),hx('#8a7058'),0.5+0.5*Math.sin(k*2.3)),0.85+0.25*t);
+  const darkBranch=(t,k)=>mul(mix(hx('#3a2a1e'),hx('#5a4230'),0.5+0.5*Math.sin(k*2.1)),0.9+0.2*t);
   tube(b,pts,rad,8,bark,{flare:0.8});
-  const cy=3.7, NB=6;
-  for(let i=0;i<NB;i++){ const a=i/NB*6.283+r()*0.4, R=2.0+r()*0.7;
-    tube(b,[[pts[4][0],H-0.1,0],[Math.cos(a)*R*0.45,H+0.7,Math.sin(a)*R*0.45],[Math.cos(a)*R,cy-0.35,Math.sin(a)*R]],[0.17,0.11,0.07],5,bark); }
-  const lobes=[[0,cy+0.25,0,2.0,0.75]];
-  for(let i=0;i<7;i++){ const a=i/7*6.283+r()*0.3, R=2.2+r()*0.5; lobes.push([Math.cos(a)*R,cy+(r()-0.5)*0.3,Math.sin(a)*R,1.25+r()*0.35,0.55+r()*0.15]); }
-  const lo=hx('#2c6a36'), gm=hx('#5fa046'), red=hx('#e8462a'), org=hx('#ff8a34');
-  lobes.forEach(([x,y,z,s,sy],k)=>blob(b,[x,y,z],s,sy,s,(nx,ny,nz,p)=>{
-      const t=clamp((ny+1)/2,0,1); const leaf=mix(lo,gm,clamp(t*1.4,0,1));
-      const bl=clamp((t-0.42)*3.2,0,1)*(0.75+0.25*Math.sin(p[0]*3.1+p[2]*2.3)); return mix(leaf,mix(red,org,0.5+0.5*Math.sin(p[0]*1.7-p[2]*2.9)),bl); },
-    {seed:seed*9+k,disp:0.16,wd:12,hd:6,upBias:0.25,center:[0,cy-0.3,0],cw:0.6,aoFn:(p)=>0.65+0.35*clamp((p[1]-cy+0.6)/1.2,0,1)}));
-  // blossom clusters on the upper surface
-  const n=Math.round(46*DET);
-  for(let i=0;i<n;i++){ const [x,y,z,s,sy]=lobes[(r()*lobes.length)|0]; const th=r()*6.283, ph=r()*1.0;
-    blob(b,[x+Math.sin(ph)*Math.cos(th)*s*0.98,y+Math.cos(ph)*sy*0.98,z+Math.sin(ph)*Math.sin(th)*s*0.98],0.3,0.14,0.3,mix(red,org,r()),{wd:5,hd:2,disp:0.12,seed:i,upBias:0.6}); }
+  const NC=5, clumps=[];
+  for(let i=0;i<NC;i++){ const a=i/NC*6.283+r()*0.5, R=2.1+r()*0.6, y=3.5+r()*0.45;
+    const cx=Math.cos(a)*R, cz=Math.sin(a)*R;
+    // main limb to a fork point, then two sub-limbs into the clump
+    const fx=Math.cos(a)*R*0.5, fz=Math.sin(a)*R*0.5, fy=H+0.75;
+    tube(b,[[pts[4][0],H-0.15,0],[Math.cos(a)*0.4,H+0.35,Math.sin(a)*0.4],[fx,fy,fz]],[0.16,0.13,0.1],5,darkBranch);
+    for(const da of [-0.45,0.45]){ const ex=cx+Math.cos(a+da*2)*0.6, ez=cz+Math.sin(a+da*2)*0.6; tube(b,[[fx,fy,fz],[(fx+ex)/2,fy+0.45,(fz+ez)/2],[ex,y-0.25,ez]],[0.09,0.07,0.05],4,darkBranch); }
+    clumps.push([cx,y,cz,a]);
+  }
+  clumps.push([0,4.05,0,0]); // small central cap so the crown reads as one tree
+  const lo=hx('#2c6a36'), gm=hx('#5fa046');
+  const BL=[hx('#d8341f'),hx('#f0582a'),hx('#ff8a34'),hx('#e94a3a')];
+  clumps.forEach(([cx,cy,cz],ci)=>{
+    const c1=BL[(r()*4)|0], c2=BL[(r()*4)|0], isCap=ci===NC;
+    const nl=isCap?1:3;
+    for(let k=0;k<nl;k++){
+      const ox=isCap?0:(r()-0.5)*0.9, oz=isCap?0:(r()-0.5)*0.9, s=isCap?1.1:0.85+r()*0.35, sy=isCap?0.42:0.42+r()*0.14;
+      blob(b,[cx+ox,cy+(r()-0.5)*0.2,cz+oz],s,sy,s,(nx,ny,nz,p)=>{
+          const t=clamp((ny+1)/2,0,1); const leaf=mix(lo,gm,clamp(t*1.5,0,1));
+          const nz2=0.5+0.5*Math.sin(p[0]*4.3+p[2]*3.7)*Math.sin(p[0]*2.1-p[2]*5.3);
+          const bl=clamp((t-0.4)*3.2,0,1)*(0.55+0.45*nz2); return mix(leaf,mix(c1,c2,nz2),bl); },
+        {seed:seed*13+ci*5+k,disp:0.18,wd:10,hd:5,upBias:0.2,center:[cx,cy-0.25,cz],cw:0.55,aoFn:(p)=>0.62+0.38*clamp((p[1]-cy+0.5)/0.9,0,1)});
+    }
+    // raised blossom puffs on the clump top
+    const n=Math.round((isCap?6:9)*DET);
+    for(let i=0;i<n;i++){ const th=r()*6.283, d=Math.sqrt(r())*(isCap?0.8:1.05);
+      blob(b,[cx+Math.cos(th)*d,cy+0.32+r()*0.12,cz+Math.sin(th)*d],0.26,0.13,0.26,mix(c1,c2,r()),{wd:5,hd:2,disp:0.14,seed:i+ci*31,upBias:0.6}); }
+  });
   return b.geo();
 }
 export function cloverGeo(){

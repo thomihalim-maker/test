@@ -15,7 +15,7 @@ export function createParticles(ctx, sources=[], anchors=[]){
   pg.setAttribute('position',new THREE.Float32BufferAttribute([0,0,-0.05, -0.035,0.012,0.0, 0,0.004,0.0,  0,0,-0.05, 0,0.004,0.0, 0.035,0.012,0.0,  -0.035,0.012,0.0, 0,0.008,0.05, 0,0.004,0.0,  0,0.004,0.0, 0,0.008,0.05, 0.035,0.012,0.0],3));
   pg.setAttribute('normal',new THREE.Float32BufferAttribute(new Array(12).fill(0).flatMap(()=>[0,1,0]),3));
   pg.setAttribute('color',new THREE.Float32BufferAttribute([0.85,0.85,0.85, 1,1,1, 0.92,0.92,0.92, 0.85,0.85,0.85, 0.92,0.92,0.92, 1,1,1, 1,1,1, 1.05,1.05,1.05, 0.92,0.92,0.92, 0.92,0.92,0.92, 1.05,1.05,1.05, 1,1,1],3));
-  const pm=patchWind(new THREE.MeshLambertMaterial({vertexColors:true}),{amp:0});
+  const pm=patchWind(new THREE.MeshLambertMaterial({vertexColors:true}),{amp:0,fade:1.2});
   const petals=new THREE.InstancedMesh(pg,pm,NP); petals.frustumCulled=false; petals.name='petals';
   const pcol=['#ff7f8a','#ff9aa8','#ff6a5a','#ffb0bd'].map(c=>new THREE.Color(c));
   const P=[]; for(let i=0;i<NP;i++){ P.push({x:0,y:-99,z:0,ph:r()*6.28,sp:0.6+r()*0.6,rs:1.5+r()*2.5,s:0.45+r()*0.2,src:null}); petals.setColorAt(i,pcol[i%4]); }

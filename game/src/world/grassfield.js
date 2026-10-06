@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { mulberry32 } from './noise.js';
 import { SIZE } from './terrain.js';
-import { windU, NFIX } from './wind.js';
+import { windU, NFIX, DITHER } from './wind.js';
 import { grassTri } from './trees.js';
 
 export function createGrassField(ctx, terrain, { count = 9000, radius = 17 } = {}){
@@ -40,7 +40,8 @@ export function createGrassField(ctx, terrain, { count = 9000, radius = 17 } = {
       transformed+=vec3(0.92,-0.25*abs(gu),0.38)*gu*0.2*ww*s;
       transformed+=vec3(wp.x,gh-0.04,wp.y);
       vColor.rgb*=mk.rgb*mk.rgb*(1.08+0.28*aRnd.x);`);
-    sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', NFIX);
+    sh.uniforms.uFadeN = { value: 2.5 };
+    sh.fragmentShader = 'uniform float uFadeN;\n' + sh.fragmentShader.replace('#include <clipping_planes_fragment>', DITHER).replace('#include <normal_fragment_begin>', NFIX);
   };
   mat.customProgramCacheKey = () => 'grassfield';
   const mesh = new THREE.InstancedMesh(geo, mat, count);

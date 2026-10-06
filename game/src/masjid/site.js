@@ -114,6 +114,53 @@ export function createSite(ctx, M, parent, api) {
       [V3(-11.2, .4, 2.6), V3(-11.7, .4, 6), V3(-12.5, .4, -.9), V3(-12.3, .6, -6.4)]);
   }
 
+  // --- D: chunky material piles in view of the spawn (until stage 3): brick stacks, sirap bundles, teak logs
+  {
+    const wood = [], paint = [];
+    for (const [px, pz, ry] of [[7.6, 2.4, .2], [8.9, .6, -.3]]) {
+      const m4 = new THREE.Matrix4().compose(V3(px, 0, pz), new THREE.Quaternion().setFromAxisAngle(V3(0, 1, 0), ry), V3(1, 1, 1));
+      const loc = [];
+      loc.push(['w', shade(rbox(1.7, .16, 1.2, .03, 1), { lo: .7 })]);
+      for (let l = 0; l < 3; l++) for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+        if (l === 2 && (i + j) % 2) continue;
+        const g = rbox(.5, .24, .34, .03, 1); g.translate(-.53 + i * .53 + (l % 2 ? .05 : 0), .16 + l * .25, -.37 + j * .37); g.rotateY((rnd() - .5) * .06);
+        loc.push(['p', shade(tint(g, ['#c4532e', '#b24826', '#d0643a', '#bf5a34'][(rnd() * 4) | 0], .06), { lo: .78 })]);
+      }
+      for (const [k, g] of loc) { g.applyMatrix4(m4); (k === 'w' ? wood : paint).push(g); }
+    }
+    // sirap shingle bundles tied with rope
+    for (const [px, pz] of [[-6.6, 9.4], [-7.5, 10.2], [-6.9, 10.9]]) {
+      const ry = rnd() * 3;
+      for (let k = 0; k < 9; k++) { const g = rbox(.62, .045, .3, .01, 1); g.translate(0, .023 + k * .046, 0); g.rotateY(ry + (rnd() - .5) * .12); g.translate(px, 0, pz); paint.push(tint(g, ['#b08458', '#9a7350', '#c09060'][k % 3], .05)); }
+      const r = new THREE.TorusGeometry(.2, .022, 4, 10); r.scale(1.6, 1, 1); r.rotateY(ry); r.translate(px, .22, pz); paint.push(tint(r, '#e8d2a0', 0));
+    }
+    // teak logs
+    { const lx = 8.4, lz = -4.6;
+      for (const [o, y] of [[-.5, .24], [0, .24], [.5, .24], [-.25, .66], [.25, .66]]) { const g = new THREE.CylinderGeometry(.24, .26, 3.2, 9); g.rotateX(Math.PI / 2); g.translate(lx + o, y, lz); wood.push(shade(g, { lo: .7, y0: 0, y1: .9 })); const e = new THREE.CylinderGeometry(.2, .2, .02, 9); e.rotateX(Math.PI / 2); e.translate(lx + o, y, lz + 1.61); paint.push(tint(e, '#d9a86a', 0)); }
+      for (const s2 of [-1, 1]) wood.push(flat(barG(V3(lx - .85, 0, lz + s2 * 1.2), V3(lx - .85, .8, lz + s2 * 1.2), .06), .9), flat(barG(V3(lx + .85, 0, lz + s2 * 1.2), V3(lx + .85, .8, lz + s2 * 1.2), .06), .9)); }
+    addSet(3, [[M.wood, wood], [M.paint, paint]], [[7.6, 2.4, 1.0], [8.9, .6, 1.0], [-6.9, 10.1, .8], [8.4, -4.6, 1.3], [8.4, -3.4, 1.0], [8.4, -5.8, 1.0]],
+      [V3(7.6, .5, 2.4), V3(-6.9, .3, 10.1), V3(8.4, .5, -4.6)]);
+  }
+
+  // --- E: blueprint ghost of the finished masjid (stage 0 only): translucent volumes + bright edges, gently pulsing
+  const ghostFill = new THREE.MeshBasicMaterial({ color: 0x6cc4ff, transparent: true, opacity: .1, depthWrite: false, side: THREE.DoubleSide });
+  const ghostLine = new THREE.LineBasicMaterial({ color: 0xa8e0ff, transparent: true, opacity: .55, depthWrite: false });
+  const ghost = new THREE.Group(); ghost.name = 'masjid-blueprint';
+  {
+    const parts = [];
+    const box = (w, h, d, x, y, z) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(x, y + h / 2, z); parts.push(g.toNonIndexed()); };
+    const pyr = (a0, a1, h, y, z, x = 0) => { const g = new THREE.CylinderGeometry(a1 * Math.SQRT2, a0 * Math.SQRT2, h, 4, 1); g.rotateY(Math.PI / 4); g.translate(x, y + h / 2, z); parts.push(g.toNonIndexed()); };
+    box(17.6, PL, 20, 0, 0, -1); box(11, 4.4, 10.5, 0, PL, -2.75);
+    pyr(7.6, 4.0, 2.1, 5.05, -2.75); box(7.2, .95, 7.2, 0, 6.9, -2.75); pyr(5.0, 2.45, 2.1, 7.75, -2.75); box(4.4, .75, 4.4, 0, 9.45, -2.75); pyr(3.0, .08, 3.3, 10.1, -2.75);
+    box(3.4, 9.5, 3.4, MINARET.x, 0, MINARET.z); pyr(2.95, .06, 2.4, 11.7, MINARET.z, MINARET.x);
+    const merged = merge(parts.map(g => { g.deleteAttribute('uv'); return g; }));
+    const fillM = new THREE.Mesh(merged, ghostFill); fillM.renderOrder = 3;
+    const lines = new THREE.LineSegments(new THREE.EdgesGeometry(merged, 25), ghostLine); lines.renderOrder = 3;
+    ghost.add(fillM, lines);
+    parent.add(ghost);
+  }
+  let ghostVis = api.stage === 0 ? 1 : 0;
+
   // --- C: signboard "Calon Masjid" (until stage 2)
   {
     const wood = [], sign = [];
@@ -169,6 +216,10 @@ export function createSite(ctx, M, parent, api) {
           if (u >= 1) { root.remove(s.g); s.g.traverse(o => o.geometry?.dispose()); }
         }
       }
+      // blueprint ghost: fades out once the foundation is placed
+      ghostVis += ((st === 0 ? 1 : 0) - ghostVis) * Math.min(1, dt * 2);
+      ghost.visible = ghostVis > .01;
+      if (ghost.visible) { const pz = .5 + .5 * Math.sin(t * 1.6); ghostFill.opacity = (.06 + .06 * pz) * ghostVis; ghostLine.opacity = (.3 + .25 * pz) * ghostVis; }
       // marker
       const next = st + 1, show = next < MARK.length && !api.building;
       markVis += ((show ? 1 : 0) - markVis) * Math.min(1, dt * 4);
@@ -185,7 +236,7 @@ export function createSite(ctx, M, parent, api) {
         arrow.rotation.z = .5 + Math.max(0, Math.sin(t * 5)) * .5; // little tapping motion
         gold.opacity = (.85 + Math.sin(t * 3.2) * .15) * markVis;
         if (api.canAfford()) gold.color.setHex(0xffb81c); else gold.color.setHex(0x4fb6e8);
-        sparkT -= dt; if (sparkT <= 0 && markVis > .9) { sparkT = 1.4; ctx.modules.fx?.burst?.('sparkle', marker.position.clone().add(V3(0, 2.6, 0))); }
+        sparkT -= dt; if (sparkT <= 0 && markVis > .9) { sparkT = 2.6; ctx.modules.fx?.burst?.('sparkle', marker.position.clone().add(V3(0, 2.4, 0)), 4); }
       }
     },
     root, marker,

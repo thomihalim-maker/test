@@ -11,7 +11,7 @@ void main(){
   #include <fog_vertex>
 }`;
 const FS=`
-uniform float uTime,uNight,uSize; uniform sampler2D uH;
+uniform float uTime,uNight,uSize,uGolden; uniform sampler2D uH;
 uniform vec3 uSunDir,uSunCol,uSkyH,uSkyT,uShallow,uMid,uDeep,uAmb;
 varying vec3 vWP; varying vec3 vView;
 #include <fog_pars_fragment>
@@ -52,13 +52,16 @@ void main(){
   vec3 sky=mix(uSkyH,uSkyT,clamp(1.0-V.y*0.0+N.y*0.0,0.0,1.0)*0.55);
   vec3 Rf0=reflect(-V,N);
   // faint treeline reflection on the pond (low reflected rays hit the surrounding greenery)
-  sky=mix(sky,vec3(0.05,0.12,0.05)*uAmb,(1.0-sea)*smoothstep(0.55,0.12,Rf0.y)*0.85);
-  vec3 col=mix(body,sky,(0.06+0.5*fres)*mix(0.75,1.0,sea));
+  sky=mix(sky,vec3(0.05,0.12,0.05)*uAmb,(1.0-sea)*smoothstep(0.6,0.1,Rf0.y));
+  // sea: hue-lock the sky reflection toward teal (keeps the ocean blue under pink/peach skies)
+  float sl=dot(sky,vec3(0.2126,0.7152,0.0722)); vec3 teal=vec3(0.22,0.58,0.78); vec3 skyLock=teal*(sl/dot(teal,vec3(0.2126,0.7152,0.0722)));
+  sky=mix(sky,skyLock,0.8*sea);
+  vec3 col=mix(body,sky,min(0.06+0.5*fres,mix(0.2,1.0,sea)));
   // sun glint
   vec3 Rf=reflect(-V,N);
-  float spec=pow(max(dot(Rf,uSunDir),0.0),260.0)*smoothstep(0.0,0.1,uSunDir.y);
+  float spec=pow(max(dot(Rf,uSunDir),0.0),mix(260.0,60.0,uGolden))*smoothstep(-0.02,0.08,uSunDir.y)*mix(1.0,0.55,uGolden);
   float spark=smoothstep(0.78,0.95,vn(p*5.0+uTime*vec2(0.7,0.4)))*pow(max(dot(Rf,uSunDir),0.0),12.0);
-  col+=uSunCol*(spec*3.0+spark*0.9);
+  col+=uSunCol*(spec*3.0+spark*0.9)*mix(0.2,1.0,sea);
   // soft foam at shorelines
   float wob=fbm(p*0.8+uTime*0.03);
   float edge=1.0-smoothstep(0.0,mix(0.1,0.22,sea)+wob*0.1,depth);
@@ -68,7 +71,7 @@ void main(){
   float foamN=smoothstep(0.35,0.7,fbm(p*3.0+uTime*0.05));
   float foam=clamp(edge*mix(0.12,0.95,sea)+band*0.75*sea*foamN+swash*0.8+crest*0.25,0.0,1.0);
   col=mix(col,mix(vec3(0.85,0.8,0.65),vec3(1.0),max(sea,smoothstep(0.0,0.12,depth)))*(0.5+0.5*uAmb.r),foam*mix(0.55,0.9,sea));
-  float alpha=mix(mix(0.72,0.45,sea),0.95,smoothstep(0.0,mix(0.7,1.0,sea),depth));
+  float alpha=mix(mix(0.9,0.45,sea),0.96,smoothstep(0.0,mix(0.5,1.0,sea),depth));
   alpha=max(alpha,foam*0.95);
   alpha=max(alpha,fres*0.5);
   gl_FragColor=vec4(col,alpha);
@@ -79,7 +82,7 @@ export function createWater(ctx, heightTex){
   const mat=new THREE.ShaderMaterial({
     vertexShader:VS, fragmentShader:FS, transparent:true, depthWrite:false, fog:true,
     uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{
-      uTime:{value:0},uNight:{value:0},uSize:{value:SIZE},uH:{value:heightTex},
+      uTime:{value:0},uNight:{value:0},uGolden:{value:0},uSize:{value:SIZE},uH:{value:heightTex},
       uSunDir:{value:new THREE.Vector3(0,1,0)},uSunCol:{value:new THREE.Color(1,1,1)},
       uSkyH:{value:new THREE.Color()},uSkyT:{value:new THREE.Color()},
       uShallow:{value:new THREE.Color('#58d8c4')},uMid:{value:new THREE.Color('#22a6cc')},uDeep:{value:new THREE.Color('#164fa6')},uAmb:{value:new THREE.Color(1,1,1)}}])
@@ -88,7 +91,7 @@ export function createWater(ctx, heightTex){
   mesh.position.y=WATER_Y; mesh.renderOrder=2; mesh.name='water'; mesh.frustumCulled=false;
   function update(t,atm){
     const u=mat.uniforms, k=atm.state.info;
-    u.uTime.value=t; u.uNight.value=atm.state.night;
+    u.uTime.value=t; u.uNight.value=atm.state.night; u.uGolden.value=atm.state.golden;
     u.uSunDir.value.copy(atm.state.elev>-0.03?atm.state.sunDir:atm.state.moonDir);
     u.uSunCol.value.copy(atm.state.elev>-0.03?k.sun:new THREE.Color('#9db4ff')).multiplyScalar(atm.state.elev>-0.03?1:0.5);
     u.uSkyH.value.copy(atm.state.fogC||k.hor); u.uSkyT.value.copy(k.mid);

@@ -234,14 +234,13 @@ export async function init(ctx) {
       if (S5?.droplets?.ready) {
         const d = S5.droplets, m = new THREE.Matrix4(), p = new THREE.Vector3(), q = new THREE.Quaternion(), sc = new THREE.Vector3(1, 1, 1);
         let i = 0;
-        for (let j = 0; j < 8; j++) for (let k = 0; k < 3; k++, i++) {
-          const a = j / 8 * Math.PI * 2 + Math.PI / 8, ph = ((t * .9 + k / 3 + j * .13) % 1), r = .1 + ph * 1.15;
-          p.set(Math.sin(a) * r, 2.7 + 2.6 * ph * (1 - ph) * 1.1 - ph * ph * 1.75, Math.cos(a) * r); m.compose(p, q, sc); d.mesh.setMatrixAt(i, m);
-        }
-        for (let j = 0; j < 5; j++) for (let k = 0; k < 3; k++, i++) {
-          const ph = ((t * 1.4 + k / 3 + j * .31) % 1);
-          p.set(-3.5 + .6 + .1 * ph, 1.12 - ph * .62, -2.2 + j * 1.1); m.compose(p, q, sc.set(1, .6 + ph * .5, 1)); d.mesh.setMatrixAt(i, m); sc.set(1, 1, 1);
-        }
+        d.spouts.forEach((s, j) => {
+          for (let k = 0; k < d.PER; k++, i++) {
+            const ph = ((t * (s.slow ? .9 : 1.6) + k / d.PER + j * .37) % 1), tt = ph * s.T;
+            p.set(s.p.x + s.v.x * tt, s.p.y + s.v.y * tt - 4.9 * tt * tt, s.p.z + s.v.z * tt);
+            sc.set(1, .8 + ph * .6, 1); m.compose(p, q, sc); d.mesh.setMatrixAt(i, m);
+          }
+        });
         d.mesh.instanceMatrix.needsUpdate = true;
       }
       // bedug pulse + rings

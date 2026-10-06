@@ -1,6 +1,7 @@
 // Sacrificial animals: goats (kambing), sheep (domba), cows (sapi). Needs AI, procedural animation, pen, interaction API.
 import * as THREE from 'three';
 import { buildAnimal, pickName } from './model.js';
+import { FACE } from './face.js';
 import { buildPen, PEN } from './pen.js';
 import { mulberry32, particleAtlas } from './textures.js';
 
@@ -116,7 +117,7 @@ export async function init(ctx){
   const list=[]; const used=new Set(); let nextId=1;
   function create(kind,opts={}){
     const seed=opts.seed??((Math.random()*1e9)|0); const rng=mulberry32(seed^0x9e37);
-    const m=buildAnimal(kind,seed,!!opts.baby); const K0=KIND[kind]; const K=opts.baby?{...K0,rad:K0.rad*.62,reach:K0.reach*.62,speed:K0.speed*1.15,w0:K0.w0.map(v=>v*.3),wMax:K0.wMax*.5,gain:K0.gain*.5}:K0;
+    const m=buildAnimal(kind,seed,!!opts.baby,opts.breed||null); const K0=KIND[kind]; const K=opts.baby?{...K0,rad:K0.rad*.62,reach:K0.reach*.62,speed:K0.speed*1.15,w0:K0.w0.map(v=>v*.3),wMax:K0.wMax*.5,gain:K0.gain*.5}:K0;
     const name=opts.name??pickName(kind,rng,used); used.add(name);
     const a={ id:nextId++, kind, baby:!!opts.baby, growth:opts.baby?(opts.growth||0):1, growE:0, K0, babyS:m.S, adultS:opts.baby?m.S/.6:m.S, breed:m.breed, seed, name, male:m.male, model:m, mesh:m.group, pos:new V3(), heading:opts.heading??rng()*6.28,
       stats:{ hunger:.8, thirst:.8, clean:.9, happy:.7, ...(opts.stats||{}) },
@@ -133,11 +134,12 @@ export async function init(ctx){
   function spawnPoint(rng){ for(let i=0;i<40;i++){ const x=B.x0+1.5+rng()*(B.x1-B.x0-3), z=B.z0+1.5+rng()*(B.z1-B.z0-3); if(pen.obstacles.every(o=>Math.hypot(o.x-x,o.z-z)>o.r+.9) && list.every(l=>Math.hypot(l.pos.x-x,l.pos.z-z)>1.6)) return [x,0,z]; } return [B.x0+2,0,B.z0+6]; }
   const rs=mulberry32(1234);
   if(Array.isArray(S.animals)&&S.animals.length&&S.animals[0]?.seed!==undefined){
-    for(const d of S.animals){ if(!KIND[d.kind]) continue; Object.assign(create(d.kind,{seed:d.seed,name:d.name,stats:d.stats,weight:d.weight,baby:d.baby,growth:d.growth,at:spawnPoint(rs)}),{dayW:d.dayW??d.weight,petDay:d.petDay??-1,neglect:d.neglect||0,sick:!!d.sick,needy:!!d.needy}); }
+    for(const d of S.animals){ if(!KIND[d.kind]) continue; Object.assign(create(d.kind,{seed:d.seed,name:d.name,breed:d.breed,stats:d.stats,weight:d.weight,baby:d.baby,growth:d.growth,at:spawnPoint(rs)}),{dayW:d.dayW??d.weight,petDay:d.petDay??-1,neglect:d.neglect||0,sick:!!d.sick,needy:!!d.needy}); }
   }
-  if(!list.length) ['goat','goat','sheep','sheep','cow','goat'].forEach((k,i)=>create(k,{seed:[101,205,309,412,517,623][i],at:spawnPoint(rs)}));
-  if(!S.animals?.length){ create('goat',{seed:731,baby:true,at:spawnPoint(rs)}); create('sheep',{seed:842,baby:true,at:spawnPoint(rs)}); }
-  const persist=()=>{ S.animals=list.map(a=>({kind:a.kind,seed:a.seed,name:a.name,stats:{...a.stats},weight:a.weight,baby:a.baby,growth:a.growth,dayW:a.dayW,petDay:a.petDay,neglect:a.neglect,sick:a.sick,needy:a.needy})); };
+  // hand-picked starting flock (8): golden/pied/boer goats, caramel/lavender sheep, holstein cow + cream lamb & golden kid
+  if(!list.length) [['goat','golden'],['goat','pied'],['sheep','caramel'],['sheep','lavender'],['cow','holstein'],['goat','boer'],['sheep','cream',1],['goat','golden',1]]
+    .forEach(([k,b,baby],i)=>create(k,{seed:[101,205,309,412,517,623,842,731][i],breed:b,baby:!!baby,at:spawnPoint(rs)}));
+  const persist=()=>{ S.animals=list.map(a=>({kind:a.kind,seed:a.seed,name:a.name,breed:a.breed,stats:{...a.stats},weight:a.weight,baby:a.baby,growth:a.growth,dayW:a.dayW,petDay:a.petDay,neglect:a.neglect,sick:a.sick,needy:a.needy})); };
   persist();
 
   // ---------------- helpers: station use / AI ----------------
@@ -148,7 +150,7 @@ export async function init(ctx){
     const f=fwd(station.face??Math.PI); return new V3(pt.x-f[0]*a.K.reach,0,pt.z-f[1]*a.K.reach);
   }
   function freeSlot(station){ if(!station.occ) station.occ=station.slots.map(()=>null); for(let i=0;i<station.slots.length;i++){ const o=station.occ[i]; if(!o||o.dead) return i; } return -1; }
-  function release(a){ if(a.slot){ if(a.slot.st.occ[a.slot.i]===a) a.slot.st.occ[a.slot.i]=null; a.slot=null; } }
+  function release(a){ if(st.wash.bather===a&&a.state!=='bath'&&a.state!=='bathOut') st.wash.bather=null; if(a.slot){ if(a.slot.st.occ[a.slot.i]===a) a.slot.st.occ[a.slot.i]=null; a.slot=null; } }
   function claim(a,station,i){ station.occ[i]=a; a.slot={st:station,i}; }
   function go(a,x,z,after,opt={}){ a.target=new V3(x,0,z); a.after=after||null; a.state='walk'; a.stT=22; a.runUp=!!opt.run; a.arriveR=opt.r??.3; }
   function wanderPoint(a,rng=Math.random){
@@ -172,7 +174,10 @@ export async function init(ctx){
     if(S2.hunger<.55){ const cand=st.feed.filter(f=>f.fill>.04).sort((p,q)=>p.pos.distanceTo(a.pos)-q.pos.distanceTo(a.pos));
       for(const f of cand){ const i=freeSlot(f); if(i>=0){ claim(a,f,i); const p=standFor(a,f,i); go(a,p.x,p.z,()=>{ a.heading=f.face; startState(a,'eat',16); },{r:.15}); return; } } }
     if((rain&&r<.8)||(hot&&hr>=9.5&&hr<16.5&&r<.55)){ const i=freeShade(true); if(i>=0){ const sh=st.shade; sh.occ[i]=a; a.slot={st:sh,i}; const p=sh.sleep[i]; go(a,p.x,p.z,()=>{ startState(a,'rest',10+Math.random()*12); a.heading=Math.PI*(.15+i*.37); },{r:.25,run:rain}); return; } }
-    if(S2.clean<.35 && !rain && (st.wash.fill>.05?r<.85:r<.25)){ const w=st.wash; const i=freeSlot(w); if(i>=0){ claim(a,w,i); const p=w.slots[i]; go(a,p.x,p.z,()=>{ a.heading=Math.atan2(w.pos.x-a.pos.x,w.pos.z-a.pos.z); startState(a,'wait',10+Math.random()*8); },{r:.2}); return; } }
+    if(S2.clean<.35 && !rain && (st.wash.fill>.05?r<.85:r<.25)){ const w=st.wash; const i=freeSlot(w); if(i>=0){ claim(a,w,i); const p=w.slots[i]; go(a,p.x,p.z,()=>{ a.heading=Math.atan2(w.pos.x-a.pos.x,w.pos.z-a.pos.z); if(a.rad<.45&&!w.bather&&w.fill>.05){ w.bather=a; a.bathP0=a.pos.clone(); a.tubB=0; a.hopT=0; startState(a,'bath',30); splash(); } else startState(a,'wait',10+Math.random()*8); },{r:.2}); return; } }
+    if(a.baby){ if(!a.mom||a.mom.dead||a.mom.baby||!list.includes(a.mom)){ let best=null,bd=1e9; for(const o of list){ if(o.kind!==a.kind||o.baby) continue; const d=o.pos.distanceToSquared(a.pos); if(d<bd){bd=d;best=o;} } a.mom=best; }
+      const mo=a.mom; if(mo&&(r<.6||mo.pos.distanceTo(a.pos)>4)){ const sd=(a.id%2?1:-1), h=mo.heading; const x=mo.pos.x-Math.sin(h)*.9+Math.cos(h)*.6*sd, z=mo.pos.z-Math.cos(h)*.9-Math.sin(h)*.6*sd;
+        go(a,clamp(x,B.x0+.8,B.x1-.8),clamp(z,B.z0+.8,B.z1-.8),()=>{ a.heading=mo.heading; startState(a,'idle',1.5+Math.random()*2.5); },{run:mo.pos.distanceTo(a.pos)>4,r:.4}); return; } }
     if(r<.46){ const [x,z]=wanderPoint(a); go(a,x,z,()=>startState(a,'idle',1+Math.random()*3)); }
     else if(r<.68){ startState(a,'graze',4+Math.random()*5); }
     else if(r<.78 && S2.happy>.55 && !a.sick){ a.hopT=0; startState(a,'hop',.9); }
@@ -228,9 +233,15 @@ export async function init(ctx){
     update:null,
   };
 
+  // ---------------- splash ring for the wash tub ----------------
+  const ringMat=new THREE.MeshBasicMaterial({color:'#ffffff',transparent:true,opacity:0,depthWrite:false});
+  const ring=new THREE.Mesh(new THREE.RingGeometry(.32,.4,32).rotateX(-Math.PI/2),ringMat); ring.renderOrder=3; ring.visible=false; scene.add(ring); let ringT=-1;
+  function splash(){ ringT=0; ring.visible=true; audio('splash',{pos:st.wash.pos,vol:.35}); const w=st.wash; for(let i=0;i<6;i++){ const a=Math.random()*6.28; spawnP(1,w.pos.x+Math.cos(a)*.4,.75,w.pos.z+Math.sin(a)*.4,Math.cos(a)*.6,.9,Math.sin(a)*.6,.8,.16); } }
+  function updateSplash(dt){ if(ringT<0) return; ringT+=dt; const u=ringT/.9; const w=st.wash; ring.position.set(w.pos.x,(w.water?.position.y??.58)+.012,w.pos.z); ring.scale.setScalar(1+u*1.6); ringMat.opacity=.85*(1-u); if(u>=1){ ringT=-1; ring.visible=false; } }
+
   // ---------------- per-frame ----------------
   const bpos={}; // rest positions cache per model are inside model.restLocal
-  let saveT=0, camReady=false;
+  let saveT=0, camReady=false, focusA=null;
   const playerPos=()=>ctx.cameraRig?.target||ctx.camera.position;
   function stepAI(a,dt){
     const S2=a.stats; const night=isNight();
@@ -252,7 +263,12 @@ export async function init(ctx){
     if(a.sick) S2.happy=Math.min(S2.happy,.45);
     if(Math.min(S2.hunger,S2.thirst,S2.clean)<.35) a.needy=true; else checkOutcome(a);
     // bathing at the wash tub (slow, uses up the tub)
-    if(a.state==='wait'&&a.slot?.st===st.wash){ const w=st.wash; if(w.fill>.01&&S2.clean<1){ const r=.035*dt; S2.clean=clamp(S2.clean+r); w.fill=Math.max(0,w.fill-r*.45); if(Math.random()<dt*2.5) bubbles(evPos(a),1); if(S2.clean>.97){ ctx.emit('animal:bathed',{animal:a,pos:evPos(a)}); a.shakeT=1.4; release(a); startState(a,'idle',1.5); } else a.stT=Math.max(a.stT,1); } }
+    if((a.state==='wait'||a.state==='bath')&&a.slot?.st===st.wash){ const w=st.wash; const inTub=a.state==='bath';
+      if(w.fill>.01&&S2.clean<1){ const r=(inTub?.06:.035)*dt; S2.clean=clamp(S2.clean+r); w.fill=Math.max(0,w.fill-r*.45); if(Math.random()<dt*(inTub?4:2.5)) bubbles(evPos(a),1); if(inTub&&Math.random()<dt*.6) splash();
+        if(S2.clean>.97){ ctx.emit('animal:bathed',{animal:a,pos:evPos(a)}); if(inTub){ startState(a,'bathOut',3); a.hopT=0; splash(); } else { a.shakeT=1.4; release(a); startState(a,'idle',1.5); } } else a.stT=Math.max(a.stT,1); }
+      else if(inTub&&a.stT<=0){ startState(a,'bathOut',3); a.hopT=0; } }
+    if(a.state==='bath') a.stT-=dt;
+    if(a.state==='bathOut'&&a.tubB<.04){ if(st.wash.bather===a) st.wash.bather=null; a.shakeT=1.6; release(a); startState(a,'idle',1.5); }
     a.bleatCd-=dt; if(a.bleatCd<=0){ a.bleatCd=14+Math.random()*30; if(a.state!=='sleep'&&(Math.min(S2.hunger,S2.thirst)<.35||Math.random()<.3)) bleat(a); }
     // state machine
     const reacting=a.petT>0||a.shakeT>0||a.eatT>0&&a.state!=='eat'&&a.state!=='drink'||a.reactT>0;
@@ -261,9 +277,9 @@ export async function init(ctx){
       case 'idle': case 'wait': case 'graze': case 'rest': a.stT-=dt; if(a.stT<=0&&!reacting){ if(a.state==='wait') release(a); chooseNext(a); } break;
       case 'hop': a.stT-=dt; if(a.stT<=0){ a.state='idle'; a.stT=.6; } break;
       case 'eat': { const f=a.slot?.st; a.stT-=dt; if(!f||f.fill<=.005||S2.hunger>=.92||a.stT<=0){ release(a); startState(a,'idle',1+Math.random()*2); if(S2.hunger>.8) a.stats.happy=clamp(S2.happy+.05); break; }
-        const r=.05*dt; f.fill=Math.max(0,f.fill-r); S2.hunger=clamp(S2.hunger+r*1.0); S2.happy=clamp(S2.happy+.004*dt); break; }
+        f.fill=Math.max(0,f.fill-.02*dt); S2.hunger=clamp(S2.hunger+.045*dt); S2.happy=clamp(S2.happy+.004*dt); break; }
       case 'drink': { const f=a.slot?.st; a.stT-=dt; if(!f||f.fill<=.005||S2.thirst>=.92||a.stT<=0){ release(a); startState(a,'idle',1+Math.random()*2); break; }
-        const r=.08*dt; f.fill=Math.max(0,f.fill-r*.8); S2.thirst=clamp(S2.thirst+r); break; }
+        f.fill=Math.max(0,f.fill-.03*dt); S2.thirst=clamp(S2.thirst+.07*dt); break; }
       case 'sleep': if(!night){ a.bed=false; release(a); startState(a,'idle',1+Math.random()*3); a.wake=0; } else if(a.wake>0){ /* petted: stays asleep, smiling */ } break;
     }
     if(night&&!a.bed&&a.state!=='sleep'&&!reacting){ chooseNext(a); }
@@ -272,8 +288,10 @@ export async function init(ctx){
 
   const tmpA=new V3();
   function move(a,dt){
+    if(a.state==='bath'||a.state==='bathOut'){ const w=st.wash; a.tubB=damp(a.tubB??0,a.state==='bath'?1:0,3.2,dt); const p0=a.bathP0||a.pos;
+      a.pos.x=lerp(p0.x,w.pos.x,a.tubB); a.pos.z=lerp(p0.z,w.pos.z,a.tubB); a.pos.y=gh(a.pos.x,a.pos.z)+.13*a.tubB+Math.sin(a.tubB*Math.PI)*.25; a.speed=0; return; }
     const walking=a.state==='walk'&&a.target; let want=0;
-    const immobile=a.state==='sleep'||a.state==='rest'||a.state==='eat'||a.state==='drink'||a.petT>0||a.shakeT>0||a.state==='hop'&&false;
+    const immobile=a.state==='bath'||a.state==='bathOut'||a.state==='sleep'||a.state==='rest'||a.state==='eat'||a.state==='drink'||a.petT>0||a.shakeT>0||a.state==='hop'&&false;
     if(walking&&!immobile){
       let dx=a.target.x-a.pos.x, dz=a.target.z-a.pos.z; const dist=Math.hypot(dx,dz)||1; dx/=dist; dz/=dist; let ax=0,az=0;
       for(const o of list){ if(o===a) continue; const ox=a.pos.x-o.pos.x, oz=a.pos.z-o.pos.z, d=Math.hypot(ox,oz)||.01, r=a.rad+o.rad+.5; if(d<r){ const p=(r-d)/r; ax+=ox/d*p*1.6; az+=oz/d*p*1.6; } }
@@ -336,9 +354,9 @@ export async function init(ctx){
     // legs
     const legs=['legFL','legFR','legBL','legBR']; const offs=[0,Math.PI,Math.PI,0];
     for(let i=0;i<4;i++){ const b=bn[legs[i]], r=rl[legs[i]]; const s=Math.sin(ph+offs[i]); const lift=Math.max(0,Math.cos(ph+offs[i]));
-      b.rotation.x=s*.62*w*awake - (i<2?1:0)*sl*.9*0; b.rotation.z=0;
+      b.rotation.x=s*.62*w*awake + (i<2?1.35:-1.25)*sl + (i>=2?.08*awake:0); b.rotation.z=(i%2?1:-1)*.12*sl;
       b.position.set(r.x*1.0,r.y-drop+lift*.015*w,r.z);
-      b.scale.set(1,lerp(1,.28,sl)*(1-.06*lift*w),1);
+      b.scale.set(1,lerp(1,.66,sl)*(1-.06*lift*w),1);
       if(a.hopT>=0&&a.hopT>.13&&a.hopT<.5){ b.rotation.x+= (i<2?-.5:.5); } }
     // head / neck
     const hd=a.headDown; const look=Math.sin(t*.6+a.seed*.1)*.12*awake*(1-hd);
@@ -347,10 +365,12 @@ export async function init(ctx){
     hb.position.set(hr.x,hr.y-.4*hd*awake-.1*sl+Math.abs(Math.sin(ph))*.01*w,hr.z+.05*hd);
     const chewBob=chewing?Math.sin(t*14+a.ph)*.03:0;
     hb.rotation.set(.95*hd*awake+.4*sl-bleatUp*1.1+nod+chewBob+(a.reactT>0?Math.sin(t*14)*.15:0),look+(a.petT>0?.25*Math.min(1,a.petT*2):0)*Math.sin(t*1.5),petTilt+a.look*.1);
-    const hs=inv*(a.baby?1+(1/1.22-1)*a.growE:1); hb.scale.set(hs,hs,hs);
+    const hs=inv*(a.baby?1+(1/1.4-1)*a.growE:1); hb.scale.set(hs,hs,hs);
     bn.jaw.rotation.x=jaw*awake; 
     // eyes
-    bn.eyeL.scale.set(1,Math.max(.06,eyeY),1); bn.eyeR.scale.set(1,Math.max(.06,eyeY),1);
+    { const F=m.face; if(F){ let eye=a.baby?FACE.eyeBaby:(m.lash?FACE.eyeLash:FACE.eyeOpen), open=1;
+        if(asleep&&sl>.45) eye=FACE.eyeSleep; else if(a.petT>0||(a.eatT>0&&S2.happy>.7)||(a.hopT>=0&&S2.happy>.75)||a.state==='bath') eye=FACE.eyeHappy; else if(a.sick||a.state==='rest') eye=FACE.eyeLid; else if(a.blink>0) open=.1;
+        F.uEye.value=eye; F.uOpen.value=open; const op=jaw*awake>.12; F.uMouth.value=m.mouthK==='cow'?(op?FACE.mCowOpen:FACE.mCow):(op?FACE.mGoatOpen:FACE.mGoat); } }
     // ears
     const flap=Math.sin(ph*2+1)*.28*w; const idle=Math.sin(t*1.7+a.seed)*.05; const twitch=Math.max(0,Math.sin(t*.9+a.seed*3)-.95)*5;
     const droop=.18*sl+(S2.happy<.35?.18:0)+(a.sick?.4:0)+(a.petT>0?.3:0)-(bleatUp*.8);
@@ -372,11 +392,11 @@ export async function init(ctx){
   function updateBubble(a,dt,t){
     const b=a.bubble, S2=a.stats; const p=playerPos(); const dist=Math.hypot(a.pos.x-p.x,a.pos.z-p.z);
     let kind='';
-    if(a.state==='sleep') kind='zzz';
+    if(a.state==='sleep'){ b.sp.visible=false; return; }
     else if(a.petT>0||a.eatT>1.0&&S2.happy>.7) kind='love';
     else if(a.sick&&(t*.25+a.seed)%1<.5) kind='sad';
     else { const m=Math.min(S2.hunger,S2.thirst,S2.clean); if(m<.3){ kind=S2.hunger===m?'hunger':S2.thirst===m?'thirst':'dirty'; } else if(S2.happy>.9&&(t*.2+a.seed)%1<.45) kind='heart'; }
-    const showName=dist<9.5; const wk=a.weight.toFixed(a.kind==='cow'?0:1);
+    const showName=a===focusA; const wk=a.weight.toFixed(a.kind==='cow'?0:1);
     const key=kind+'|'+showName+'|'+wk+'|'+(kind==='hunger'||kind==='thirst'||kind==='dirty'?(Math.min(S2.hunger,S2.thirst,S2.clean)<.15?'r':'y'):'');
     if(key!==b.key){ if(key.split('|')[0]!==b.key.split('|')[0]) b.pop=0; b.key=key; drawBubble(a,b,kind,showName); }
     b.pop=Math.min(1,(b.pop??1)+dt/.38); const pp=b.pop, popS=pp>=1?1:(1+Math.sin(pp*Math.PI*1.5)*.0)*(1-Math.pow(1-pp,3)*Math.cos(pp*9)*1);
@@ -386,12 +406,29 @@ export async function init(ctx){
     const s=clamp(dist*.1,.42,1.15)*Math.max(.01,popS); b.sp.scale.set(1.28*s,1.0*s,1);
     b.mat.opacity=clamp((28-dist)/6,0,1);
   }
+  // keep bubbles from overlapping on screen: nearer ones keep their place, farther ones are nudged up
+  const _pv=new V3(), _placed=[];
+  function deoverlap(){
+    const cam=ctx.camera, th=Math.tan(cam.fov*Math.PI/360), vis=list.filter(a=>a.bubble.sp.visible);
+    vis.sort((p,q)=>p.bubble.sp.position.distanceToSquared(cam.position)-q.bubble.sp.position.distanceToSquared(cam.position));
+    _placed.length=0;
+    for(const a of vis){ const sp=a.bubble.sp;
+      for(let it=0;it<5;it++){
+        const d=Math.max(.5,sp.position.distanceTo(cam.position)); const hN=sp.scale.y*.62/(d*th), wN=sp.scale.x*.5/(d*th*cam.aspect);
+        _pv.copy(sp.position); _pv.y+=sp.scale.y*.7; _pv.project(cam);
+        const hit=_placed.find(o=>Math.abs(o.x-_pv.x)<(o.w+wN)*.5&&Math.abs(o.y-_pv.y)<(o.h+hN)*.5);
+        if(!hit){ _placed.push({x:_pv.x,y:_pv.y,w:wN,h:hN}); break; }
+        sp.position.y+=sp.scale.y*.42;
+      } }
+  }
 
   api.update=(dt,t)=>{
     pen.update(dt,t);
     { const h=ctx.hour??8; let dh=(h-prevHour+24)%24; prevHour=h; if(dh>3) dh=0; if(growDebug) dh+=dt*growDebug; if(dh>0) for(const a of list.slice()) if(a.baby) grow(a,dh/GROW_HOURS); }
     if(penPop>=0){ penPop+=dt; const u=penPop/.7; pen.root.scale.set(1,u>=1?1:1+Math.sin(u*Math.PI*2.5)*.18*(1-u),1); if(u>=1){ penPop=-1; pen.root.scale.set(1,1,1); } }
+    { const p=playerPos(); let bd=4.5; focusA=null; for(const a of list){ const d=Math.hypot(a.pos.x-p.x,a.pos.z-p.z); if(d<bd&&a.state!=='sleep'){ bd=d; focusA=a; } } if(ctx.player?.target?.animal) focusA=ctx.player.target.animal; }
     for(const a of list){ stepAI(a,dt); move(a,dt); pose(a,dt,t); updateBubble(a,dt,t); }
+    deoverlap(); updateSplash(dt);
     updateParticles(dt,t);
     saveT+=dt; if(saveT>3){ saveT=0; S.pen={feed:st.feed.map(f=>+f.fill.toFixed(3)),water:+st.water.fill.toFixed(3),wash:+st.wash.fill.toFixed(3)}; for(let i=0;i<list.length;i++){ const a=list[i],d=S.animals?.[i]; if(d&&d.seed===a.seed){ d.stats={...a.stats}; d.weight=a.weight; d.neglect=a.neglect; d.sick=a.sick; d.needy=a.needy; d.petDay=a.petDay; d.dayW=a.dayW; d.baby=a.baby; d.growth=a.growth; } else persist(); } }
     if(camParam&&camParam.length>=6&&!camParam.some(Number.isNaN)){ ctx.camera.position.set(camParam[0],camParam[1],camParam[2]); ctx.camera.lookAt(camParam[3],camParam[4],camParam[5]); if(ctx.cameraRig){ try{ ctx.cameraRig.target.set(camParam[3],camParam[4],camParam[5]); }catch(e){} } }
