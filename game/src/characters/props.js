@@ -106,7 +106,7 @@ function broomParts(){
 function mopParts(){
   const P = [], COT = [0xfbf8ef,0xf1ece0,0xfffdf7,0xe8e2d2];
   for(let i=0;i<16;i++){
-    const a = i/16*Math.PI*2 + (i%2)*.2, r0 = .03, r1 = .1 + (i%3)*.018;
+    const a = i/16*Math.PI*2 + (i%2)*.2, r0 = .035, r1 = .13 + (i%3)*.02;
     P.push(rod([Math.cos(a)*r1, .014, Math.sin(a)*r1*.8], [Math.cos(a)*r0, .15, Math.sin(a)*r0*.7], .021, .017, COT[i%4], 5));
   }
   P.push(vc(new THREE.SphereGeometry(.065,10,6), 0xf6f2e6, {pos:[0,.13,0], scale:[1.1,.6,.85]}));

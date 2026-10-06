@@ -41,7 +41,7 @@ export async function init(ctx) {
     ctx.state.masjid ??= { stage: 0, parts: {} };
     st = ctx.state.masjid; st.stage = Math.max(0, Math.min(STAGES.length, st.stage | 0)); st.parts = partsFor(st.stage);
   }
-  const lang = () => (ctx.state.settings?.lang ?? ctx.state.lang) === 'en' ? 1 : 0;
+  const lang = () => (ctx.state.lang ?? ctx.state.settings?.lang) === 'en' ? 1 : 0;
   const tr = (k, v = {}) => { let s = I18N[k][lang()]; for (const a in v) s = s.replace('{' + a + '}', v[a]); return s; };
   const sName = s => lang() ? s.nameEn : s.name;
   let completeSent = !!st.complete, building = 0;
@@ -336,7 +336,7 @@ export async function init(ctx) {
     },
   };
   api.custom = { apply: api.applyCustom, ids: CUSTOM_IDS, defaults: CUSTOM_DEFAULTS, swatches: CUSTOM_SWATCHES, get current() { return custom.applied; }, viewFor };
-  api._debug = { custom, anchors, markers, built };
+  api._debug = { custom, anchors, markers, built, setCam: v => { camParam = Array.isArray(v) && v.length >= 6 && v.every(Number.isFinite) ? v.slice(0, 6) : null; } };
   const site = createSite(ctx, M, group, api);
   api.site = site;
   api.api = api;

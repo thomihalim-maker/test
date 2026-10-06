@@ -187,55 +187,126 @@ export function createAnchors(ctx, api) {
     }
     return (best || []).map(([x, z]) => ({ x, z }));
   }
-  // round-ish obstacles on the plaza (menara kaki, wudhu pavilion): walk round them on an octagon whose vertices sit just
-  // outside the square footprint's corners (k·45°) and whose edges stay outside radius R
-  const circles = () => { const s = stage(), l = []; if (s >= 4) l.push([MINARET.x, MINARET.z, 3.85]); if (s >= 5) l.push([WUDHU.x, WUDHU.z, 3.9]); return l; };
-  function segCircle(ax, az, bx, bz, cx, cz, R) {
-    const dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz;
-    const t = L2 < 1e-9 ? 0 : Math.max(0, Math.min(1, ((cx - ax) * dx + (cz - az) * dz) / L2));
-    return Math.hypot(ax + dx * t - cx, az + dz * t - cz) < R;
-  }
-  function aroundCircle(a, b, cx, cz, R) {
-    if (Math.hypot(a.x - cx, a.z - cz) < R || Math.hypot(b.x - cx, b.z - cz) < R) return [];  // an end sits at the obstacle: let sliding handle it
-    if (!segCircle(a.x, a.z, b.x, b.z, cx, cz, R)) return [];
-    const N = 8, Rv = (R + .08) / Math.cos(Math.PI / N), ring = [];
-    for (let k = 0; k < N; k++) { const t = k / N * Math.PI * 2; ring.push([cx + Math.cos(t) * Rv, cz + Math.sin(t) * Rv]); }
-    let best = null, bl = Infinity;
-    for (let i = 0; i < N; i++) {
-      if (segCircle(a.x, a.z, ring[i][0], ring[i][1], cx, cz, R)) continue;
-      for (const dir of [1, -1]) {
-        const chain = [ring[i]];
-        for (let k = 0, j = i; k < N && segCircle(chain[chain.length - 1][0], chain[chain.length - 1][1], b.x, b.z, cx, cz, R); k++) { j = (j + dir + N) % N; chain.push(ring[j]); }
-        if (segCircle(chain[chain.length - 1][0], chain[chain.length - 1][1], b.x, b.z, cx, cz, R)) continue;
-        let L = 0, p = [a.x, a.z]; for (const c of chain) { L += Math.hypot(c[0] - p[0], c[1] - p[1]); p = c; } L += Math.hypot(b.x - p[0], b.z - p[1]);
-        if (L < bl) { bl = L; best = chain; }
+  // ---- leg repair: a coarse grid A* over the masjid site that respects every collider (veranda columns, porch mic,
+  //      menara, wudhu/bedug pavilions, gate piers, flower beds, placed decor...). Only legs that are actually blocked get
+  //      re-planned, so the door waypoints above stay exactly where the spec puts them.
+  const G = { x0: -21, z0: -19, cs: .4, nx: 95, nz: 108 }; // x -21..17, z -19..24.2
+  const PAD = .38;                                           // player radius (.4) minus a hair: legs may graze, not cut
+  const blocked = new Uint8Array(G.nx * G.nz);
+  let gridKey = '';
+  const inG = (x, z) => x >= G.x0 && z >= G.z0 && x < G.x0 + G.nx * G.cs && z < G.z0 + G.nz * G.cs;
+  const cols = () => ctx.colliders.filter(c => c && Number.isFinite(c.x) && Number.isFinite(c.z) && c.r > 0 && c.r < 8 &&
+    c.x > G.x0 - c.r - 1 && c.x < G.x0 + G.nx * G.cs + c.r + 1 && c.z > G.z0 - c.r - 1 && c.z < G.z0 + G.nz * G.cs + c.r + 1);
+  function buildGrid(list) {
+    let key = stage() + ':' + list.length; for (const c of list) key += ',' + (c.x * 7 + c.z * 13 + c.r).toFixed(2);
+    if (key === gridKey) return; gridKey = key; blocked.fill(0);
+    for (const c of list) {
+      const R = c.r + PAD, i0 = Math.max(0, Math.floor((c.x - R - G.x0) / G.cs)), i1 = Math.min(G.nx - 1, Math.floor((c.x + R - G.x0) / G.cs));
+      const j0 = Math.max(0, Math.floor((c.z - R - G.z0) / G.cs)), j1 = Math.min(G.nz - 1, Math.floor((c.z + R - G.z0) / G.cs));
+      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
+        const x = G.x0 + (i + .5) * G.cs, z = G.z0 + (j + .5) * G.cs;
+        if ((x - c.x) ** 2 + (z - c.z) ** 2 < R * R) blocked[j * G.nx + i] = 1;
       }
     }
-    return (best || []).map(([x, z]) => ({ x: +x.toFixed(2), z: +z.toFixed(2) }));
   }
+  /** is the straight leg a->b blocked? ignores colliders the ends themselves stand against (targets beside an object) */
+  function legBlocked(a, b, list) {
+    const L = Math.hypot(b.x - a.x, b.z - a.z), n = Math.max(1, Math.ceil(L / .2));
+    for (const c of list) {
+      const R = c.r + PAD;
+      if (Math.hypot(a.x - c.x, a.z - c.z) < R + .05 || Math.hypot(b.x - c.x, b.z - c.z) < R + .05) continue;
+      // quick reject: distance from the collider to the segment's bounding box
+      if (c.x < Math.min(a.x, b.x) - R || c.x > Math.max(a.x, b.x) + R || c.z < Math.min(a.z, b.z) - R || c.z > Math.max(a.z, b.z) + R) continue;
+      for (let k = 0; k <= n; k++) { const t = k / n, x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t; if ((x - c.x) ** 2 + (z - c.z) ** 2 < R * R) return true; }
+    }
+    return false;
+  }
+  const cell = (x, z) => [Math.min(G.nx - 1, Math.max(0, Math.floor((x - G.x0) / G.cs))), Math.min(G.nz - 1, Math.max(0, Math.floor((z - G.z0) / G.cs)))];
+  function freeNear(i, j) { // nearest unblocked cell (ring search, up to 2 m)
+    if (!blocked[j * G.nx + i]) return [i, j];
+    for (let r = 1; r <= 5; r++) { let best = null, bd = 1e9;
+      for (let di = -r; di <= r; di++) for (let dj = -r; dj <= r; dj++) { if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue; const a = i + di, b = j + dj;
+        if (a < 0 || b < 0 || a >= G.nx || b >= G.nz || blocked[b * G.nx + a]) continue; const d = di * di + dj * dj; if (d < bd) { bd = d; best = [a, b]; } }
+      if (best) return best; }
+    return null;
+  }
+  const losCells = (ax, az, bx, bz) => { // grid line of sight between world points
+    const L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.ceil(L / (G.cs * .5)));
+    for (let k = 0; k <= n; k++) { const t = k / n, [i, j] = cell(ax + (bx - ax) * t, az + (bz - az) * t); if (blocked[j * G.nx + i]) return false; }
+    return true;
+  };
+  const gScore = new Float32Array(G.nx * G.nz), came = new Int32Array(G.nx * G.nz), stamp = new Uint32Array(G.nx * G.nz); let gen = 0;
+  function astar(a, b) {
+    const s = freeNear(...cell(a.x, a.z)), e = freeNear(...cell(b.x, b.z)); if (!s || !e) return null;
+    gen++; const S = s[1] * G.nx + s[0], E = e[1] * G.nx + e[0];
+    const heap = [], push = (f, id) => { heap.push([f, id]); let i = heap.length - 1; while (i) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+    const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
+    const H = (id) => { const dx = Math.abs(id % G.nx - e[0]), dz = Math.abs(((id / G.nx) | 0) - e[1]); return (Math.max(dx, dz) + .414 * Math.min(dx, dz)); };
+    stamp[S] = gen; gScore[S] = 0; came[S] = -1; push(H(S), S);
+    let found = false, it = 0;
+    while (heap.length && it++ < 40000) {
+      const [f, id] = pop(); if (id === E) { found = true; break; }
+      const i = id % G.nx, j = (id / G.nx) | 0, g0 = gScore[id];
+      if (f - H(id) > g0 + 1e-4) continue; // stale entry
+      for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
+        if (!di && !dj) continue; const a2 = i + di, b2 = j + dj; if (a2 < 0 || b2 < 0 || a2 >= G.nx || b2 >= G.nz) continue;
+        const nid = b2 * G.nx + a2; if (blocked[nid]) continue;
+        if (di && dj && (blocked[j * G.nx + a2] || blocked[b2 * G.nx + i])) continue; // no corner cutting
+        const g = g0 + (di && dj ? 1.414 : 1);
+        if (stamp[nid] === gen && gScore[nid] <= g) continue;
+        stamp[nid] = gen; gScore[nid] = g; came[nid] = id; push(g + H(nid), nid);
+      }
+    }
+    if (!found) return null;
+    const cells = []; for (let id = E; id !== -1; id = came[id]) cells.push([G.x0 + (id % G.nx + .5) * G.cs, G.z0 + (((id / G.nx) | 0) + .5) * G.cs]);
+    cells.reverse();
+    // string-pull: from each kept point jump to the farthest point still in line of sight
+    const pts = [[a.x, a.z], ...cells, [b.x, b.z]], out = [];
+    for (let i = 0; i < pts.length - 1;) {
+      let j = Math.min(pts.length - 1, i + 80);
+      while (j > i + 1 && !losCells(pts[i][0], pts[i][1], pts[j][0], pts[j][1])) j--;
+      if (j < pts.length - 1) out.push(pts[j]);
+      i = j;
+    }
+    return out.map(([x, z]) => ({ x: +x.toFixed(2), z: +z.toFixed(2) }));
+  }
+  /** clip the leg to the grid box so legs that start/end far away (pen, road) can still be repaired near the masjid */
+  function clipToGrid(a, b) {
+    let t0 = 0, t1 = 1; const dx = b.x - a.x, dz = b.z - a.z, X1 = G.x0 + G.nx * G.cs - .01, Z1 = G.z0 + G.nz * G.cs - .01;
+    for (const [p, q] of [[-dx, a.x - G.x0], [dx, X1 - a.x], [-dz, a.z - G.z0], [dz, Z1 - a.z]]) {
+      if (Math.abs(p) < 1e-9) { if (q < 0) return null; continue; }
+      const r = q / p; if (p < 0) { if (r > t1) return null; if (r > t0) t0 = r; } else { if (r < t0) return null; if (r < t1) t1 = r; }
+    }
+    return [{ x: a.x + dx * t0, z: a.z + dz * t0 }, { x: a.x + dx * t1, z: a.z + dz * t1 }, t0 > 0, t1 < 1];
+  }
+  function repair(a, b, list) {
+    if (!legBlocked(a, b, list)) return [];
+    const c = clipToGrid(a, b); if (!c) return [];
+    const [ca, cb, inA, inB] = c;
+    const mid = astar(ca, cb); if (!mid) return [];
+    return [...(inA ? [{ x: +ca.x.toFixed(2), z: +ca.z.toFixed(2) }] : []), ...mid, ...(inB ? [{ x: +cb.x.toFixed(2), z: +cb.z.toFixed(2) }] : [])];
+  }
+
   function route(from, to) {
-    if (!from || !to || stage() < 2) return null;
+    if (!from || !to || stage() < 1) return null;
     const a = { x: from.x, z: from.z }, b = { x: to.x, z: to.z };
     if (![a.x, a.z, b.x, b.z].every(Number.isFinite)) return null;
-    const aIn = isInside(a.x, a.z) === 'hall', bIn = isInside(b.x, b.z) === 'hall';
     let path = [];
-    if (aIn && bIn) path = [];
-    else if (!aIn && bIn) path = [...(inObst(a.x, a.z) ? [] : around(a, DOOR_OUT)), { ...DOOR_OUT }, { ...DOOR_IN }];
-    else if (aIn && !bIn) path = [{ ...DOOR_IN }, { ...DOOR_OUT }, ...(inObst(b.x, b.z) ? [] : around(DOOR_OUT, b))];
-    else path = (inObst(a.x, a.z) || inObst(b.x, b.z)) ? [] : around(a, b);
-    // detour round obstacles on every outdoor leg (from -> path... -> to)
-    const C = circles();
-    if (C.length) {
-      const pts = [a, ...path, b], out = [];
-      for (let i = 0; i < pts.length - 1; i++) {
-        let seg = [];
-        for (const [cx, cz, R] of C) { const d = aroundCircle(pts[i], pts[i + 1], cx, cz, R); if (d.length) { seg = d; break; } }
-        if (i > 0) out.push(pts[i]);
-        out.push(...seg);
-      }
-      path = out;
+    if (stage() >= 2) {
+      const aIn = isInside(a.x, a.z) === 'hall', bIn = isInside(b.x, b.z) === 'hall';
+      if (aIn && bIn) path = [];
+      else if (!aIn && bIn) path = [...(inObst(a.x, a.z) ? [] : around(a, DOOR_OUT)), { ...DOOR_OUT }, { ...DOOR_IN }];
+      else if (aIn && !bIn) path = [{ ...DOOR_IN }, { ...DOOR_OUT }, ...(inObst(b.x, b.z) ? [] : around(DOOR_OUT, b))];
+      else path = (inObst(a.x, a.z) || inObst(b.x, b.z)) ? [] : around(a, b);
     }
-    return path.length ? path : null;
+    // repair every leg that cuts through a collider (columns, mic, menara, pavilions, gate, beds, decor...)
+    let list; try { list = cols(); buildGrid(list); } catch (e) { return path.length ? path : null; }
+    const pts = [a, ...path, b], out = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      if (i > 0) out.push(pts[i]);
+      try { out.push(...repair(pts[i], pts[i + 1], list)); } catch (e) { }
+    }
+    return out.length ? out : null;
   }
 
   return { spot, prayerLayout, zones, isInside, route, groundY, HALL, PORCH };

@@ -195,10 +195,10 @@ export function solve(P, tg){
       // traditional adzan posture: upright, both hands raised open beside the ears, chin slightly up, eyes softly closed.
       // Purely visual: no sound or voice comes from the character. Arms swing up sideways (never through the head).
       const r = sstep(0,.08,u)*(1-sstep(.95,1,u)), rr = Math.min(1,r*1.15);
-      tg.alx = tg.arx = -.3*rr; tg.alz = tg.arz = .16 + 2.26*rr;
+      tg.alx = tg.arx = -.4*rr; tg.alz = tg.arz = .16 + 2.29*rr;            // hands just in front of the ears, beside the face
       tg.lean = -.02*r; tg.hx = -.08*r; tg.hy = 0; tg.hz = 0; tg.pr = tg.roll = 0; tg.twist = 0;
       tg.llx = tg.lrx = 0; tg.klx = tg.krx = .04; tg.fx = 0; tg.fz = 0;
-      tg.eye = 1 - .6*r; tg.smile = .45; tg.mouth = (.2 + .12*Math.sin(t*1.8))*r;
+      tg.eye = 1 - .9*r; tg.smile = .45; tg.mouth = (.13 + .1*Math.sin(t*1.8))*r;
       tg.breath = .035*Math.sin(t*1.8); break; }
     case 'nod': { // salam from the rows: right hand on the chest, a gentle bow and smile
       const r = sstep(0,.2,u)*(1-sstep(.8,1,u));
