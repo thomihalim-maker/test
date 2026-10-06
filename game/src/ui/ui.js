@@ -2,6 +2,13 @@
 import { SPRITE, ic } from './icons.js';
 import { save, reset, defaultState } from '../state.js';
 
+// Nunito (OFL, bundled). Registered from JS with module-relative URLs so it resolves no matter where the
+// stylesheet ends up (linked, inlined by a host, or copied into a snapshot). Failures fall back silently.
+(function loadFonts(){ try{ if(!('FontFace' in window)||!document.fonts) return;
+  for(const [w,range] of [[700,'400 700'],[800,'800'],[900,'900']]){
+    const f=new FontFace('Nunito',`url("${new URL(`./fonts/nunito-latin-${w}-normal.woff2`,import.meta.url).href}") format("woff2")`,{weight:range,style:'normal',display:'swap'});
+    document.fonts.add(f); f.load().catch(()=>{}); } }catch(e){} })();
+
 const D={ // key: [id, en]
  day:['Hari','Day'], toEid:['menuju Idul Adha','to Eid al-Adha'], eidToday:['Idul Adha!','Eid!'], eidSub:['Hari Raya Kurban','Day of Sacrifice'], daysLeft:['{n} hari lagi','{n} days left'], claim:['Ambil','Claim'], claimed:['Diambil','Claimed'], doneTap:['Tugas selesai! Ketuk untuk ambil hadiah','Task done! Tap to claim'], holdReset:['Tahan untuk hapus progres','Hold to reset progress'], danger:['Zona bahaya','Danger zone'], h1k:['Gunakan tombol WASD atau panah untuk berjalan.','Use WASD or arrow keys to walk.'], eidGloss:['Semoga Allah menerima amal kita semua','May Allah accept it from us all'],
  quests:['Tugas','Tasks'], tasksToday:['Tugas Hari Ini','Today\'s Tasks'], shop:['Toko','Shop'], build:['Bangun','Build'], settings:['Atur','Settings'],
@@ -24,7 +31,7 @@ const D={ // key: [id, en]
  build_ok:['Masjid bertambah indah!','The masjid grows!'], q_done:['Tugas selesai!','Task complete!'], newday:['Hari baru dimulai','A new day begins'], eidSoon:['Idul Adha sebentar lagi!','Eid is almost here!'], masjidDone:['Masjid selesai dibangun!','Masjid complete!'],
  allDone:['Semua tugas beres!','All tasks done!'], special:['Permintaan Tamu','Guest request'], streak:['Rajin {n} hari berturut-turut!','{n}-day streak!'], streak0:['Besok semangat lagi, ya!','Fresh start tomorrow!'], streakHint:['Selesaikan hampir semua tugas untuk bonus rajin','Finish (almost) all tasks for a streak bonus'],
  tasksDone:['Tugas selesai','Tasks done'], autoClaim:['Hadiah tugas otomatis diambil','Task rewards auto-collected'], tomorrow:['Besok','Next'], toEidBtn:['Sambut Idul Adha!','Welcome Eid!'],
- berkah:['Berkah','Blessings'], lv:['Level','Level'], book:['Buku','Book'], bookTitle:['Buku Marbot','Marbot Book'], tabBerkah:['Level','Level'], tabStickers:['Stiker','Stickers'], tabOutfit:['Baju','Outfits'],
+ berkah:['Berkah','Blessings'], lv:['Level','Level'], book:['Buku','Book'], bookTitle:['Buku Marbot','Marbot Book'], tabBerkah:['Berkah','Blessings'], tabStickers:['Stiker','Stickers'], tabOutfit:['Baju','Outfits'],
  nextLv:['{n} berkah lagi ke Level {l}','{n} more blessings to Level {l}'], maxLv:['Level tertinggi! Masya Allah','Top level! Masha Allah'], unlockAt:['Level {l}','Level {l}'], wear:['Pakai','Wear'], wearing:['Dipakai','Wearing'],
  stickerNew:['Stiker baru','New sticker'], lvUp:['Naik Level!','Level Up!'], lvUpSub:['Level {l}: hadiah baru terbuka','Level {l}: new rewards unlocked'], yay:['Asyik!','Yay!'], moreSoon:['Terus berbuat baik!','Keep doing good!'],
  tabSupply:['Barang','Supplies'], tabAnimal:['Hewan','Animals'], tabDecor:['Hiasan','Decor'], put:['Pasang','Place'], store:['Simpan satu','Store one'], onPlaza:['Terpasang','Placed'], sale:['Hari pasar: perlengkapan diskon 25%!','Market day: supplies 25% off!'],
@@ -32,6 +39,7 @@ const D={ // key: [id, en]
  goatD:['Lincah dan suka jerami','Lively, loves hay'], sheepD:['Berbulu lembut','Soft and woolly'], cowD:['Besar dan sabar','Big and patient'],
  thanks:['Terima kasih, {names}! Kalian membawa kebahagiaan untuk banyak keluarga.','Thank you, {names}! You brought joy to many families.'], rewardEid:['Hadiah Idul Adha','Eid rewards'],
  newBatch:['Hewan-hewan baru telah tiba di kandang','A new group of animals has arrived'], eidCarry:['Level, hiasan, dan masjidmu tetap tersimpan.','Your level, decorations and masjid carry over.'], eidIn:['Idul Adha: {n} hari','Eid in {n} days'], eidTmr:['Idul Adha besok!','Eid is tomorrow!'], toBook:['Lihat cara mendapatkannya di Buku','See how to earn it in the Book'], howTo:['Cara:','How:'], nextYearBtn:['Sambut Tahun Baru','Welcome the New Year'], young:['{names} masih kecil, jadi tetap tinggal dan tumbuh bersamamu.','{names} are still young, so they stay and grow with you.'],
+ lvName:['Level {l}','Level {l}'], bword:['berkah','blessings'], adult:['Dewasa','Adult'], eidBanner:['Selamat Hari Raya','Happy Eid'], lvTotal:['{n} berkah terkumpul','{n} blessings collected'],
 };
 const PARTS=[ // fallback list if masjid module has none
  {id:'pondasi',name:['Pondasi & Lantai','Foundation & Floor'],cost:40,desc:['Dasar yang kokoh','A solid base']},
@@ -67,7 +75,7 @@ export async function init(ctx){
     <div class="tb-left"><div class="pill clay daypill" id="daypill"><div class="dico" id="dico"></div><div class="dtxt"><b id="dayN"></b><small id="clock"></small></div><span class="evb" id="evb"></span></div></div>
     <div class="eid clay gold" id="eidpill"><div class="moon">${ic('calendar')}</div><div class="h" id="eidH"></div></div>
     <div class="tb-wallet">
-      <div class="pill clay wallet"><button class="wc" id="coinpill" aria-label="Coins">${ic('coin')}<b id="coinN">0</b></button><span class="sep"></span><button class="wp" id="pahpill" aria-label="Level"><span class="lvstar">${ic('pahala')}<b id="lvb"></b></span><b id="pahN">0</b></button></div>
+      <div class="pill clay wallet"><button class="wc" id="coinpill" aria-label="Coins">${ic('coin')}<b id="coinN">0</b></button><span class="sep"></span><button class="wp" id="pahpill" aria-label="Level"><span class="lvstar">${ic('pahala')}<b id="lvb"></b></span><span class="lvmini" aria-hidden="true"><i id="lvbar"></i></span></button></div>
     </div>
     <button class="iconbtn clay" id="setBtn" aria-label="Settings">${ic('gear')}</button>
   </div>
@@ -123,19 +131,24 @@ export async function init(ctx){
     return (html,kind,key)=>{ if(q.some(x=>x.key===key)) return; q.push({html,kind,key}); if(q.length>6) q.shift(); if(!busy) next(); }; }
   const portrait=matchMedia('(max-width:640px) and (orientation:portrait)');
   // achievements wait while a panel/card is open, during the quiet first steps, and (phones) while a hint uses the slot
-  const achHold=()=>!started||!!panel||cardOpen()||quiet()||(portrait.matches&&!hint.classList.contains('hidden'));
+  const achHold=()=>!started||!!panel||cardOpen()||quiet()||(portrait.matches&&(!hint.classList.contains('hidden')||!$('#placebar').classList.contains('hidden')));
   const pushToast=queued(toasts,'toast clay',2600), pushAch=queued($('#ach'),'achv clay',3400,achHold);
   function toast(msg,icon='chat',kind){ if(!msg) return; pushToast(`${ic(icon)}<span>${msg}</span>`,kind,msg); }
   function ach(title,name,icon,rim){ pushAch(`<div class="ad" style="--rim:${rim||'#ffc83d'}">${ic(icon)}</div><div><small>${title}</small><b>${name}</b></div>`,'',title+name); }
-  ctx.on('toast',m=>{ if(typeof m==='string') toast(m); else if(m) toast(m.msg||m.text,m.icon||'chat',m.kind); });
+  // one word for the blessing meter everywhere: other modules may still say "pahala" in their toasts
+  const word=m=>typeof m==='string'?m.replace(/\bpahala\b/gi,t('bword')):m;
+  ctx.on('toast',m=>{ if(typeof m==='string') toast(word(m)); else if(m) toast(word(m.msg||m.text),m.icon||'chat',m.kind); });
 
   // ---------------- top bar ----------------
   const tween={coins:S.coins,pahala:S.pahala};
   function renderTop(dt=1){
     tween.coins+=(S.coins-tween.coins)*Math.min(1,dt*10); tween.pahala+=(S.pahala-tween.pahala)*Math.min(1,dt*10);
     if(Math.abs(S.coins-tween.coins)<.5) tween.coins=S.coins; if(Math.abs(S.pahala-tween.pahala)<.5) tween.pahala=S.pahala;
-    $('#coinN').textContent=fmt(tween.coins); $('#pahN').textContent=fmt(tween.pahala);
+    $('#coinN').textContent=fmt(tween.coins);
+    // the blessing meter is one idea for kids: a star with the level number + a little bar to the next level
+    const li=P()?.levelInfo?.(); const pct=li?Math.round(li.pct*100):0; if(pct!==lastPct){ lastPct=pct; $('#lvbar').style.width=Math.max(6,pct)+'%'; }
   }
+  let lastPct=-1;
   let lastClock='';
   const tbEl=()=>document.getElementById('topbar');
   function measureTop(){ const b=tbEl()?.getBoundingClientRect(); if(b&&b.height) hud.style.setProperty('--tb',Math.ceil(b.bottom)+'px'); }
@@ -143,7 +156,7 @@ export async function init(ctx){
     const h=ctx.hour??8, hh=Math.floor(h)%24, mm=Math.floor((h%1)*60/10)*10; const s=String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
     const night=h<5.5||h>=18.5; const key=s+night+S.day+S.daysToEid+S.lang+S.eidDone+S.pahala+(S.event?.id||''); if(key===lastClock) return; lastClock=key;
     const pr=ctx.modules.progress, wd=pr?.WEEKDAYS?.[pr.weekday(S.day)], ev=pr?.event?.();
-    $('#clock').textContent=(wd?L(wd)+' · ':'')+s; $('#evb').innerHTML=ev&&ev.id!=='cerah'?ic(ev.icon):''; $('#lvb').textContent=pr?pr.level():'';
+    $('#clock').textContent=(wd?L(wd)+' · ':'')+s; $('#evb').innerHTML=ev&&ev.id!=='cerah'?ic(ev.icon):''; $('#lvb').textContent=pr?pr.level():''; $('#pahpill').setAttribute('aria-label',t('berkah')+' · '+t('lvName',{l:pr?pr.level():1})); $('#coinpill').setAttribute('aria-label',t('coins'));
     $('#dayN').textContent=t('day')+' '+S.day; $('#dico').innerHTML=ic(night?'moon':'sun'); $('#daypill').classList.toggle('night',night);
     const e=S.daysToEid; $('#eidH').textContent=e<=0?t('eidToday'):e===1?t('eidTmr'):t('eidIn',{n:e}); $('#eidpill').classList.toggle('soon',e<=2);
   }
@@ -158,7 +171,7 @@ export async function init(ctx){
 
   // ---------------- quests (logic lives in game/progress) ----------------
   const P=()=>ctx.modules.progress;
-  const qlist=$('#qlist'); let qOpen=false;
+  const qlist=$('#qlist'); let qOpen=false, claimN=0;
   const qTitle=q=>L(q.title).replace('{n}',q.goal);
   const qs=()=>P()?.quests?.()||[];
   function renderTracker(){
@@ -167,7 +180,7 @@ export async function init(ctx){
     const cl=list.filter(q=>q.done&&!q.claimed), cur=cl[0]||list.find(q=>!q.done);
     const tr=$('#tracker'); tr.classList.toggle('claim',!!cl.length); tr.classList.toggle('open',qOpen); tr.style.display=list.length?'':'none';
     $('#qchip').innerHTML=cur?`${ic(cl.length?'check':cur.icon)}<span class="qt">${cl.length?t('claim')+': ':''}${qTitle(cur)}</span><span class="cnt">${cur.prog}/${cur.goal}</span>${ic('chev','chev')}`:`${ic('check')}<span class="qt">${t('allDone')}</span>${ic('chev','chev')}`;
-    $('#qBadge').textContent=cl.length||'';
+    claimN=cl.length; renderBookBadge();
   }
   function claim(id){ const q=P()?.claim(id); if(q){ renderTracker(); if(panel==='quest') renderPanel(); } }
   ctx.on('quest:done',q=>{ toast(t('doneTap'),'check','good'); sfx('chime'); });
@@ -179,10 +192,10 @@ export async function init(ctx){
   ctx.on('build:complete',()=>{ ach(t('mosque'),t('masjidDone'),'dome'); sfx('bedug'); sfx('chime'); });
   ctx.on('coins:change',()=>{ syncLedger(); if(panel==='shop'||panel==='build') renderPanel(); });
   ctx.on('sticker:new',s=>{ ach(t('stickerNew'),L(s.name),s.icon,s.rim); if(panel!=='book') bookNew++; renderBookBadge(); const c=camTarget(); fx()?.burst('sparkle',{x:c.x,y:c.y+2,z:c.z},16); if(panel==='book') renderPanel(); });
-  ctx.on('berkah:level',d=>{ if(panel!=='book') bookNew++; renderBookBadge(); lastClock=''; queueCard(()=>showLevelUp(d)); });
+  ctx.on('berkah:level',d=>{ if(panel!=='book') bookNew++; renderBookBadge(); lastClock=''; const f=()=>showLevelUp(d); f.soft=true; queueCard(f); });
   ctx.on('decor:change',()=>{ if(panel==='shop') renderPanel(); });
   ctx.on('year:new',()=>{ lastClock=''; renderAll(); });
-  let bookNew=0; function renderBookBadge(){ $('#kBadge').textContent=bookNew&&!quiet()?'!':''; }
+  let bookNew=0; function renderBookBadge(){ const q=quiet(); $('#kBadge').textContent=bookNew&&!q&&panel!=='book'?'!':''; $('#qBadge').textContent=claimN&&!q?claimN:''; }
 
   // ---------------- panels ----------------
   let panel=null, shopTab='supply', bookTab='berkah';
@@ -208,7 +221,7 @@ export async function init(ctx){
     let body='';
     if(shopTab==='supply') body=(mul<1?`<div class="sale">${ic('bag')}${t('sale')}</div>`:'')+'<div class="grid">'+SHOP.map(it=>{ const p=Math.round(it.price*mul); return `<div class="card"><div class="big">${ic(it.icon)}</div><h5>${t(it.id)} ×${it.qty}</h5><p>${t(it.id+'D')}</p><span class="own">${t('owned')} ${S.inventory[it.id]||0}</span><button class="btn gold ${S.coins>=p?'':'off'}" data-buy="${it.id}">${t('buy')} ${price(p,it.price)}</button></div>`; }).join('')+'</div>';
     else if(shopTab==='animal'&&an?.price) body='<div class="grid">'+['goat','sheep','cow'].map(k=>{ const p=an.price(k), ok=an.canAdd?an.canAdd(k):true, bp=Math.round(p*.5);
-      return `<div class="card"><div class="big">${ic(k==='cow'?'cow':'goat')}</div><h5>${t(k==='goat'?'goats':k==='sheep'?'sheeps':'cows')}</h5><p>${t(k+'D')}</p><div class="duo"><button class="btn gold ${ok&&S.coins>=p?'':'off'}" data-animal="${k}">${price(p)}</button><button class="btn teal ${ok&&S.coins>=bp?'':'off'}" data-animal="${k}:baby">${price(bp)} ${t('baby')}</button></div></div>`; }).join('')+'</div>';
+      return `<div class="card"><div class="big">${ic(k==='cow'?'cow':'goat')}</div><h5>${t(k==='goat'?'goats':k==='sheep'?'sheeps':'cows')}</h5><p>${t(k+'D')}</p><div class="duo"><button class="btn gold ${ok&&S.coins>=p?'':'off'}" data-animal="${k}">${t('buy')} ${price(p)}</button><button class="btn teal ${ok&&S.coins>=bp?'':'off'}" data-animal="${k}:baby">${t('baby')} ${price(bp)}</button></div>${ok?'':`<span class="own lk">${t('penFull')}</span>`}</div>`; }).join('')+'</div>';
     else if(shopTab==='decor'&&pr) body='<div class="grid">'+pr.decorKinds().map(k=>{
       if(!k.unlocked) return `<div class="card lockd"><div class="big">${ic(k.icon)}</div><h5>${L(k.name)}</h5><p>${L(k.desc)}</p><span class="own lk">${ic('lock')}${t('unlockAt',{l:k.lv})}</span></div>`;
       return `<div class="card"><div class="big">${ic(k.icon)}</div><h5>${L(k.name)}</h5><p>${L(k.desc)}</p>${k.owned?`<span class="own">${t('owned')} ${k.owned}</span><button class="btn teal" data-dput="${k.id}">${ic('pot')}${t('put')}</button>`:`<button class="btn gold ${S.coins>=k.price?'':'off'}" data-dbuy="${k.id}">${t('buy')} ${price(k.price)}</button>`}${k.placed?`<div class="plc">${t('onPlaza')} ${k.placed} · <button class="btn link small" data-dstore="${k.id}">${t('store')}</button></div>`:''}</div>`; }).join('')+'</div>';
@@ -237,7 +250,7 @@ export async function init(ctx){
     const pr=P(); if(!pr) return '';
     const li=pr.levelInfo(); let body='';
     if(bookTab==='berkah'){
-      body=`<div class="lvhead"><div class="lvbig">${ic('pahala')}<b>${li.lv}</b></div><div style="flex:1"><b>${t('berkah')} ${t('lv')} ${li.lv}</b><div class="prog"><i style="width:${li.pct*100}%"></i></div><small>${li.next?t('nextLv',{n:li.next-li.pahala,l:li.lv+1}):t('maxLv')}</small></div></div><div class="lvlist">`+
+      body=`<div class="lvhead"><div class="lvbig">${ic('pahala')}<b>${li.lv}</b></div><div style="flex:1;min-width:0"><b>${t('lvName',{l:li.lv})}</b><div class="prog"><i style="width:${li.pct*100}%"></i></div><small>${li.next?t('nextLv',{n:li.next-li.pahala,l:li.lv+1}):t('maxLv')}</small><small class="tot">${ic('pahala')}${t('lvTotal',{n:fmt(li.pahala)})}</small></div></div><div class="lvlist">`+
         pr.LEVELS.map((_,i)=>{ const l=i+1, u=pr.unlocksAt(l); if(!u.length) return ''; const got=li.lv>=l;
           return `<div class="lvrow ${got?'got':''}"><span class="lvn">${l}</span><div class="chips">${u.map(x=>`<span class="uchip">${ic(x.icon)}${L(x.name)}</span>`).join('')}</div>${got?ic('check'):ic('lock')}</div>`; }).join('')+'</div>';
     } else if(bookTab==='stickers'){
@@ -301,7 +314,8 @@ export async function init(ctx){
 
   // ---------------- tutorial hints ----------------
   const hint=$('#hint'), ptr=$('#ptr'); const hintSteps=[['h1','move'],['h2','fed'],['h3','build'],['h4','end']]; let hStep=0, hTimer=0, moveT=0;
-  const quiet=()=>!S.tutDone&&hStep<2;   // first ~30s: no stickers/badges until the player has walked and fed an animal
+  // first ~30s: no stickers/badges/level cards until the player has walked and fed an animal (capped so nothing waits forever)
+  const quiet=()=>!S.tutDone&&hStep<2&&(!started||performance.now()-startT<120000);
   const joyOn=()=>{ const e=document.getElementById('mb-joy'); return e&&e.offsetWidth>0?e:null; };
   function showHint(){ if(S.tutDone||!started){ hint.classList.add('hidden'); hud.classList.remove('hint-on'); ptr.style.display='none'; return; } const s=hintSteps[hStep]; if(!s){ S.tutDone=true; hint.classList.add('hidden'); hud.classList.remove('hint-on'); ptr.style.display='none'; return; }
     $('#hintTx').textContent=t(s[0]==='h1'&&!joyOn()?'h1k':s[0]); hint.classList.remove('hidden'); hud.classList.add('hint-on'); hint.style.animation='none'; void hint.offsetWidth; hint.style.animation=''; hTimer=0; moveT=0; }
@@ -314,8 +328,9 @@ export async function init(ctx){
   // ---------------- cards: day summary, level-up, Eid (queued so they never stack) ----------------
   const cardQ=[];
   const cardOpen=()=>summary.classList.contains('on')||eidOv.classList.contains('on');
-  function queueCard(fn){ if(cardOpen()||!started) cardQ.push(fn); else fn(); }
-  function closeCard(o){ o.classList.remove('on'); sfx('pop'); setTimeout(()=>{ if(!cardOpen()&&cardQ.length) cardQ.shift()(); },250); }
+  function nextCard(){ if(!started||cardOpen()||!cardQ.length) return; const i=cardQ.findIndex(f=>!(f.soft&&quiet())); if(i>=0) cardQ.splice(i,1)[0](); }
+  function queueCard(fn){ cardQ.push(fn); nextCard(); }
+  function closeCard(o){ o.classList.remove('on'); if(o===eidOv) root.classList.remove('eid-on'); sfx('pop'); setTimeout(nextCard,250); }
   function statHTML(icon,val,label,i){ return `<div class="stat" style="animation-delay:${.12*i+.2}s">${ic(icon)}<div><b>${val}</b><small>${label}</small></div></div>`; }
   ctx.on('day:summary',d=>{ lastClock=''; renderAll(); if(S.daysToEid===3) toast(t('eidSoon'),'crescent','good'); queueCard(()=>showSummary(d)); });
   function showSummary(d){
@@ -369,7 +384,7 @@ export async function init(ctx){
   const overlayOpen=()=>!started||cardOpen()||!!panel;
 
   // ---------------- title screen ----------------
-  let started=false; const hasSave=S.day>1||S.pahala>0;
+  let started=false, startT=0; const hasSave=S.day>1||S.pahala>0;
   function buildTitle(){
     const hills=(c1,c2,y,amp,seed)=>{ let d=`M0 ${y}`; for(let i=0;i<=8;i++){ d+=` Q ${i*200+100} ${y-amp*(((i*seed)%3)+.6)} ${i*200+200} ${y}`; } return `<path d="${d} V900 H0z" fill="url(#hl${seed})"/><defs><linearGradient id="hl${seed}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs>`; };
     const tree=(x,y,s,c)=>`<g transform="translate(${x} ${y}) scale(${s})"><rect x="-6" y="-40" width="12" height="46" rx="5" fill="#8a5a2c"/><circle cx="0" cy="-60" r="34" fill="${c}"/><circle cx="-24" cy="-44" r="24" fill="${c}"/><circle cx="24" cy="-46" r="24" fill="${c}"/><circle cx="-8" cy="-74" r="16" fill="#fff" opacity=".12"/></g>`;
@@ -406,7 +421,7 @@ export async function init(ctx){
     $('#tPlay',title).onclick=startGame;
   }
   function startGame(){
-    if(started) return; started=true; audio()?.unlock?.(); sfx('chime'); title.classList.add('gone'); setTimeout(()=>{ title.remove(); },1000);
+    if(started) return; started=true; startT=performance.now(); audio()?.unlock?.(); sfx('chime'); title.classList.add('gone'); setTimeout(()=>{ title.remove(); },1000);
     setTimeout(()=>{ sfx('bedug'); },300); setTimeout(showHint,1600); S.started=true;
   }
 
@@ -414,7 +429,7 @@ export async function init(ctx){
 
   // ---------------- init ----------------
   buildTitle(); renderAll(); renderBookBadge();
-  const skip=()=>{ started=true; title.remove(); };
+  const skip=()=>{ started=true; startT=performance.now(); title.remove(); };
   if(Q.has('nt')||Q.has('skip')) skip();
   if(Q.has('hint')){ skip(); setTimeout(showHint,300); }
   const demo=Q.get('panel'); if(demo){ skip(); if(Q.get('tab')){ shopTab=bookTab=Q.get('tab'); } setTimeout(()=>openPanel(demo),200); }
@@ -433,7 +448,7 @@ export async function init(ctx){
       if(started&&performance.now()-lastInput>6000&&!hud.classList.contains('idle')) hud.classList.add('idle');
       renderTop(dt); const now=performance.now(); if(now-acc>500){ acc=now; renderClock(); renderBookBadge(); S.hour=ctx.hour; syncLedger(); }
       if(eidTimer>0){ eidTimer+=dt; if(eidTimer>5){ eidTimer=0.01; if(eidOv.classList.contains('on')) confettiWave(); else eidTimer=0; } }
-      if(started&&cardQ.length&&!cardOpen()) cardQ.shift()();
+      if(cardQ.length) nextCard();
       // tutorial: advance only on real actions
       if(started&&!S.tutDone&&!hint.classList.contains('hidden')){ hTimer+=dt; const m=ctx.input?.move; const s=hintSteps[hStep]?.[1];
         if(s==='move'){ if(m&&(Math.abs(m.x)+Math.abs(m.y)>.3)) moveT+=dt; if(moveT>.8) tutDone('move'); }
