@@ -177,6 +177,7 @@ export async function init(ctx) {
     ray.setFromCamera(ndc, camera); const hits = ray.intersectObject(built[6].bedug.hit, false); if (hits.length) playBedug();
   });
   const BEDUG3 = new THREE.Vector3(BEDUG.x, 0, BEDUG.z);
+  const _dm = new THREE.Matrix4(), _dp = new THREE.Vector3(), _dq = new THREE.Quaternion(), _ds = new THREE.Vector3(1, 1, 1); // droplet scratch (no per-frame allocs)
 
   // ---- kentongan (stage 2): strike -> damped swing, wooden tok-tok (audio 'kentongan'), dust, 'kentongan:hit' ----
   let lastKen = -9;
@@ -308,7 +309,7 @@ export async function init(ctx) {
       // droplets
       const S5 = built[5];
       if (S5?.droplets?.ready) {
-        const d = S5.droplets, m = new THREE.Matrix4(), p = new THREE.Vector3(), q = new THREE.Quaternion(), sc = new THREE.Vector3(1, 1, 1);
+        const d = S5.droplets, m = _dm, p = _dp, q = _dq, sc = _ds;
         let i = 0;
         d.spouts.forEach((s, j) => {
           for (let k = 0; k < d.PER; k++, i++) {

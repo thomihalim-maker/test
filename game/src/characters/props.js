@@ -87,19 +87,19 @@ function mergedTool(parts, outline){
 }
 // sapu lidi with a long bamboo handle: ~25 palm-rib sticks fanned out under a double rattan band
 function broomParts(){
-  const P = [], LIDI = [0xdcc77e,0xcdb265,0xe8d899,0xc4a457,0xd6bd70];
-  const N = 25;
+  const P = [], LIDI = [0xe2cc80,0xcdb265,0xeedc9c,0xc4a457,0xd9c070];
+  const N = 27;
   for(let i=0;i<N;i++){
-    const k = i/(N-1)*2-1, w = Math.sin(i*12.9898)*.5;               // across the fan, a little jitter
-    const top = [k*.026, .36, w*.012], bot = [k*.13 + w*.012, .004 + Math.abs(Math.sin(i*3.7))*.03, (Math.cos(i*7.1))*.035];
-    P.push(rod(bot, top, .0055, .0042, LIDI[i%5], 4));
+    const k = i/(N-1)*2-1, w = Math.sin(i*12.9898)*.5, row = (i%3)-1;           // across the fan, three staggered layers
+    const top = [k*.034, .4, row*.012 + w*.006], bot = [k*.17 + w*.02, .004 + Math.abs(Math.sin(i*3.7))*.035, row*.026 + Math.cos(i*7.1)*.018];
+    P.push(rod(bot, top, .0085, .0062, LIDI[i%5], 4));
   }
-  P.push(vc(new THREE.CylinderGeometry(.036,.04,.05,10), 0x8a5a2b, {pos:[0,.36,0], scale:[1,1,.55]}));     // rattan band
-  P.push(vc(new THREE.CylinderGeometry(.031,.034,.022,10), 0x6e4420, {pos:[0,.315,0], scale:[1,1,.55]}));
-  P.push(vc(new THREE.CylinderGeometry(.03,.026,.06,10), 0xd9c27a, {pos:[0,.405,0], scale:[1,1,.6]}));     // tied lidi ends
-  P.push(rod([0,.38,0],[0,1.03,0], .019, .017, 0xc9a35a, 8));                                             // bamboo handle
-  for(const y of [.58,.8]) P.push(vc(new THREE.TorusGeometry(.0185,.005,4,10), 0x9c7a3a, {pos:[0,y,0], rot:[Math.PI/2,0,0]})); // nodes
-  P.push(vc(new THREE.SphereGeometry(.022,8,6), 0x9c7a3a, {pos:[0,1.035,0]}));
+  P.push(vc(new THREE.CylinderGeometry(.045,.05,.06,12), 0x8a5a2b, {pos:[0,.4,0], scale:[1,1,.6]}));      // rattan band
+  P.push(vc(new THREE.CylinderGeometry(.04,.044,.026,12), 0x6e4420, {pos:[0,.35,0], scale:[1,1,.6]}));
+  P.push(vc(new THREE.CylinderGeometry(.036,.03,.07,10), 0xdcc77e, {pos:[0,.46,0], scale:[1,1,.65]}));    // tied lidi ends
+  P.push(rod([0,.43,0],[0,1.05,0], .024, .021, 0xc9a35a, 8));                                             // bamboo handle
+  for(const y of [.62,.84]) P.push(vc(new THREE.TorusGeometry(.023,.006,4,12), 0x9c7a3a, {pos:[0,y,0], rot:[Math.PI/2,0,0]})); // nodes
+  P.push(vc(new THREE.SphereGeometry(.027,8,6), 0x9c7a3a, {pos:[0,1.055,0]}));
   return P;
 }
 // mop: wooden handle, blue clamp, a skirt of chunky cotton strips splayed on the floor
@@ -107,12 +107,12 @@ function mopParts(){
   const P = [], COT = [0xfbf8ef,0xf1ece0,0xfffdf7,0xe8e2d2];
   for(let i=0;i<16;i++){
     const a = i/16*Math.PI*2 + (i%2)*.2, r0 = .03, r1 = .1 + (i%3)*.018;
-    P.push(rod([Math.cos(a)*r1, .012, Math.sin(a)*r1*.75], [Math.cos(a)*r0, .14, Math.sin(a)*r0*.6], .016, .013, COT[i%4], 5));
+    P.push(rod([Math.cos(a)*r1, .014, Math.sin(a)*r1*.8], [Math.cos(a)*r0, .15, Math.sin(a)*r0*.7], .021, .017, COT[i%4], 5));
   }
-  P.push(vc(new THREE.SphereGeometry(.05,10,6), 0xf6f2e6, {pos:[0,.12,0], scale:[1.1,.6,.8]}));
-  P.push(vc(new THREE.CylinderGeometry(.03,.04,.06,10), 0x3b8fd9, {pos:[0,.17,0]}));                       // clamp
-  P.push(rod([0,.19,0],[0,1.06,0], .017, .016, 0xc08a50, 8));
-  P.push(vc(new THREE.CylinderGeometry(.024,.024,.08,10), 0x3b8fd9, {pos:[0,1.03,0]}));                    // grip cap
+  P.push(vc(new THREE.SphereGeometry(.065,10,6), 0xf6f2e6, {pos:[0,.13,0], scale:[1.1,.6,.85]}));
+  P.push(vc(new THREE.CylinderGeometry(.036,.048,.07,12), 0x3b8fd9, {pos:[0,.18,0]}));                     // clamp
+  P.push(rod([0,.2,0],[0,1.06,0], .022, .02, 0xc08a50, 8));
+  P.push(vc(new THREE.CylinderGeometry(.029,.029,.09,10), 0x3b8fd9, {pos:[0,1.03,0]}));                    // grip cap
   return P;
 }
 // pengki: little green plastic dustpan, origin at the grip end of its short handle; tray in front (+Z), lip on the floor

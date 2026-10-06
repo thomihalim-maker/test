@@ -20,10 +20,14 @@ const CSS = `
 `;
 
 // emoji -> clay SVG icon from the UI sprite (#i-*), falls back to the emoji text
-const ICO={'✋':'hand','🌾':'hay','💧':'water','🧼':'soap','🤍':'heart','🥁':'drum','🥕':'treat','👋':'people','🍎':'treat'};
+const ICO={'✋':'hand','🌾':'hay','💧':'water','🧼':'soap','🤍':'heart','🥁':'drum','🥕':'treat','👋':'people','🍎':'treat',
+  '🧹':'broom','🪣':'mop','🍂':'leafpile','📢':'adzan','🕌':'imam','🪘':'kentongan'};
+// masjid-care / prayer sprite ids (drawn by the UI) and the emoji shown until the sprite sheet exists
+const SPRITE_FALLBACK={broom:'🧹',mop:'🪣',leafpile:'🍂',adzan:'📢',imam:'🕌',kentongan:'🪘',sparkle:'✨',drum:'🥁',hand:'✋'};
 // Accepts a legacy emoji key or a sprite id from the UI's icon set (e.g. 'hammer').
-const icoId=e=>ICO[e]??(typeof e==='string'&&/^[a-z][a-z0-9-]*$/.test(e)&&document.getElementById('i-'+e)?e:null);
-const icoSvg=e=>{const id=icoId(e);return id?`<svg viewBox="0 0 48 48"><use href="#i-${id}"/></svg>`:`<span style="font-size:28px">${e??''}</span>`;};
+const hasSprite=id=>!!document.getElementById('i-'+id);
+const icoId=e=>{ const m=ICO[e]; if(m) return hasSprite(m)||!SPRITE_FALLBACK[m]?m:null; return typeof e==='string'&&/^[a-z][a-z0-9-]*$/.test(e)&&hasSprite(e)?e:null; };
+const icoSvg=e=>{const id=icoId(e);if(id) return `<svg viewBox="0 0 48 48"><use href="#i-${id}"/></svg>`; const em=SPRITE_FALLBACK[ICO[e]??e]??(typeof e==='string'&&/^[a-z][a-z0-9-]*$/.test(e)?'✋':e); return `<span style="font-size:28px">${em??''}</span>`;};
 export function createInput(ctx){
   const input = { move:new THREE.Vector2(), actionPressed:false, actionJustPressed:false, run:false, touch:false, tool:null, hasTool:false };
   const style = document.createElement('style'); style.textContent = CSS; document.head.appendChild(style);
@@ -70,12 +74,16 @@ export function createInput(ctx){
   act.addEventListener('pointerdown',e=>{ act.setPointerCapture(e.pointerId); press(); e.preventDefault(); });
   act.addEventListener('pointerup',release); act.addEventListener('pointercancel',release);
 
+  // a value written into input.move from outside (scripted tests, autowalk) survives one update when no key/joystick is held
+  const lastW = new THREE.Vector2();
   input.update = ()=>{
     let kx=0,ky=0;
     if(keys.has('a')||keys.has('ArrowLeft')) kx-=1; if(keys.has('d')||keys.has('ArrowRight')) kx+=1;
     if(keys.has('w')||keys.has('ArrowUp')) ky-=1; if(keys.has('s')||keys.has('ArrowDown')) ky+=1;
     if(kx||ky){ const l=Math.hypot(kx,ky); kx/=l; ky/=l; }
-    input.move.set(kx+joyV.x, ky+joyV.y); if(input.move.length()>1) input.move.normalize();
+    const ext = (input.move.x!==lastW.x || input.move.y!==lastW.y) && !kx && !ky && !joyV.x && !joyV.y;
+    if(!ext) input.move.set(kx+joyV.x, ky+joyV.y); if(input.move.length()>1) input.move.normalize();
+    lastW.copy(input.move);
     input.run = keys.has('Shift') || joyV.length()>.93;
     input.actionJustPressed = false; // consumed by controller via _jp
   };
@@ -88,7 +96,7 @@ export function createInput(ctx){
   input.setContext = (c, idleLabel='Aksi')=>{ // {icon,label} or null
     const ic=act.querySelector('.ic'), lb=act.querySelector('.lb'); const icon=c?c.icon:'✋', label=c?c.label:idleLabel;
     act.classList.toggle('idle',!c); act.classList.toggle('ready',!!c);
-    if(icon!==lastIc){ ic.innerHTML=icoSvg(icon); lastIc=icon; }
+    const key=icon+'|'+(icoId(icon)||''); if(key!==lastIc){ ic.innerHTML=icoSvg(icon); lastIc=key; }
     if(lb.textContent!==label) lb.textContent=label;
   };
   input.dispose = ()=>root.remove();

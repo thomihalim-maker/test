@@ -529,9 +529,10 @@ export function createCustom(ctx, o) {
       try { for (const [p] of base) ctx.modules.fx?.burst?.('sparkle', p.clone().add(V3(0, 2.3, 0)), 4); } catch (e) { }
     }
   }
+  const _pm = new THREE.Matrix4(), _ps = new THREE.Vector3();
   function stepInstPop(dt) {
     if (!instPop) return; instPop.t += dt;
-    const { L, base } = instPop, p = Math.min(1, instPop.t / .6), k = elastic(p), ov = Math.max(0, k - 1), m = new THREE.Matrix4(), s = new THREE.Vector3();
+    const { L, base } = instPop, p = Math.min(1, instPop.t / .6), k = elastic(p), ov = Math.max(0, k - 1), m = _pm, s = _ps;
     base.forEach(([pos, q, sc], i) => { s.set(sc.x * k * (1 - .2 * ov), sc.y * k * (1 + .25 * ov), sc.z * k * (1 - .2 * ov)); m.compose(pos, q, p >= 1 ? sc : s); L.pi.setMatrixAt(i, m); L.li.setMatrixAt(i, m); });
     L.pi.instanceMatrix.needsUpdate = L.li.instanceMatrix.needsUpdate = true;
     if (p >= 1) instPop = null;

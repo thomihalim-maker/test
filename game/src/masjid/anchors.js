@@ -187,15 +187,54 @@ export function createAnchors(ctx, api) {
     }
     return (best || []).map(([x, z]) => ({ x, z }));
   }
+  // round-ish obstacles on the plaza (menara kaki, wudhu pavilion): walk round them on an octagon whose vertices sit just
+  // outside the square footprint's corners (k·45°) and whose edges stay outside radius R
+  const circles = () => { const s = stage(), l = []; if (s >= 4) l.push([MINARET.x, MINARET.z, 3.85]); if (s >= 5) l.push([WUDHU.x, WUDHU.z, 3.9]); return l; };
+  function segCircle(ax, az, bx, bz, cx, cz, R) {
+    const dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz;
+    const t = L2 < 1e-9 ? 0 : Math.max(0, Math.min(1, ((cx - ax) * dx + (cz - az) * dz) / L2));
+    return Math.hypot(ax + dx * t - cx, az + dz * t - cz) < R;
+  }
+  function aroundCircle(a, b, cx, cz, R) {
+    if (Math.hypot(a.x - cx, a.z - cz) < R || Math.hypot(b.x - cx, b.z - cz) < R) return [];  // an end sits at the obstacle: let sliding handle it
+    if (!segCircle(a.x, a.z, b.x, b.z, cx, cz, R)) return [];
+    const N = 8, Rv = (R + .08) / Math.cos(Math.PI / N), ring = [];
+    for (let k = 0; k < N; k++) { const t = k / N * Math.PI * 2; ring.push([cx + Math.cos(t) * Rv, cz + Math.sin(t) * Rv]); }
+    let best = null, bl = Infinity;
+    for (let i = 0; i < N; i++) {
+      if (segCircle(a.x, a.z, ring[i][0], ring[i][1], cx, cz, R)) continue;
+      for (const dir of [1, -1]) {
+        const chain = [ring[i]];
+        for (let k = 0, j = i; k < N && segCircle(chain[chain.length - 1][0], chain[chain.length - 1][1], b.x, b.z, cx, cz, R); k++) { j = (j + dir + N) % N; chain.push(ring[j]); }
+        if (segCircle(chain[chain.length - 1][0], chain[chain.length - 1][1], b.x, b.z, cx, cz, R)) continue;
+        let L = 0, p = [a.x, a.z]; for (const c of chain) { L += Math.hypot(c[0] - p[0], c[1] - p[1]); p = c; } L += Math.hypot(b.x - p[0], b.z - p[1]);
+        if (L < bl) { bl = L; best = chain; }
+      }
+    }
+    return (best || []).map(([x, z]) => ({ x: +x.toFixed(2), z: +z.toFixed(2) }));
+  }
   function route(from, to) {
     if (!from || !to || stage() < 2) return null;
     const a = { x: from.x, z: from.z }, b = { x: to.x, z: to.z };
+    if (![a.x, a.z, b.x, b.z].every(Number.isFinite)) return null;
     const aIn = isInside(a.x, a.z) === 'hall', bIn = isInside(b.x, b.z) === 'hall';
-    if (aIn && bIn) return null;
-    let path;
-    if (!aIn && bIn) path = [...(inObst(a.x, a.z) ? [] : around(a, DOOR_OUT)), { ...DOOR_OUT }, { ...DOOR_IN }];
+    let path = [];
+    if (aIn && bIn) path = [];
+    else if (!aIn && bIn) path = [...(inObst(a.x, a.z) ? [] : around(a, DOOR_OUT)), { ...DOOR_OUT }, { ...DOOR_IN }];
     else if (aIn && !bIn) path = [{ ...DOOR_IN }, { ...DOOR_OUT }, ...(inObst(b.x, b.z) ? [] : around(DOOR_OUT, b))];
     else path = (inObst(a.x, a.z) || inObst(b.x, b.z)) ? [] : around(a, b);
+    // detour round obstacles on every outdoor leg (from -> path... -> to)
+    const C = circles();
+    if (C.length) {
+      const pts = [a, ...path, b], out = [];
+      for (let i = 0; i < pts.length - 1; i++) {
+        let seg = [];
+        for (const [cx, cz, R] of C) { const d = aroundCircle(pts[i], pts[i + 1], cx, cz, R); if (d.length) { seg = d; break; } }
+        if (i > 0) out.push(pts[i]);
+        out.push(...seg);
+      }
+      path = out;
+    }
     return path.length ? path : null;
   }
 
