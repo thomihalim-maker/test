@@ -431,7 +431,7 @@ export async function init(ctx){
     toast, openPanel, closePanel, overlayOpen, addCoins, addPahala, spend, showSummary, showEid, showLevelUp, startGame, t, get started(){ return started; },
     update(dt){
       if(started&&performance.now()-lastInput>6000&&!hud.classList.contains('idle')) hud.classList.add('idle');
-      renderTop(dt); const now=performance.now(); if(now-acc>500){ acc=now; renderClock(); S.hour=ctx.hour; syncLedger(); }
+      renderTop(dt); const now=performance.now(); if(now-acc>500){ acc=now; renderClock(); renderBookBadge(); S.hour=ctx.hour; syncLedger(); }
       if(eidTimer>0){ eidTimer+=dt; if(eidTimer>5){ eidTimer=0.01; if(eidOv.classList.contains('on')) confettiWave(); else eidTimer=0; } }
       if(started&&cardQ.length&&!cardOpen()) cardQ.shift()();
       // tutorial: advance only on real actions
