@@ -122,7 +122,7 @@ export function buildPen(ctx,lvl=0){
     const wm=new THREE.MeshStandardMaterial({color:'#9fe0f5',roughness:.1,transparent:true,opacity:.9,emissive:'#4aa7c9',emissiveIntensity:.2});
     const wat=new THREE.Mesh(new THREE.CircleGeometry(R*.93,28).rotateX(-Math.PI/2),wm); wat.position.set(tx,.58,tz); root.add(wat);
     // foam bubbles
-    for(let i=0;i<46;i++){ const a=rnd()*7,rim=i<34,rr=rim?R*(.7+rnd()*.2):Math.sqrt(rnd())*R*.55,s=rim?.04+rnd()*.05:.03+rnd()*.035; put('tubfoam',new THREE.SphereGeometry(s,7,5),{p:[tx+Math.cos(a)*rr,.6+s*.4,tz+Math.sin(a)*rr],s:[1,.75,1],c:'#ffffff'}); }
+    for(let i=0;i<84;i++){ const a=rnd()*7,rim=i<66,rr=rim?R*(.74+rnd()*.17):Math.sqrt(rnd())*R*.5,s=rim?.05+rnd()*.055:.03+rnd()*.035; put('tubfoam',new THREE.SphereGeometry(s,7,5),{p:[tx+Math.cos(a)*rr,.6+s*.4,tz+Math.sin(a)*rr],s:[1,.75,1],c:'#ffffff'}); }
     // rubber duck
     const dx=tx+.25,dz=tz-.2; put('misc',new THREE.SphereGeometry(.13,10,8),{p:[dx,.68,dz],s:[1.1,.85,1],c:'#ffd43b'}); put('misc',new THREE.SphereGeometry(.085,10,8),{p:[dx+.07,.79,dz],c:'#ffd43b'}); put('misc',new THREE.ConeGeometry(.035,.07,6).rotateZ(-Math.PI/2),{p:[dx+.17,.78,dz],c:'#ff8a3d'});
     put('misc',new THREE.SphereGeometry(.015,6,5),{p:[dx+.14,.82,dz+.05],c:'#222'}); put('misc',new THREE.SphereGeometry(.015,6,5),{p:[dx+.14,.82,dz-.05],c:'#222'});
