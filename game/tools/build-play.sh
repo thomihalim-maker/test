@@ -1,9 +1,9 @@
 #!/bin/sh
-# Snapshot the game into $1 (default: dist/play) for publishing as a single shareable page.
+# Snapshot the game into $1 (default: play-dist, outside the production dist/) for publishing as a single shareable page.
 # play.html is body-only (the host adds the document skeleton) and loads three.js from jsDelivr.
 set -e
 cd "$(dirname "$0")/.."
-OUT=${1:-dist/play}
+OUT=${1:-play-dist}
 rm -rf "$OUT"; mkdir -p "$OUT"
 cp -r src "$OUT/src"
 find "$OUT/src" -name 'test.html' -delete

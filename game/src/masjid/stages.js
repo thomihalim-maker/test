@@ -40,7 +40,8 @@ export function makeMaterials(ctx, night) {
   M.gold = std({ map: tex.gold(), vertexColors: true, roughness: .3, metalness: .75, envMap: env, envMapIntensity: 1.1, emissive: 0x6a4108, emissiveIntensity: .08 });
   M.brass = std({ color: 0xa0804c, vertexColors: true, roughness: .45, metalness: .55, envMap: env, envMapIntensity: .6 });
   M.iron = std({ color: 0x3c3632, vertexColors: true, roughness: .5, metalness: .4 });
-  M.sirap = std({ map: tex.sirap(), vertexColors: true, roughness: .8, emissive: 0x3a2410, emissiveIntensity: .18 });
+  // envMap is attached from the start (intensity 0) so glazed roof options only change uniforms, never recompile
+  M.sirap = std({ map: tex.sirap(), vertexColors: true, roughness: .8, emissive: 0x3a2410, emissiveIntensity: .18, envMap: env, envMapIntensity: 0 });
   night.push({ m: M.sirap, day: .18, night: .6 });
   M.louver = std({ map: tex.louver(), emissiveMap: tex.louverGlow(), vertexColors: true, roughness: .7, emissive: 0xffa040, emissiveIntensity: 0 });
   night.push({ m: M.louver, day: 0, night: .3 });
@@ -59,6 +60,9 @@ export function makeMaterials(ctx, night) {
   M.drop = new THREE.MeshStandardMaterial({ color: 0xcff6ff, emissive: 0x7fe0ff, emissiveIntensity: .6, transparent: true, opacity: .8, roughness: .1 });
   M.lantern = std({ color: 0xffd08a, emissive: 0xffa640, emissiveIntensity: .55, roughness: .6 });
   night.push({ m: M.lantern, day: .5, night: 3.2 });
+  // garden-path + menara lanterns (restyled by the 'lantern' customisation: colour/emissive swap, no recompile)
+  M.lanternPath = std({ color: 0xffd08a, emissive: 0xffa640, emissiveIntensity: .55, roughness: .6 });
+  night.push({ m: M.lanternPath, day: .5, night: 3.2 });
   M.flame = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 1.15, .5), toneMapped: false });
   M.hide = std({ color: 0xf0dcb4, roughness: .85, vertexColors: true });
   M.leaf = std({ color: 0xffffff, vertexColors: true, roughness: .8, side: THREE.DoubleSide });
@@ -73,15 +77,22 @@ export function makeMaterials(ctx, night) {
   M.sign = std({ map: tex.sign(), roughness: .8 });
   M.contact = new THREE.MeshBasicMaterial({ color: 0x000000, vertexColors: true, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   // legacy aliases (site.js and older code paths)
+  M._env = env;
   M.plasterW = M.wash; M.plaster = M.wash; M.woodDark = M.wood; M.marbleTint = M.marble; M.roof = M.sirap;
   return M;
 }
 
-function mesh(S, geo, mat, cast = true, recv = true) {
+export function mesh(S, geo, mat, cast = true, recv = true) {
   if (mat.vertexColors && !geo.attributes.color) flat(geo, 1);
   const m = new THREE.Mesh(geo, mat); m.castShadow = cast; m.receiveShadow = recv; return m;
 }
-const place = (o, x = 0, y = 0, z = 0, ry = 0) => { o.position.set(x, y, z); o.rotation.y = ry; return o; };
+export const place = (o, x = 0, y = 0, z = 0, ry = 0) => { o.position.set(x, y, z); o.rotation.y = ry; return o; };
+/** Style-variant hook: the masjid's customisation system builds the chosen variant (gate, roofStyle, finial, menara, mlant). */
+const variant = (S, cat) => {
+  if (S.variant) return S.variant(cat);
+  const f = DEFAULT_VARIANT[cat]; if (!f) return null;
+  const o = f(S); S.G.add(o); return o;
+};
 /** Soft contact-shadow frame around a rectangular footprint (vertex alpha fades outward). */
 export function contactBand(S, hw, hd, x, z, spread = 1.2, alpha = .42, y = .105) {
   const o = [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]], O = [[-hw - spread, -hd - spread], [hw + spread, -hd - spread], [hw + spread, hd + spread], [-hw - spread, hd + spread]];
@@ -95,7 +106,7 @@ export function contactBand(S, hw, hd, x, z, spread = 1.2, alpha = .42, y = .105
   const m = new THREE.Mesh(g, S.M.contact); m.position.set(x, y, z); m.renderOrder = 1; m.castShadow = false; m.receiveShadow = false; return m;
 }
 /** Cylinder bar between two points (for rails) */
-function bar(a, b, r, seg = 6) { const d = new THREE.Vector3().subVectors(b, a), L = d.length(); const g = new THREE.CylinderGeometry(r, r, L, seg); g.translate(0, L / 2, 0); g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize())); g.translate(a.x, a.y, a.z); return flat(g, 1); }
+export function bar(a, b, r, seg = 6) { const d = new THREE.Vector3().subVectors(b, a), L = d.length(); const g = new THREE.CylinderGeometry(r, r, L, seg); g.translate(0, L / 2, 0); g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize())); g.translate(a.x, a.y, a.z); return flat(g, 1); }
 function colLine(S, x0, z0, x1, z1, r, step = 1.1) { const n = Math.max(1, Math.round(Math.hypot(x1 - x0, z1 - z0) / step)); for (let i = 0; i <= n; i++) S.col(x0 + (x1 - x0) * i / n, z0 + (z1 - z0) * i / n, r); }
 
 /* ------------------------------------------------------------------ 1: foundation + plaza */
@@ -157,7 +168,7 @@ function s1(S) {
 }
 
 /** rectangular teak frame around a w×h opening (origin bottom-centre), depth d centred on z */
-function rectFrame(w, h, t, d, sill = true) {
+export function rectFrame(w, h, t, d, sill = true) {
   const g = []; const b = (bw, bh, bd, x, y, z = 0) => { const q = new THREE.BoxGeometry(bw, bh, bd); q.translate(x, y, z); g.push(flat(q, 1)); };
   b(w + 2 * t + .1, t * 1.1, d + .06, 0, h + t * .55); // head with a slight cornice
   if (sill) b(w + 2 * t + .14, t * .7, d + .12, 0, -t * .35);
@@ -165,7 +176,7 @@ function rectFrame(w, h, t, d, sill = true) {
   return merge(g);
 }
 /** plain wooden knob finial (pavilions, minaret) */
-function knob(S, s = 1) {
+export function knob(S, s = 1) {
   const g = [];
   const add = (geo, y) => { geo.translate(0, y * s, 0); g.push(flat(geo, 1)); };
   add(new THREE.CylinderGeometry(.16 * s, .24 * s, .16 * s, 8), .08); add(new THREE.SphereGeometry(.2 * s, 10, 8), .32);
@@ -236,9 +247,11 @@ function s2(S) {
   const bw = (w, h, d, x, y, z, m = M.wash) => { const g = shade(rbox(w, h, d, .06, 1), { lo: .85 }); g.translate(x, y, z); return mesh(S, g, m); };
   bulge.add(bw(.4, 4.1, 1.5, -1.6, 0, -.75), bw(.4, 4.1, 1.5, 1.6, 0, -.75), bw(3.6, 4.1, .4, 0, 0, -1.5), bw(3.6, .3, 1.8, 0, 4.0, -.8, M.wood));
   const bcap = roofGroup(S, { a0: 2.2, b0: 1.5, a1: .9, b1: .05, h: .85 }); bcap.position.set(0, 4.3, -.8); bulge.add(bcap);
+  bcap.userData.variant = 'cut:bulge'; bcap.userData.cut = true; bcap.userData.pivot = V3(0, PL + 4.0, bz - .8);
   G.add(bulge); R.add(bulge, { delay: 1.15, dur: .8, kind: 'grow', fx: 'dust', fxOff: V3(0, 0, -.8) });
   colLine(S, -1.7, -9.3, 1.7, -9.3, .8, 1.3);
-  { const ceil = mesh(S, shade(uvScale(new THREE.BoxGeometry(10.2, .3, 9.7), 3, 3), { lo: .85 }), M.ceiling, false); place(ceil, 0, PL + WH - .23, HALL_Z); G.add(ceil); R.add(ceil, { delay: 1.3, dur: .6, kind: 'pop', amp: .1 }); }
+  { const ceil = mesh(S, shade(uvScale(new THREE.BoxGeometry(10.2, .3, 9.7), 3, 3), { lo: .85 }), M.ceiling, false); place(ceil, 0, PL + WH - .23, HALL_Z); G.add(ceil); R.add(ceil, { delay: 1.3, dur: .6, kind: 'pop', amp: .1 });
+    ceil.userData.variant = 'cut:ceiling'; ceil.userData.cut = true; ceil.userData.pivot = V3(0, PL + 4.0, HALL_Z); }
   // whitewashed pilasters, teak cornice with cream drip, teal frieze, grey stone dado
   const pg = [], cg = [], tg = [], fg = [], kg = [];
   for (const sx of [-1, 1]) for (const z of [-7.75, 2.25]) {
@@ -274,8 +287,40 @@ function s2(S) {
   const band = new THREE.BoxGeometry(12.0, .2, .04); band.translate(0, 3.33, .17); uvScale(band, 60, 1); bgeo.push(flat(band, 1));
   ar.add(mesh(S, merge(cgeo), M.wood), mesh(S, merge(ugeo), M.dado), mesh(S, merge(bgeo), M.arabTeal, false));
   R.add(ar, { delay: 1.5, dur: .9, kind: 'grow', amp: .1, fx: 'dust', snd: 'pop' });
-  // ---- candi bentar (split gate) at the plaza edge: two mirrored red-brick halves, axis to the mustaka stays open
-  const GZ = 13.1, gate = new THREE.Group(); place(gate, 0, 0, GZ); G.add(gate);
+  variant(S, 'gate');
+  // ---- kentongan: hollow teak slit drum hanging under the veranda beam between columns -6 and -3 (swings when struck)
+  const ken = new THREE.Group(); ken.name = 'kentongan'; ken.userData.keep = true; place(ken, -4.5, PL + 3.27, 6.1);
+  ken.add(mesh(S, kentonganGeo(), M.wood)); G.add(ken); S.kentongan = { obj: ken, t: 9 };
+  R.add(ken, { delay: 2.15, dur: .8, kind: 'drop', drop: 1.4, amp: .3, fx: 'dust', fxOff: V3(0, -1.6, 0), snd: 'pop' });
+  // ---- porch adzan mic (stays below PL+1.5) with a little amplifier box; toa horn speakers on the middle veranda columns
+  { const mw = [], mp = [], MX = -2.0, MZ = 3.0, y = PL;
+    const wcyl = (rt, rb, h, x, yy, z, c = 1) => { const g = new THREE.CylinderGeometry(rt, rb, h, 10); g.translate(x, yy + h / 2, z); mw.push(flat(g, c)); };
+    wcyl(.2, .24, .05, MX, y, MZ, .8); wcyl(.05, .07, .08, MX, y + .05, MZ, .7); wcyl(.022, .028, 1.22, MX, y + .1, MZ);
+    wcyl(.04, .04, .05, MX, y + .7, MZ, .7);
+    const tint = (g, c) => { const a = new Float32Array(g.attributes.position.count * 3); for (let i = 0; i < a.length; i += 3) { a[i] = c[0]; a[i + 1] = c[1]; a[i + 2] = c[2]; } g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g; };
+    mp.push(tint(bar(V3(MX, y + 1.3, MZ), V3(MX, y + 1.38, MZ + .1), .014, 5), [.18, .18, .2]));
+    { const h = new THREE.SphereGeometry(.05, 10, 8); h.scale(1, 1, 1.45); h.translate(MX, y + 1.41, MZ + .15); mp.push(tint(h, [.2, .2, .23])); }
+    { const h = new THREE.SphereGeometry(.043, 10, 8); h.translate(MX, y + 1.415, MZ + .2); mp.push(tint(h, [.78, .8, .84])); }
+    { const b = rbox(.36, .26, .22, .03, 1); b.translate(MX - .45, y, MZ - .12); mw.push(shade(b, { lo: .75 })); }
+    { const d = new THREE.CylinderGeometry(.075, .075, .02, 14); d.rotateX(Math.PI / 2); d.translate(MX - .45, y + .13, MZ - .002); mp.push(tint(d, [.15, .15, .17])); }
+    { const k = new THREE.CylinderGeometry(.022, .022, .03, 8); k.rotateX(Math.PI / 2); k.translate(MX - .34, y + .2, MZ + .0); mp.push(tint(k, [.85, .7, .3])); }
+    mp.push(tint(bar(V3(MX - .27, y + .03, MZ - .1), V3(MX - .05, y + .03, MZ - .02), .012, 4), [.1, .1, .1]));
+    const micG = new THREE.Group(); micG.add(mesh(S, merge(mw), M.wood), mesh(S, merge(mp), M.paint));
+    G.add(micG); R.add(micG, { delay: 1.75, dur: .6, kind: 'pop', amp: .4, fx: 'sparkle', fxOff: V3(MX, PL + 1.2, MZ) });
+    S.col(MX, MZ, .25); S.col(MX - .45, MZ - .12, .2);
+    const toas = [];
+    for (const sx of [-1, 1]) { const t = toaGeo(); t.rotateX(.2); t.rotateY(sx * .32); t.translate(sx * 3, 2.9, .3); toas.push(t);
+      const band = new THREE.TorusGeometry(.33, .025, 5, 14); band.rotateX(Math.PI / 2); band.translate(sx * 3, 2.9, 0); toas.push(tint(band, [.3, .3, .32])); }
+    const toaM = mesh(S, merge(toas), M.paint); ar.add(toaM); R.add(toaM, { delay: 2.0, dur: .5, kind: 'pop', amp: .5 });
+  }
+  S.finale(V3(0, 3, 0), 2.3);
+}
+
+
+/** candi bentar (split gate, default 'gate:bentar'). Colliders are owned by the customisation system (GATE_COLS). */
+export function gateBentar(S) {
+  const { M, R } = S;
+  const GZ = 13.1, gate = new THREE.Group(); place(gate, 0, 0, GZ);
   const br = [], st = [], pl = [];
   const gb = (w, h, d, x, y, z = 0, lo = .74, tint = null) => { const g = rbox(w, h, d, .03, 1); g.translate(x, y, z); uvScale(g, Math.max(w, d) / 2, h / 2); br.push(shade(g, { lo, hi: 1, y0: 0, y1: 5, tint })); };
   const plate = (x, y, z, r = .15, face = 1) => { const d = new THREE.CylinderGeometry(r, r, .03, 10); d.rotateX(face * Math.PI / 2); d.translate(x, y, z); pl.push(flat(d, 1)); };
@@ -294,29 +339,102 @@ function s2(S) {
     gb(.55, 1.75, .65, sx * 5.1, .3, 0, .75); gb(.68, .14, .78, sx * 5.1, 2.05, 0, .9); gb(.48, .14, .56, sx * 5.1, 2.19, 0, .95);
     { const f = rbox(1.9, .3, .9, .05, 1); f.translate(sx * 4.65, 0, 0); st.push(shade(f, { lo: .6, tint: 0x9a8c7a })); }
     for (const fz of [-1, 1]) plate(sx * 4.4, .9, fz * .26, .14, fz);
-    S.col(sx * 2.6, GZ, 1.0); S.col(sx * 2.6 + sx * .2, GZ, 1.0); S.col(sx * 4.4, GZ, .5); S.col(sx * 5.1, GZ, .45);
   }
   gate.add(mesh(S, merge(br), M.brick), mesh(S, merge(st), M.dado), mesh(S, merge(pl), M.plate, false));
   gate.add(contactBand(S, 5.4, .9, 0, 0, .8, .35));
   R.add(gate, { delay: 2.0, dur: 1.0, kind: 'grow', amp: .12, fx: 'dust', snd: 'pop', fxOff: V3(0, 0, 1) });
-  S.finale(V3(0, 3, 0), 2.3);
+  return gate;
 }
 
 /* ------------------------------------------------------------------ roof helpers */
-function roofGroup(S, p) {
+export function roofGroup(S, p) {
   const { M } = S;
   const r = pyramidRoof(p);
   const g = new THREE.Group();
   g.add(mesh(S, r.tiles, M.sirap), mesh(S, merge([r.wood, r.soffit]), M.wood), mesh(S, r.trim, M.cream, false));
   return g;
 }
-/** the single gold mustaka (main hall only): squat stacked bulbs, short spike, small crescent */
-function finial(S) {
+/** the single gold mustaka (main hall only): squat stacked bulbs, short spike, small crescent. Base at y=0. */
+export function finial(S) {
   const { M } = S;
   const prof = [[.02, 0], [.62, 0], [.66, .08], [.5, .16], [.56, .3], [.6, .46], [.5, .62], [.24, .72], [.2, .8], [.36, .9], [.4, 1.02], [.32, 1.14], [.14, 1.2], [.12, 1.26], [.2, 1.32], [.18, 1.42], [.08, 1.48], [.05, 1.75], [.01, 1.8]].map(([r, h]) => new THREE.Vector2(r, h));
   const g = [flat(new THREE.LatheGeometry(prof, 12), 1)];
   const cr = new THREE.TorusGeometry(.24, .05, 5, 14, Math.PI * 1.55); cr.rotateZ(.72 * Math.PI); cr.translate(0, 2.02, 0); g.push(flat(cr, 1));
   return mesh(S, merge(g), M.gold, true);
+}
+
+
+/* ------------------------------------------------------------------ roof style variants (built by the customisation system) */
+export const ROOF_Y0 = PL + WH;
+/** Generic stack of straight sirap tiers + louvered vent drums. Returns a root group in masjid space (x=0, z=HALL_Z). */
+export function roofTiers(S, tiers, drums) {
+  const { M, R } = S;
+  const root = new THREE.Group(); root.name = 'roof-tiers';
+  for (const d of drums) {
+    const grp = new THREE.Group(); place(grp, 0, d.y, HALL_Z);
+    grp.add(mesh(S, shade(new THREE.BoxGeometry(d.w, d.h, d.w).translate(0, d.h / 2, 0), { lo: .85 }), M.wash));
+    const lv = [], posts = [];
+    for (let f = 0; f < 4; f++) {
+      const q = new THREE.Matrix4().makeRotationY(f * Math.PI / 2);
+      const p = new THREE.BoxGeometry(d.w - .5, d.h - .2, .05); p.translate(0, d.h / 2, d.w / 2 + .02); uvScale(p, (d.w - .5) / .8, 1); p.applyMatrix4(q); lv.push(flat(p, 1));
+      const c = new THREE.BoxGeometry(.2, d.h, .2); c.translate(d.w / 2 - .02, d.h / 2, d.w / 2 - .02); c.applyMatrix4(q); posts.push(flat(c, .9));
+    }
+    const cap = new THREE.BoxGeometry(d.w + .2, .1, d.w + .2); cap.translate(0, d.h - .05, 0); posts.push(flat(cap, .95));
+    grp.add(mesh(S, merge(lv), M.louver, false), mesh(S, merge(posts), M.wood, false));
+    root.add(grp); R.add(grp, { delay: d.d, dur: .7, kind: 'grow', amp: .12 });
+  }
+  tiers.forEach((t, i) => {
+    const g = roofGroup(S, t.p); place(g, 0, t.y, HALL_Z); root.add(g);
+    R.add(g, { delay: t.d, dur: 1.15, kind: 'drop', drop: 7 - i, amp: .12 + i * .03, fx: 'dust', fxOff: V3(0, 0, 0), snd: 'pop' });
+  });
+  return root;
+}
+/** Demak tajug tumpang tiga (default 'roofStyle:tumpang3'): three straight tiers, each smaller and steeper (~25°, ~35°, ~45°) */
+export function roofTumpang3(S) {
+  const y0 = ROOF_Y0;
+  return roofTiers(S, [
+    { p: { a0: 7.6, a1: 4.0, h: 2.1 }, y: y0 - .05, d: 1.1 },
+    { p: { a0: 5.0, a1: 2.45, h: 2.1 }, y: y0 + 2.65, d: 2.1 },
+    { p: { a0: 3.0, a1: .08, h: 3.3 }, y: y0 + 5.0, d: 3.1 },
+  ], [{ w: 7.2, h: .95, y: y0 + 1.8, d: 2.55 }, { w: 4.4, h: .75, y: y0 + 4.35, d: 3.55 }]);
+}
+/** default finial 'finial:mustaka' placed at o.y (roof apex) */
+export function finialMustaka(S, o) {
+  const fin = finial(S); place(fin, 0, o.y, HALL_Z);
+  S.R.add(fin, { delay: o.delay ?? 4.0, dur: .9, kind: 'pop', amp: .5, fx: 'sparkle', snd: 'chime', fxOff: V3(0, 2.6, 0) });
+  return fin;
+}
+/** Toa horn loudspeaker (vertex-coloured, for M.paint): mount point at the origin, horn mouth toward +Z. */
+export function toaGeo(s = 1) {
+  const parts = [];
+  const tint = (g, c) => { const a = new Float32Array(g.attributes.position.count * 3); for (let i = 0; i < a.length; i += 3) { a[i] = c[0]; a[i + 1] = c[1]; a[i + 2] = c[2]; } g.setAttribute('color', new THREE.BufferAttribute(a, 3)); if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); return g; };
+  { const b = new THREE.BoxGeometry(.06, .06, .24); b.translate(0, 0, .1); parts.push(tint(b, [.32, .32, .34])); }
+  { const d = new THREE.CylinderGeometry(.075, .085, .14, 12); d.rotateX(Math.PI / 2); d.translate(0, 0, .28); parts.push(tint(d, [.26, .27, .3])); }
+  { const h = new THREE.CylinderGeometry(.26, .06, .44, 16, 1, true); h.rotateX(Math.PI / 2); h.translate(0, 0, .56); parts.push(tint(h.toNonIndexed(), [.93, .94, .9])); }
+  { const h = new THREE.CylinderGeometry(.245, .05, .43, 16, 1, true); h.rotateX(Math.PI / 2); h.translate(0, 0, .565); const g = h.toNonIndexed(); const p = g.attributes.position.array, n = g.attributes.normal.array;
+    for (let i = 0; i < p.length; i += 9) for (let k = 0; k < 3; k++) { let a = p[i + 3 + k]; p[i + 3 + k] = p[i + 6 + k]; p[i + 6 + k] = a; a = n[i + 3 + k]; n[i + 3 + k] = n[i + 6 + k]; n[i + 6 + k] = a; }
+    for (let i = 0; i < n.length; i++) n[i] = -n[i]; parts.push(tint(g, [.35, .36, .38])); }
+  { const r = new THREE.TorusGeometry(.255, .02, 5, 18); r.translate(0, 0, .78); parts.push(tint(r, [.85, .86, .82])); }
+  const g = merge(parts.map(p => p.index ? p.toNonIndexed() : p)); if (s !== 1) g.scale(s, s, s); return g;
+}
+/** kentongan: vertical hollow teak log drum (0.9 m) with a front slit, painted bands, carved head, rope + hanging mallet.
+ *  Origin = rope knot under the beam; lowest point at y = -1.57. */
+export function kentonganGeo() {
+  const parts = [];
+  const tint = (g, c) => { g = g.index ? g.toNonIndexed() : g; const a = new Float32Array(g.attributes.position.count * 3); for (let i = 0; i < a.length; i += 3) { a[i] = c[0]; a[i + 1] = c[1]; a[i + 2] = c[2]; } g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g; };
+  const ROPE = [1.55, 1.38, 1.05];
+  parts.push(tint(bar(V3(-.07, .02, 0), V3(-.03, -.6, 0), .016, 5), ROPE), tint(bar(V3(.07, .02, 0), V3(.03, -.6, 0), .016, 5), ROPE));
+  { const k = new THREE.TorusGeometry(.06, .02, 5, 10); k.translate(0, -.02, 0); parts.push(tint(k, ROPE)); }
+  const prof = [[.01, -1.57], [.12, -1.57], [.16, -1.54], [.175, -1.44], [.182, -1.1], [.176, -.76], [.162, -.66], [.11, -.63], [.01, -.63]].map(([r, h]) => new THREE.Vector2(r, h));
+  const body = new THREE.LatheGeometry(prof, 16); parts.push(shade(body.toNonIndexed(), { lo: .85, hi: 1.3, y0: -1.57, y1: -.63, tint: 0xfff0dc }));
+  { const h = new THREE.SphereGeometry(.1, 10, 8); h.scale(1, .8, 1); h.translate(0, -.6, 0); parts.push(tint(h, [.9, .78, .66])); }
+  for (const [y, c] of [[-.74, [1.9, .55, .4]], [-.8, [2.0, 1.55, .6]], [-1.46, [1.9, .55, .4]], [-1.52, [2.0, 1.55, .6]]]) { const b = new THREE.TorusGeometry(.18, .02, 5, 18); b.rotateX(Math.PI / 2); b.translate(0, y, 0); parts.push(tint(b, c)); }
+  { const sl = rbox(.06, .5, .05, .02, 1); sl.translate(0, -1.36, .16); parts.push(tint(sl, [.12, .08, .06])); }
+  // hanging mallet beside it
+  parts.push(tint(bar(V3(.24, .02, 0), V3(.24, -.7, 0), .01, 4), ROPE));
+  { const h = new THREE.CylinderGeometry(.022, .026, .42, 6); h.translate(.24, -.91, 0); parts.push(tint(h, [1.1, .95, .8])); }
+  { const h = new THREE.CylinderGeometry(.06, .06, .17, 10); h.rotateZ(Math.PI / 2); h.translate(.24, -1.15, 0); parts.push(tint(h, [.75, .6, .5])); }
+  return merge(parts.map(g => { if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); return g; }));
 }
 
 /* ------------------------------------------------------------------ 3: soko guru + Demak tajug tumpang tiga (straight sirap tiers, louvered vent bands) + mustaka */
@@ -335,32 +453,8 @@ function s3(S) {
   const cols = mesh(S, merge(cgeo), M.wood), umpak = mesh(S, merge(ugeo), M.dado);
   G.add(cols, umpak);
   R.add(umpak, { delay: .2, dur: .5, kind: 'pop' }); R.add(cols, { delay: .3, dur: .8, kind: 'grow', amp: .12, fx: 'dust', fxOff: V3(0, .2, -2.5) });
-  // three straight tiers, each smaller and steeper (~25°, ~35°, ~45°)
-  const tiers = [
-    { p: { a0: 7.6, a1: 4.0, h: 2.1 }, y: y0 - .05, d: 1.1 },
-    { p: { a0: 5.0, a1: 2.45, h: 2.1 }, y: y0 + 2.65, d: 2.1, drum: { w: 7.2, h: .95, y: y0 + 1.8 } },
-    { p: { a0: 3.0, a1: .08, h: 3.3 }, y: y0 + 5.0, d: 3.1, drum: { w: 4.4, h: .75, y: y0 + 4.35 } },
-  ];
-  tiers.forEach((t) => {
-    if (!t.drum) return;
-    const d = t.drum, grp = new THREE.Group(); place(grp, 0, d.y, HALL_Z);
-    grp.add(mesh(S, shade(new THREE.BoxGeometry(d.w, d.h, d.w).translate(0, d.h / 2, 0), { lo: .85 }), M.wash));
-    const lv = [], posts = [];
-    for (let f = 0; f < 4; f++) {
-      const q = new THREE.Matrix4().makeRotationY(f * Math.PI / 2);
-      const p = new THREE.BoxGeometry(d.w - .5, d.h - .2, .05); p.translate(0, d.h / 2, d.w / 2 + .02); uvScale(p, (d.w - .5) / .8, 1); p.applyMatrix4(q); lv.push(flat(p, 1));
-      const c = new THREE.BoxGeometry(.2, d.h, .2); c.translate(d.w / 2 - .02, d.h / 2, d.w / 2 - .02); c.applyMatrix4(q); posts.push(flat(c, .9));
-    }
-    const cap = new THREE.BoxGeometry(d.w + .2, .1, d.w + .2); cap.translate(0, d.h - .05, 0); posts.push(flat(cap, .95));
-    grp.add(mesh(S, merge(lv), M.louver, false), mesh(S, merge(posts), M.wood, false));
-    G.add(grp); R.add(grp, { delay: t.d + .45, dur: .7, kind: 'grow', amp: .12 });
-  });
-  tiers.forEach((t, i) => {
-    const g = roofGroup(S, t.p); place(g, 0, t.y, HALL_Z); G.add(g);
-    R.add(g, { delay: t.d, dur: 1.15, kind: 'drop', drop: 7 - i, amp: .12 + i * .03, fx: 'dust', fxOff: V3(0, 0, 0), snd: 'pop' });
-  });
-  const fin = finial(S); place(fin, 0, y0 + 5.0 + 3.3 - .08, HALL_Z); G.add(fin);
-  R.add(fin, { delay: 4.0, dur: .9, kind: 'pop', amp: .5, fx: 'sparkle', snd: 'chime', fxOff: V3(0, 2.6, 0) });
+  variant(S, 'roofStyle');   // tiers + louvered drums (default 'tumpang3')
+  variant(S, 'finial');      // golden mustaka by default; sits on whichever roof style is active
   // veranda lean-to roof (straight sirap), kept below the first tier's eave
   const vr = roofGroup(S, { a0: 6.9, b0: 2.7, a1: 5.1, b1: .25, h: .72 });
   place(vr, 0, PL + 3.25, 4.3); G.add(vr); R.add(vr, { delay: .6, dur: 1.0, kind: 'drop', drop: 5, fx: 'dust', snd: 'pop' });
@@ -369,8 +463,18 @@ function s3(S) {
 
 /* ------------------------------------------------------------------ 4: Menara Kudus: stepped kaki, deep cornices, tapered badan with recessed dark-brick panels + plate columns, open teak kepala pavilion */
 function s4(S) {
-  const { M, G, R } = S, { x, z } = MINARET;
-  const root = new THREE.Group(); place(root, x, 0, z); G.add(root);
+  const { G } = S, { x, z } = MINARET;
+  variant(S, 'menara');   // Kudus brick tower by default
+  variant(S, 'mlant');    // pavilion lantern(s), restyled with the garden lanterns
+  S.col(x, z, 2.9);
+  { const cb = contactBand(S, 2.8, 2.8, x, z, 1.0, .4); G.add(cb); S.R.add(cb, { delay: .2, dur: .4, kind: 'fade' }); }
+  S.finale(V3(x, 12.5, z), 3.8, 'confetti');
+}
+/** Menara Kudus (default 'menara:kudus'): stepped kaki, deep cornices, tapered badan with recessed dark-brick panels + plate
+ *  columns, open teak kepala pavilion with 4 toa horns. The lantern is a separate layer (mlant). */
+export function menaraKudus(S) {
+  const { M, R } = S, { x, z } = MINARET;
+  const root = new THREE.Group(); place(root, x, 0, z);
   const part = (geo, mat, d, o = {}) => { const m = mesh(S, geo, mat, o.cast !== false); root.add(m); R.add(m, { delay: d, dur: o.dur ?? .9, kind: o.kind ?? 'grow', amp: o.amp ?? .12, fx: o.fx, fxOff: o.fxOff, snd: o.snd }); return m; };
   const bk = (w, h, y, d = w, lo = .78, tint = null) => { const g = rbox(w, h, d, .03, 1); g.translate(0, y, 0); uvScale(g, w / 2, h / 2); return shade(g, { lo, hi: 1, y0: y, y1: y + h, tint }); };
   const DARK = 0x8c6a5e;
@@ -408,14 +512,13 @@ function s4(S) {
   for (const yy of [py + .7, py + 2.05]) for (const s2 of [-1, 1]) { const a1 = new THREE.BoxGeometry(3.2, .14, .14); a1.translate(0, yy, s2 * 1.45); posts.push(flat(a1, .95)); const a2 = new THREE.BoxGeometry(.14, .14, 3.2); a2.translate(s2 * 1.45, yy, 0); posts.push(flat(a2, .95)); }
   part(merge(posts), M.wood, 2.0, { amp: .08, fx: 'dust' });
   { const dr = new THREE.CylinderGeometry(.34, .34, .8, 12); dr.rotateZ(Math.PI / 2); dr.translate(0, py + 1.0, 0); part(shade(dr, { lo: .7, y0: py + .66, y1: py + 1.34 }), M.wood, 2.3, { kind: 'pop', dur: .5 }); }
-  part(new THREE.CylinderGeometry(.16, .13, .3, 8).translate(0, py + 1.85, 0), M.lantern, 2.4, { kind: 'pop', dur: .4, cast: false });
+  { const toas = []; for (let f = 0; f < 4; f++) { const t = toaGeo(.8); t.rotateX(.28); t.translate(0, 0, 1.36); t.rotateY(f * Math.PI / 2); t.translate(0, py + 1.72, 0); toas.push(t); }
+    part(merge(toas), M.paint, 2.45, { kind: 'pop', dur: .45, amp: .5 }); }
   const r1 = roofGroup(S, { a0: 2.95, a1: 1.55, h: .75 }); r1.position.set(0, py + 2.2, 0); root.add(r1); R.add(r1, { delay: 2.6, dur: .9, kind: 'drop', drop: 3, fx: 'dust', snd: 'pop' });
   const r2 = roofGroup(S, { a0: 1.85, a1: .06, h: 1.75 }); r2.position.set(0, py + 2.9, 0); root.add(r2); R.add(r2, { delay: 3.0, dur: .9, kind: 'drop', drop: 3, amp: .13, fx: 'dust', snd: 'pop' });
   const kn = knob(S, 1); kn.position.set(0, py + 4.6, 0); root.add(kn);
   R.add(kn, { delay: 3.6, dur: .7, kind: 'pop', amp: .5, fx: 'sparkle', snd: 'chime', fxOff: V3(0, .5, 0) });
-  S.col(x, z, 2.9);
-  { const cb = contactBand(S, 2.8, 2.8, x, z, 1.0, .4); G.add(cb); R.add(cb, { delay: .2, dur: .4, kind: 'fade' }); }
-  S.finale(V3(x, 12.5, z), 3.8, 'confetti');
+  return root;
 }
 
 /* ------------------------------------------------------------------ 5: wudhu: square kolam with bamboo pancuran spouts + padasan clay jars, under a limasan pavilion */
@@ -532,17 +635,20 @@ function s7(S) {
   // green carpet + gold border
   const cp = mesh(S, new THREE.PlaneGeometry(9.7, 9.3).rotateX(-Math.PI / 2), M.carpet, false, true); cp.position.set(0, y, -2.8); cp.geometry.attributes.uv.array.forEach((v, i, a) => { a[i] = v * 1.0; });
   G.add(cp); R.add(cp, { delay: 0, dur: .7, kind: 'pop', amp: .1 });
-  // sajadah rows: instanced
-  const mg = new THREE.PlaneGeometry(.78, 1.3).rotateX(-Math.PI / 2);
-  const rows = 5, cols = 6, spots = [];
-  for (let r = 0; r < rows; r++) for (let k = 0; k < cols; k++) { const x = (k - 2.5) * 1.55, zz = -6.35 + r * 1.62; const nearCol = [-4.1, -.9].some(cz => Math.abs(Math.abs(x) - 3.1) < 1.1 && Math.abs(zz - cz) < 1.25); if (!(Math.abs(x - 2.55) < 1.0 && zz < -4.3) && !nearCol) spots.push([x, zz, r, k]); }
+  // sajadah: one mat under every prayer slot of the shared layout (so jamaah stand exactly on them); tinted per row
+  const lay = S.layout?.();
+  let spots;
+  if (lay) spots = [...lay.men.map(p => [p.x, p.z - .12, p.row, Math.round(p.x / .95)]), ...lay.women.map(p => [p.x, p.z - .12, p.row + 4, Math.round(p.x / .95)])];
+  else { spots = []; for (let r = 0; r < 4; r++) for (let k = 0; k <= 8; k++) { const x = (k - 4) * .95, zz = -5.57 + r * 1.1; if (!(Math.hypot(x - 2.55, zz + 6) < 1.55) && ![-4.1, -.9].some(cz => Math.hypot(Math.abs(x) - 3.1, zz - cz) < .9)) spots.push([x, zz, r, k]); } }
+  const mg = new THREE.PlaneGeometry(.72, 1.0).rotateX(-Math.PI / 2);
   const inst = new THREE.InstancedMesh(mg, M.sajadah, spots.length); inst.receiveShadow = true;
-  const tints = ['#8a1f2d', '#1f6b4a', '#16707a', '#a3362a', '#24806a', '#6e1f3a'], mm = new THREE.Matrix4(), c = new THREE.Color();
+  const tints = S.matTints?.() ?? MAT_TINTS, mm = new THREE.Matrix4(), c = new THREE.Color();
   let i = 0;
   for (const [x, zz, r, k] of spots) {
-    mm.compose(V3(x, y + .012, zz), new THREE.Quaternion().setFromAxisAngle(V3(0, 1, 0), (rnd() - .5) * .04), V3(1, 1, 1)); inst.setMatrixAt(i, mm);
-    c.set(tints[(r + k * 2) % tints.length]); inst.setColorAt(i, c); i++;
+    mm.compose(V3(x, y + .012, zz), new THREE.Quaternion().setFromAxisAngle(V3(0, 1, 0), (rnd() - .5) * .03), V3(1, 1, 1)); inst.setMatrixAt(i, mm);
+    c.set(tints[(r + Math.abs(k) * 2) % tints.length]); inst.setColorAt(i, c); i++;
   }
+  S.sajadah = { inst, spots };
   G.add(inst); R.addInst(inst, { delayFn: (i2, p) => .4 + (p.z + 7) * .1 + Math.abs(p.x) * .03, dur: .5, kind: 'drop', drop: .8, amp: .4 });
   // mihrab niche (inside the back-wall hole / bulge)
   const mh = new THREE.Group(); place(mh, 0, PL, -7.5); G.add(mh);
@@ -611,6 +717,7 @@ function s7(S) {
     const chim = new THREE.CylinderGeometry(.13, .17, .44, 10); chim.scale(sc, sc, sc); chim.translate(lx, hang + .3 * sc, lz); gl2.push(chim);
   }
   ch.add(mesh(S, merge(br2), M.brass, false), new THREE.Mesh(GE.mergeGeometries(gl2, false), M.lantern));
+  ch.userData.variant = 'cut:lamps'; ch.userData.cut = true; ch.userData.pivot = V3(0, PL + WH - .3, HALL_Z); // lifts away with the ceiling in cutaway
   R.add(ch, { delay: 1.9, dur: .9, kind: 'pop', amp: .25, fx: 'sparkle', fxOff: V3(0, 3.5, -2.75), snd: 'chime' });
   S.hallLight = true;
   S.finale(V3(0, 2, -3), 2.6);
@@ -696,14 +803,18 @@ function s8(S) {
   // lantern posts (instanced pole + glowing paper lantern)
   const lpos = [[pathX(17) - 2.9, 17], [pathX(17) + 2.9, 17], [pathX(22) - 2.9, 22], [pathX(22) + 2.9, 22]];
   const pole = new THREE.CylinderGeometry(.07, .1, 2.6, 6).translate(0, 1.3, 0); const arm = new THREE.CylinderGeometry(.035, .035, .5, 6).rotateZ(Math.PI / 2).translate(.25, 2.55, 0);
-  const pg = merge([flat(pole, 1), flat(arm, 1), flat(new THREE.SphereGeometry(.12, 8, 6).translate(0, 0, 0), 1), flat(new THREE.ConeGeometry(.15, .2, 6).translate(.5, 2.52, 0), 1)]);
-  const lanternG = new THREE.CylinderGeometry(.19, .15, .36, 8).translate(.5, 2.25, 0);
-  const pi = new THREE.InstancedMesh(pg, M.wood, lpos.length), li = new THREE.InstancedMesh(lanternG, M.lantern, lpos.length);
+  const LG = S.lanternGeos?.();  // style-dependent pole frame + glowing head (customisation 'lantern')
+  const pg = LG ? LG.pole : merge([flat(pole, 1), flat(arm, 1), flat(new THREE.SphereGeometry(.12, 8, 6).translate(0, 0, 0), 1), flat(new THREE.ConeGeometry(.15, .2, 6).translate(.5, 2.52, 0), 1)]);
+  const lanternG = LG ? LG.head : new THREE.CylinderGeometry(.19, .15, .36, 8).translate(.5, 2.25, 0);
+  const pi = new THREE.InstancedMesh(pg, M.wood, lpos.length), li = new THREE.InstancedMesh(lanternG, M.lanternPath ?? M.lantern, lpos.length);
   pi.castShadow = true;
   lpos.forEach(([x, z], i) => { const ry = x < pathX(z) ? 0 : Math.PI; mm.compose(V3(x, 0, z), new THREE.Quaternion().setFromAxisAngle(V3(0, 1, 0), ry), V3(1, 1, 1)); pi.setMatrixAt(i, mm); li.setMatrixAt(i, mm); });
   G.add(pi, li); R.addInst(pi, { delayFn: (i) => 2.0 + i * .06, dur: .6, kind: 'grow', amp: .1 }); R.addInst(li, { delayFn: (i) => 2.3 + i * .06, dur: .6, kind: 'pop', amp: .5 });
-  S.lanternSpots = lpos;
+  S.lanternSpots = lpos; S.lanterns = { pi, li };
   S.finale(V3(0, 1.5, 8), 3.5, 'confetti');
 }
 
+export const MAT_TINTS = ['#8a1f2d', '#1f6b4a', '#16707a', '#a3362a', '#24806a', '#6e1f3a'];
 export const BUILDERS = [null, s1, s2, s3, s4, s5, s6, s7, s8];
+const DEFAULT_VARIANT = { gate: gateBentar, roofStyle: roofTumpang3, finial: (S) => finialMustaka(S, { y: ROOF_Y0 + 8.22 }), menara: menaraKudus,
+  mlant: (S) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(.16, .13, .3, 8).translate(MINARET.x, 11.37, MINARET.z), S.M.lantern); return m; } };

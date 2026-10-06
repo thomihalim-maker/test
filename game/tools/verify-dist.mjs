@@ -2,7 +2,7 @@
 // reference must resolve to a file inside dist/, with relative URLs only (sub-path hosting) and no network.
 // usage: node tools/verify-dist.mjs [dir=dist]      exit code 1 on any problem
 import fs from 'node:fs'; import path from 'node:path'; import { fileURLToPath } from 'node:url'; import { spawnSync } from 'node:child_process';
-import { parseImports, readImportMap, resolveSpec, readOrderList, expandTemplate } from './modgraph.mjs';
+import { parseImports, readImportMap, resolveSpec, readOrderList, expandTemplate, PLAYER_PARAMS, readUrlParams, readDebugParams } from './modgraph.mjs';
 
 const game = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.resolve(game, process.argv[2] || 'dist');
@@ -54,15 +54,24 @@ for (const f of files.filter((x) => /\.m?js$/.test(x))) {
   if (r.status !== 0) err(`${f}: syntax error\n      ${(r.stderr || '').split('\n').filter((l) => /Error|\^/.test(l)).slice(0, 2).join('\n      ')}`);
 }
 
-// 3. page references (href/src) — relative and present
-for (const m of html.matchAll(/\b(?:href|src)=["']([^"']+)["']/g)) {
-  const u = m[1];
-  if (/^(https?:|data:|#|mailto:)/.test(u)) continue;
-  if (u.startsWith('/')) { err(`index.html: absolute URL "${u}" breaks sub-path hosting`); continue; }
-  if (!has(path.posix.normalize(u.split(/[?#]/)[0]))) err(`index.html: "${u}" not in dist`);
+// 3. page references (href/src, CSS url()) in every page — relative and present
+for (const page of files.filter((x) => /\.html$/.test(x))) {
+  for (const m of read(page).matchAll(/\b(?:href|src)=["']([^"']+)["']|url\(\s*["']?([^"')]+)["']?\s*\)/g)) {
+    const u = m[1] || m[2];
+    if (/^(https?:|data:|#|mailto:)/.test(u)) continue;
+    if (u.startsWith('/')) { err(`${page}: absolute URL "${u}" breaks sub-path hosting`); continue; }
+    let target = path.posix.normalize(path.posix.join(path.posix.dirname(page), u.split(/[?#]/)[0]));
+    if (u.split(/[?#]/)[0].endsWith('/') || target === '.') target = path.posix.join(target, 'index.html');
+    if (!has(target)) err(`${page}: "${u}" not in dist`);
+  }
 }
 const bootJs = has('boot.js') ? read('boot.js') : (err('boot.js missing'), '');
-for (const m of bootJs.matchAll(/new URL\('([^']+)', doc\.baseURI\)/g)) if (!has(m[1])) err(`boot.js loads "${m[1]}" which is not in dist`);
+for (const m of bootJs.matchAll(/new URL\('([^']+)', doc\.baseURI\)/g)) if (!m[1].endsWith('/') && !has(m[1])) err(`boot.js loads "${m[1]}" which is not in dist`);
+// 3b. debug sandbox list covers every URL param the shipped code reads (shared links with other params must still save)
+const debugList = readDebugParams(bootJs);
+if (!debugList) err('boot.js: DEBUG_PARAMS line not found');
+else for (const f of files.filter((x) => x.startsWith('src/') && x.endsWith('.js'))) for (const n of readUrlParams(read(f))) if (!PLAYER_PARAMS.has(n) && !debugList.includes(n)) err(`${f} reads ?${n}, which boot.js does not treat as a debug param (rebuild)`);
+for (const f of ['LICENSES.txt', 'privacy.html', 'src/ui/fonts/OFL.txt']) if (!has(f)) err(`${f} missing (license / privacy paperwork)`);
 if (!/<meta name="marbot-version" content="(?!dev")[^"]+">/.test(html)) err('index.html: version meta not injected');
 
 // 4. manifest

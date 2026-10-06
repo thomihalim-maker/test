@@ -52,7 +52,7 @@ for (const [i, name] of order.entries()){
   try{
     const m = await import(`./${name}.js`);
     const inst = await m.init(ctx); ctx.modules[name.split('/')[1]] = inst; if(inst?.update) mods.push(inst);
-  }catch(e){ console.error('module failed:',name,e); }
+  }catch(e){ console.error('module failed:',name,e); signal('game:error', { name, message:String(e?.message||e), where:String(e?.stack||'').split('\n').find(l=>/:\d+:\d+\)?$/.test(l))?.trim()||'' }); }
 }
 
 const clock = new THREE.Clock();
@@ -81,7 +81,15 @@ signal('game:progress', { done:order.length, total:order.length });
 renderer.setAnimationLoop(frame);
 // Tell the loading screen once the first frame has been drawn.
 requestAnimationFrame(()=>requestAnimationFrame(()=>signal('game:ready', { version: window.MARBOT_VERSION || 'dev' })));
-document.addEventListener('visibilitychange',()=>{ if(document.hidden) save(ctx.state); else clock.getDelta(); });
-addEventListener('pagehide',()=>save(ctx.state)); // reload / app close / update prompt
-setInterval(()=>save(ctx.state),10000);
+// Autosave. A save that vanished means 'Hapus Progres' just ran (ui.js: reset(); location.reload()): never write the
+// old in-memory state back while the page unloads. (boot.js guards localStorage the same way for every writer.)
+let hadSave = (()=>{ try{ return localStorage.getItem('marbot.save')!==null; }catch(e){ return false; } })(), wiped = false;
+const persist = ()=>{
+  if (wiped) return;
+  try{ if (hadSave && localStorage.getItem('marbot.save')===null){ wiped = true; return; } }catch(e){}
+  save(ctx.state); hadSave = true;
+};
+document.addEventListener('visibilitychange',()=>{ if(document.hidden) persist(); else clock.getDelta(); });
+addEventListener('pagehide',persist); // reload / app close / update prompt
+setInterval(persist,10000);
 window.__ctx = ctx; // for debugging / test harness (single-player, offline: nothing secret in here)

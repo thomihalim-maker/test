@@ -49,6 +49,10 @@ Isi `game/dist/`:
 - `vendor/**` — **hanya** file three.js yang benar-benar di-import (13 dari 134 file, ±1,3 MB dari ±8,7 MB).
   Daftar ini dihitung otomatis dari import graph, jadi addon baru yang di-import di `src/` ikut terbawa.
 - `icons/`, `manifest.webmanifest`, `sw.js` (daftar precache lengkap + nama cache berversi), `version.json`, `.nojekyll`.
+- `LICENSES.txt` (lisensi MIT three.js + rujukan ke lisensi font Nunito) dan `privacy.html` (kebijakan privasi, ID/EN).
+- File di `src/` yang ikut hanya `.js`, `.css`, `.woff2`, `.txt`, `.json`, plus file lain yang benar-benar dirujuk kode
+  (`new URL('x.png', import.meta.url)` atau `url()` di CSS). Gambar referensi/coretan yang ditaruh di `src/` tidak ikut
+  ter-deploy; build menulis catatan `note: ... is not shipped` untuk file seperti itu.
 
 Semua URL relatif, jadi `dist/` bisa ditaruh di root domain maupun di sub-folder (mis. `https://user.github.io/test/`).
 
@@ -69,18 +73,32 @@ dan entri precache ada di dalam `dist/`, semua path relatif, tidak ada import da
 
 Workflow: `.github/workflows/deploy-pages.yml`.
 
+Workflow ini hanya men-deploy **branch default** repo (yang tertulis di Settings → General → *Default branch*).
+Environment `github-pages` yang dibuat otomatis oleh GitHub juga hanya menerima deploy dari branch default.
+
+> **Kondisi repo saat ini:** belum ada branch `main`, dan branch default-nya `claude/magical-maxwell-x1c0hw`
+> (branch kerja lama). GitHub Pages juga belum aktif. Jadi lakukan pengaturan di bawah ini dulu.
+
 **Pengaturan sekali saja:**
 
-1. Buka repo di GitHub → **Settings → Pages**.
-2. Di **Build and deployment → Source**, pilih **GitHub Actions**.
+1. Buat branch `main` dari branch yang berisi versi game terbaru (mis. `claude/fervent-pasteur-ul6vkk`):
+   di GitHub buka tab **Code → Branches → New branch**, nama `main`, sumber branch tersebut
+   (atau di komputer: `git push origin claude/fervent-pasteur-ul6vkk:main`).
+2. **Settings → General → Default branch** → klik ikon panah ⇄ → pilih **`main`** → *Update*.
+3. **Settings → Pages → Build and deployment → Source** → pilih **GitHub Actions**.
+4. Deploy pertama: tab **Actions** → **Deploy game to GitHub Pages** → **Run workflow** (branch `main`).
 
-Setelah itu, setiap **push ke branch `main`** (atau tombol *Run workflow* di tab **Actions**) akan:
+Setelah itu, setiap **push/merge ke `main`** yang mengubah file game (`game/**`, kecuali dokumen `*.md`, alat
+pengembang di `game/tools/` selain `build.mjs`/`modgraph.mjs`, halaman tes, dan `capacitor.config.json`) akan:
 checkout → setup Node 22 → `node tools/build.mjs` → verifikasi → upload `game/dist` → deploy.
+Push yang hanya mengubah README/dokumen tidak membuat versi baru, jadi pemain tidak perlu mengunduh ulang game.
 
 Alamat game: **https://thomihalim-maker.github.io/test/**
 Cek versi yang sedang online: https://thomihalim-maker.github.io/test/version.json
+(file ini selalu diambil dari jaringan, tidak dari cache service worker).
 
-Branch kerja lain (mis. `claude/...`) **tidak** di-deploy; gabungkan (merge) ke `main` dulu.
+Push ke branch lain (mis. `claude/...`) memang memicu workflow, tapi job-nya langsung dilewati (*skipped*);
+gabungkan (merge) ke `main` dulu. Jika suatu saat branch default diganti, branch default yang baru-lah yang di-deploy.
 Pull request menjalankan `.github/workflows/ci.yml` (build + verifikasi) dan menyediakan hasil build sebagai artifact
 `marbot-masjid-dist` yang bisa diunduh.
 
@@ -95,6 +113,7 @@ Semua hosting statis bisa dipakai; tidak perlu header khusus.
 - **Vercel**: `npx vercel deploy game/dist --prod`, atau project dengan *Root Directory* `game`,
   *Build Command* `node tools/build.mjs`, *Output Directory* `dist`, *Framework* "Other".
 - **Cloudflare Pages**: sama seperti Netlify (build `node tools/build.mjs`, output `dist`, root `game`).
+  Cloudflare mengalihkan `/index.html` ke `/` (308); service worker sudah menangani pengalihan ini.
 - **itch.io**:
   1. `npm run build`, lalu zip **isi** folder `dist` (bukan foldernya), sehingga `index.html` ada di root zip:
      `cd game/dist && zip -r ../marbot-masjid-web.zip .`
@@ -134,6 +153,10 @@ Di Android Studio:
 5. Upload AAB ke Google Play Console. Karena target pemainnya anak-anak, isi bagian *Target audience and content*
    (program *Families*). Game ini tidak memakai internet, iklan, akun, maupun mengumpulkan data, sehingga
    formulir *Data safety* dapat diisi "tidak ada data yang dikumpulkan".
+   **Wajib untuk aplikasi anak: URL kebijakan privasi** (*App content → Privacy policy*). Build sudah menyertakan
+   `privacy.html`, jadi setelah GitHub Pages aktif pakai: https://thomihalim-maker.github.io/test/privacy.html
+   (periksa isinya dulu dan tambahkan kontak pengembang jika perlu; saat ini kontaknya halaman *Issues* repo).
+6. Lisensi pihak ketiga ada di `LICENSES.txt` (ikut di dalam APK/AAB dan di situs web).
 
 Setiap kali kode game berubah:
 
@@ -146,6 +169,8 @@ lalu Run/Build ulang di Android Studio. Folder `game/android/` sebaiknya di-comm
 Catatan Android:
 
 - Di dalam aplikasi, file game dibaca langsung dari APK, jadi service worker sengaja **tidak** dipasang.
+- **Debug di HP**: build *debug* dari Android Studio bisa diperiksa lewat `chrome://inspect` di Chrome desktop
+  (bawaan Capacitor). Build *release* tidak bisa, dan itu memang disengaja.
 - **Tombol Back** (opsional): `npm install @capacitor/app && npm run cap:sync`. Setelah itu tombol Back menutup panel
   yang terbuka, dan menekan Back dua kali akan meminimalkan aplikasi. Tanpa plugin ini, Back langsung keluar
   (progres tetap tersimpan karena game menyimpan saat aplikasi disembunyikan).
@@ -156,7 +181,7 @@ Catatan Android:
 ## 6. Memperbarui versi
 
 1. Naikkan `version` di `game/package.json` (mis. `1.0.0` → `1.0.1`).
-2. Commit, lalu merge/push ke `main` → GitHub Pages ter-deploy otomatis.
+2. Commit, lalu merge/push ke `main` (branch default) → GitHub Pages ter-deploy otomatis.
 3. Pemain yang sudah pernah membuka game akan melihat pesan kecil **"Versi baru tersedia — Muat ulang"**.
    Jika diabaikan, versi baru aktif otomatis saat game dibuka lagi berikutnya.
    (Versi lama tidak pernah dicampur dengan versi baru di tengah permainan.)
@@ -170,28 +195,53 @@ Catatan Android:
   Di GitHub Pages, origin-nya `https://thomihalim-maker.github.io` (dipakai bersama proyek Pages lain milik akun yang sama;
   kunci `marbot.save` cukup unik).
 - Menghapus data situs/riwayat browser, atau *Clear data*/uninstall aplikasi Android, juga menghapus progres.
-- Tombol **Hapus Progres** di Pengaturan game menghapus kunci tersebut.
+- Tombol **Hapus Progres** di Pengaturan game menghapus kunci tersebut lalu memuat ulang game. Setelah save dihapus,
+  halaman itu tidak akan menulisnya lagi (sebelumnya save lama tertulis kembali saat reload; `boot.js` dan `main.js`
+  kini mencegahnya).
+- **iPhone/iPad (Safari)**: Safari bisa menghapus data situs yang tidak dibuka selama 7 hari. Supaya progres aman,
+  sarankan pemain memakai **Bagikan → Tambah ke Layar Utama** (*Add to Home Screen*) dan bermain dari ikon itu.
+  Di browser lain game meminta penyimpanan permanen (`navigator.storage.persist()`) setelah game siap;
+  Chrome dan Safari memutuskan sendiri tanpa pertanyaan, di Firefox hanya untuk aplikasi yang sudah dipasang (agar tidak muncul pop-up izin).
 - Service worker hanya menyimpan file game (cache `marbot-<versi>-<hash>`), **bukan** data save.
 
 ## 8. Parameter URL untuk developer
 
 Contoh: `?cam=...`, `?hour=18`, `?stage=3`, `?crowd`, `?demo`, `?panel=...`, `?show=...`, `?skip`, `?q=low`.
-Parameter debug tetap tersedia di build produksi, tetapi **aman**: jika ada parameter selain
-`q`, `quality`, `lang`, `nosw`, `fixeddpr` (dan `utm_*`), game berjalan dalam **mode sandbox** — progres tidak ditulis ke
-`localStorage`, sehingga link seperti `?demo` tidak mengubah save asli pemain.
+Parameter debug tetap tersedia di build produksi, tetapi **aman**: parameter debug yang dibaca game
+(`act anim at autowalk cam carry crowd decor demo dist event fill freeze grow hint hour hourspeed hungry introhold joy
+lineup night nt panel pen phase pitch pose prayer show skip slots stage tab warp weather yaw`, plus `?dev`)
+menyalakan **mode sandbox**: progres tidak ditulis ke (dan tidak dihapus dari) `localStorage`, dan pojok atas layar
+menampilkan label kecil **"Mode uji — progres tidak disimpan"**. Jadi link seperti `?demo` tidak mengubah save asli pemain.
+
+Semua parameter lain berjalan normal dan progres tetap tersimpan: parameter pemain (`q`, `quality`, `lang`, `nosw`,
+`fixeddpr`) dan parameter apa pun yang tidak dikenal, termasuk tambahan dari link yang dibagikan
+(`utm_*`, `fbclid`, `gclid`, `igshid`/`igsh`, `si`, `ref`, `ttclid`, `msclkid`, `mibextid`, ...).
+
+Daftar parameter debug dihitung otomatis saat build: `tools/build.mjs` memindai `src/` untuk `.get('x')` / `.has('x')`
+pada `URLSearchParams` dan menambahkannya ke `dist/boot.js` (`verify` memastikan tidak ada yang terlewat).
+Untuk versi sumber (`npm run serve`), tambahkan parameter debug baru ke `DEBUG_PARAMS` di `boot.js`.
 
 Parameter khusus build:
 
-- `?nosw` — melepas service worker dan menghapus cache game (berguna jika versi lama "nyangkut").
+- `?nosw` — sebelum game dimuat: melepas service worker game ini dan menghapus cache-nya, lalu memuat ulang langsung
+  dari server tanpa service worker (berguna jika versi lama "nyangkut", termasuk versi yang macet saat loading).
+  Buka sekali saja; kunjungan berikutnya tanpa `?nosw` memasang versi terbaru lagi. Save tidak terhapus.
 - `?nogl` — menampilkan pesan "WebGL 2 tidak tersedia" (untuk menguji tampilan fallback).
 - `?lang=en` / `?lang=id` — bahasa layar loading.
+
+Service worker, cache, dan tombol "Muat ulang tanpa cache" hanya menyentuh milik game ini (scope `/test/`);
+proyek GitHub Pages lain di domain `thomihalim-maker.github.io` tidak ikut terhapus.
 
 `window.__ctx` tetap tersedia untuk debugging. Game ini single-player dan offline, jadi tidak ada data rahasia di dalamnya.
 
 ## 9. Masalah umum
 
-- **Layar putih / panel "Terjadi kesalahan"**: buka DevTools Console. Tombol **Muat ulang tanpa cache** di panel error
-  melepas service worker dan menghapus cache tanpa menghapus save.
+- **Layar putih / panel "Terjadi kesalahan"**: panel menampilkan pesan error beserta file dan barisnya (bisa diseleksi
+  dan disalin, atau di-screenshot dari HP). Tombol **Muat ulang** lebih dulu mengaktifkan versi baru yang sudah
+  terunduh (jika ada); **Muat ulang tanpa cache** melepas service worker dan menghapus cache game tanpa menghapus save.
+  Modul game yang gagal dimuat (mis. `ui/ui`) kini juga dilaporkan lewat bilah kecil "Terjadi kesalahan — muat ulang".
+- **Loading lambat**: jika panel error muncul karena loading lama tetapi game ternyata berhasil jalan, panel itu
+  hilang sendiri dan diganti bilah kecil.
 - **Masih versi lama**: tutup semua tab game lalu buka lagi, atau buka sekali dengan `?nosw`.
 - **404 di GitHub Pages**: pastikan Settings → Pages → Source = *GitHub Actions* dan workflow di tab Actions berhasil.
 - **Pesan WebGL 2 tidak tersedia**: perangkat/browser terlalu lama atau akselerasi hardware dimatikan. three.js r170 membutuhkan WebGL 2.
@@ -205,7 +255,12 @@ Parameter khusus build:
 - Modul baru di daftar `order` di `src/main.js` otomatis ikut di-preload, di-precache, dan diverifikasi.
 - `main.js` mengirim event `game:progress` dan `game:ready` untuk layar loading; keduanya aman jika tidak ada yang mendengarkan.
 - `tools/build-play.sh` (snapshot untuk artifact claude.ai, three.js dari jsDelivr) tetap berfungsi dan terpisah dari build ini.
-- Lisensi pihak ketiga: three.js (MIT, header di `vendor/three-build/three.module.js`), font Nunito (SIL OFL, `src/ui/fonts/OFL.txt`).
+  Hasilnya sekarang di `game/play-dist/` (di-ignore git), bukan di dalam `dist/`, supaya tidak ikut ter-deploy.
+- `tools/shot.mjs` menunggu layar loading selesai dulu (maks. 180 dtk), baru menunggu `waitMs`.
+  Label sandbox tidak muncul di screenshot otomatis (`navigator.webdriver`).
+- Label versi di layar judul (`v1.0` di `src/ui/ui.js`) masih ditulis manual; sebaiknya diganti `window.MARBOT_VERSION`
+  oleh pemilik `src/ui` (nilainya `dev` di versi sumber).
+- Lisensi pihak ketiga: `LICENSES.txt` (three.js MIT), font Nunito (SIL OFL, `src/ui/fonts/OFL.txt`). Keduanya ikut di `dist/`.
 
 ---
 
@@ -218,12 +273,23 @@ Parameter khusus build:
   Optional `SITE_URL` makes Open Graph URLs absolute.
 - **PWA / offline:** `manifest.webmanifest`, generated icons (`npm run icons`), and `sw.js` precaching the whole build.
   Updates install in the background and are applied when the player taps "Versi baru tersedia — Muat ulang" or on the next launch.
-- **GitHub Pages:** one-time *Settings → Pages → Source: GitHub Actions*; every push to `main` deploys
-  to https://thomihalim-maker.github.io/test/. PRs run build + verify (`ci.yml`).
+- **GitHub Pages:** the workflow deploys the repository's **default branch** only (the auto-created `github-pages`
+  environment accepts nothing else). Today the repo has no `main` and its default branch is an old agent branch, so once:
+  create `main` from the current game branch, make it the default (*Settings → General → Default branch*), set
+  *Settings → Pages → Source: GitHub Actions*, then *Actions → Deploy game to GitHub Pages → Run workflow*.
+  After that every push to `main` that touches the shipped game (not docs/tools) deploys to
+  https://thomihalim-maker.github.io/test/. PRs run build + verify (`ci.yml`).
 - **Netlify / Vercel / Cloudflare / itch.io:** upload `dist/` (for itch.io zip the *contents* of `dist/`, kind "HTML").
 - **Android:** `npm install`, `npm run cap:add`, `npm run cap:open`, then Run or *Build → Generate Signed App Bundle* in
   Android Studio; `npm run cap:sync` after each web change. Optional `@capacitor/app` enables back-button handling.
+  Play Families needs a privacy-policy URL: use `…/test/privacy.html` (shipped in the build). Licenses: `LICENSES.txt`.
 - **Version bump:** edit `version` in `game/package.json`, push to `main`; on Android also bump `versionCode`.
-- **Saves:** browser `localStorage`, key `marbot.save`, per origin. Debug URL params run in a no-save sandbox.
-- **Smoke test:** `npm run smoke` (Playwright) serves `dist/` under `/test/`, checks boot, manifest/icons, service worker
-  control, an offline reload, the WebGL fallback and the error panel.
+- **Saves:** browser `localStorage`, key `marbot.save`, per origin. *Reset Progress* really deletes it now. iOS Safari
+  players should *Add to Home Screen* (Safari may clear site data after 7 days without a visit).
+- **URL params:** only the debug switches the game reads (`?cam`, `?stage`, `?demo` …, or `?dev`) start the no-save
+  sandbox, with a visible "Test mode" label; tracking params from shared links (`utm_*`, `igshid`, `si`, `fbclid` …) do not.
+  `?nosw` drops this game's service worker + caches before the game loads.
+- **Smoke test:** `npm run smoke` (Playwright) serves `dist/` under `/test/` with GitHub-Pages-like behaviour and checks boot,
+  title → HUD, manifest/icons, service worker control, an offline reload, `version.json`/file navigations, the sandbox rules,
+  *Reset Progress*, `?nosw`, the update prompt, the WebGL fallback and the error panel.
+  `REDIRECT_INDEX=1 npm run smoke` also simulates Cloudflare's `/index.html` → `/` redirect.

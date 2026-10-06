@@ -243,3 +243,53 @@ export function createSite(ctx, M, parent, api) {
     root, marker,
   };
 }
+
+// --- prayer / care markers: pulsing teal-gold ground rings + soft light beam with a floating gem, at masjid.spot(name).
+// Two InstancedMeshes shared by every marker (max 4 at once => at most 2 draw calls; hidden entirely when none are on).
+const MARK_COLORS = { adzan: '#ffc83d', imam: '#3fd6c4', kentongan: '#ff9f43', bedug: '#ffb81c', mihrab: '#3fd6c4' };
+export function createMarkers(ctx, parent, spotFn) {
+  const MAX = 4;
+  const rgba = (g, fn, rgb = [1, 1, 1]) => { g = g.index ? g.toNonIndexed() : g; const p = g.attributes.position, c = new Float32Array(p.count * 4); for (let i = 0; i < p.count; i++) { const v = typeof rgb === 'function' ? rgb(p.getX(i), p.getY(i), p.getZ(i)) : rgb; c[i * 4] = v[0]; c[i * 4 + 1] = v[1]; c[i * 4 + 2] = v[2]; c[i * 4 + 3] = fn(p.getX(i), p.getY(i), p.getZ(i)); } g.setAttribute('color', new THREE.BufferAttribute(c, 4)); return g; };
+  const DK = [.3, .2, .08], WH = [1.25, 1.25, 1.25];
+  const ringParts = [
+    rgba(new THREE.RingGeometry(.98, 1.12, 40, 1).rotateX(-Math.PI / 2), () => .6, DK),
+    rgba(new THREE.RingGeometry(.74, .98, 40, 1).rotateX(-Math.PI / 2).translate(0, .004, 0), () => 1, WH),
+    rgba(new THREE.RingGeometry(.62, .74, 40, 1).rotateX(-Math.PI / 2).translate(0, .004, 0), () => .55, DK),
+    rgba(new THREE.CircleGeometry(.62, 40).rotateX(-Math.PI / 2).translate(0, .003, 0), (x, y, z) => .1 + .3 * Math.hypot(x, z) / .62),
+  ];
+  for (let k = 0; k < 6; k++) { const t = new THREE.PlaneGeometry(.12, .3).rotateX(-Math.PI / 2).translate(0, .007, .86); t.rotateY(k * Math.PI / 3); ringParts.push(rgba(t, () => 1, DK)); }
+  const ringGeo = merge(ringParts);
+  const gem = new THREE.OctahedronGeometry(.24, 0); gem.scale(1, 1.45, 1); gem.translate(0, 3.25, 0);
+  const beamGeo = merge([rgba(new THREE.CylinderGeometry(.74, .84, 2.8, 28, 4, true).translate(0, 1.4, 0), (x, y) => .3 * Math.pow(1 - y / 2.8, 2)), rgba(gem, () => 1, WH)]);
+  const mat = (o) => new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, toneMapped: false, depthWrite: false, side: THREE.DoubleSide, ...o });
+  const ringMat = mat({ polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), beamMat = mat({});
+  const ring = new THREE.InstancedMesh(ringGeo, ringMat, MAX), beam = new THREE.InstancedMesh(beamGeo, beamMat, MAX);
+  for (const m of [ring, beam]) { m.count = 0; m.visible = false; m.frustumCulled = false; m.renderOrder = 2; m.castShadow = m.receiveShadow = false; m.setColorAt(0, new THREE.Color(1, 1, 1)); parent.add(m); }
+  ring.name = 'masjid-marker-rings'; beam.name = 'masjid-marker-beams';
+  const list = new Map(); // name -> {on, k, color, ph}
+  const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
+  function set(name, on, o = {}) {
+    name = String(name); let m = list.get(name);
+    if (!m) { if (!on) return false; m = { on: false, k: 0, color: new THREE.Color(), ph: list.size * 1.7 }; list.set(name, m); }
+    m.on = !!on; m.color.set(o.color ?? MARK_COLORS[name] ?? '#ffd27a');
+    if (on && [...list.values()].filter(x => x.on).length > MAX) { m.on = false; return false; }
+    return true;
+  }
+  function update(dt, t) {
+    let n = 0;
+    for (const [name, m] of list) {
+      m.k += ((m.on ? 1 : 0) - m.k) * Math.min(1, dt * 5);
+      if (!m.on && m.k < .01) { list.delete(name); continue; }
+      const sp = spotFn(name); if (!sp || n >= MAX) continue;
+      const pulse = 1 + Math.sin(t * 3.2 + m.ph) * .07, k = m.k * (m.on ? 1 : m.k);
+      _p.set(sp.x, (sp.y ?? 0) + .02, sp.z); _q.setFromAxisAngle(_up, t * .45 + m.ph); _s.set(k * pulse, 1, k * pulse);
+      _m.compose(_p, _q, _s); ring.setMatrixAt(n, _m); ring.setColorAt(n, m.color);
+      _p.y += Math.sin(t * 2.4 + m.ph) * .06; _q.setFromAxisAngle(_up, t * 1.3 + m.ph); _s.set(k, k * (.96 + .04 * Math.sin(t * 3 + m.ph)), k);
+      _m.compose(_p, _q, _s); beam.setMatrixAt(n, _m); beam.setColorAt(n, m.color);
+      n++;
+    }
+    ring.count = beam.count = n; ring.visible = beam.visible = n > 0;
+    if (n) { for (const m of [ring, beam]) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; } ringMat.opacity = .82 + .18 * Math.sin(t * 3.2); beamMat.opacity = .75 + .25 * Math.sin(t * 2.1); }
+  }
+  return { set, update, get active() { return [...list].filter(([, m]) => m.on).map(([n]) => n); }, ring, beam };
+}

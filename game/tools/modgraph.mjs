@@ -67,3 +67,26 @@ export function readOrderList(code) {
 export function expandTemplate(spec, names) {
   return names.map((n) => spec.replace(/\$\{[^}]*\}/, n));
 }
+
+/** URL params that only the player/host uses; every other param the game reads is a debug switch (boot.js sandbox). */
+export const PLAYER_PARAMS = new Set(['q', 'quality', 'lang', 'nosw', 'nogl', 'fixeddpr']);
+
+/**
+ * Query params a module reads: `x.get('name')` / `.has('name')` / `.getAll('name')` where `x` is assigned from
+ * `new URLSearchParams(...)` in the same file, plus `new URLSearchParams(...).get('name')` chains.
+ */
+export function readUrlParams(code) {
+  const names = new Set(); const recv = new Set();
+  for (const m of code.matchAll(/\b([A-Za-z_$][\w$]*)\s*=\s*new\s+URLSearchParams\s*\(/g)) recv.add(m[1]);
+  for (const m of code.matchAll(/new\s+URLSearchParams\s*\((?:[^()]|\([^()]*\))*\)\s*\.\s*(?:get|has|getAll)\s*\(\s*(['"])([\w-]+)\1/g)) names.add(m[2]);
+  if (recv.size) {
+    const alt = [...recv].map((r) => r.replace(/\$/g, '\\$')).join('|');
+    for (const m of code.matchAll(new RegExp(`(?<![\\w$.])(?:${alt})\\s*\\.\\s*(?:get|has|getAll)\\s*\\(\\s*(['"])([\\w-]+)\\1`, 'g'))) names.add(m[2]);
+  }
+  return names;
+}
+
+/** Reads / rewrites the `var DEBUG_PARAMS = '...'.split(' '); // build:debug-params` line of boot.js. */
+const DEBUG_LINE = /^(\s*var DEBUG_PARAMS = )'([^'\n]*)'(\.split\(' '\);\s*\/\/ build:debug-params)$/m;
+export function readDebugParams(bootJs) { const m = bootJs.match(DEBUG_LINE); return m ? m[2].split(/\s+/).filter(Boolean) : null; }
+export function writeDebugParams(bootJs, names) { return bootJs.replace(DEBUG_LINE, (_, a, __, c) => `${a}'${[...names].join(' ')}'${c}`); }

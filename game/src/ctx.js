@@ -24,7 +24,8 @@ export function createCtx(canvas){
     colliders:[],              // {x,z,r} circles for simple avoidance
     modules:{},                // name -> module instance
     on(e,f){(handlers[e]??=[]).push(f);return ()=>handlers[e]=handlers[e].filter(g=>g!==f)},
-    emit(e,d){(handlers[e]||[]).slice().forEach(f=>f(d))},
+    // one throwing listener must not abort the emitter or the other listeners
+    emit(e,d){(handlers[e]||[]).slice().forEach(f=>{ try{ f(d); }catch(err){ console.error('listener',e,err); } })},
   };
   return ctx;
 }

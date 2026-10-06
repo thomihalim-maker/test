@@ -184,3 +184,26 @@ export function pyramidRoof({ a0, b0 = a0, a1 = .08, b1 = a1, h, tile = 2.2, rid
   const soffit = new THREE.PlaneGeometry(2 * a0, 2 * b0).rotateX(Math.PI / 2).translate(0, -.01, 0); uvScale(soffit, a0 / 1.2, b0 / 1.2); flat(soffit, .75);
   return { tiles, wood: merge(wood), trim: merge(trim), soffit };
 }
+
+/**
+ * Bake helper: clone `src` into a non-indexed geometry transformed by m4, with exactly position/normal/uv/color
+ * (missing uv/color are filled) so every baked piece of one material can be merged. Zero-length normals are
+ * replaced by +Y: they become NaN after normalize() in the shader, and bloom spreads NaN across the whole frame.
+ */
+const BAKE_ATTR = ['position', 'normal', 'uv', 'color'];
+export function bakeNormalize(src, m4) {
+  const g = src.index ? src.toNonIndexed() : src.clone();
+  if (m4) g.applyMatrix4(m4);
+  const n = g.attributes.position.count;
+  if (!g.attributes.normal) g.computeVertexNormals();
+  if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(n * 2), 2));
+  if (!g.attributes.color) g.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(n * 3).fill(1), 3));
+  for (const k of Object.keys(g.attributes)) if (!BAKE_ATTR.includes(k)) g.deleteAttribute(k);
+  const nm = g.attributes.normal.array;
+  for (let i = 0; i < nm.length; i += 3) {
+    const l = Math.hypot(nm[i], nm[i + 1], nm[i + 2]);
+    if (!(l > 1e-6)) { nm[i] = 0; nm[i + 1] = 1; nm[i + 2] = 0; }
+  }
+  g.morphAttributes = {}; g.clearGroups();
+  return g;
+}

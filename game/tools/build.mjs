@@ -4,7 +4,7 @@
 // No dependencies: node built-ins only. Sources stay readable (no minification).
 import fs from 'node:fs'; import path from 'node:path'; import crypto from 'node:crypto';
 import { execSync } from 'node:child_process'; import { fileURLToPath } from 'node:url';
-import { parseImports, readImportMap, resolveSpec, readOrderList, expandTemplate } from './modgraph.mjs';
+import { parseImports, readImportMap, resolveSpec, readOrderList, expandTemplate, PLAYER_PARAMS, readUrlParams, readDebugParams, writeDebugParams } from './modgraph.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const out = path.join(root, 'dist');
@@ -30,14 +30,20 @@ function walk(dir) {
   }
   return res;
 }
-// Test pages (src/masjid/test.html), scratch files (_*.*) and notes are dev-only.
-const srcFiles = walk('src').filter((f) => !/\.html?$/i.test(f) && !path.basename(f).startsWith('_') && !/\.md$/i.test(f));
+// Test pages (src/masjid/test.html), scratch files (_*.*) and notes are dev-only. Of the rest, code/styles/fonts/text/data
+// ship; any other file (reference images, exports ...) ships only when the game references it (new URL('x', import.meta.url)
+// or a url() in a stylesheet), so art dropped into src/ for comparison is never deployed or precached.
+const SRC_EXT = /\.(m?js|css|woff2?|txt|json)$/i;
+const srcAll = walk('src').filter((f) => !/\.html?$/i.test(f) && !path.basename(f).startsWith('_') && !/\.md$/i.test(f));
+const srcFiles = srcAll.filter((f) => SRC_EXT.test(f));
+const srcOther = srcAll.filter((f) => !SRC_EXT.test(f));
 const html = read('index.html');
 const importMap = readImportMap(html);
 
 // ---- module graph: which vendor files are really imported ----
 const exists = (r) => fs.existsSync(path.join(root, r)) && fs.statSync(path.join(root, r)).isFile();
 const vendor = new Set(); const errors = []; const edges = new Map();   // file -> [deps]
+const assets = new Set();                                                 // non-module files the code references
 const queue = srcFiles.filter((f) => f.endsWith('.js'));
 const seen = new Set(queue);
 while (queue.length) {
@@ -55,7 +61,7 @@ while (queue.length) {
         if (imp.kind === 'dynamic') { console.warn(`  note: ${f} dynamically imports missing ${r.path} (skipped at runtime)`); continue; }
         errors.push(`${f}: cannot resolve "${spec}" -> ${r.path}`); continue;
       }
-      if (imp.kind !== 'asset') deps.push(r.path);
+      if (imp.kind !== 'asset') deps.push(r.path); else assets.add(r.path);
       if (r.path.startsWith('vendor/')) vendor.add(r.path);
       if (r.path.endsWith('.js') && !seen.has(r.path)) { seen.add(r.path); queue.push(r.path); }
     }
@@ -63,6 +69,25 @@ while (queue.length) {
   edges.set(f, deps);
 }
 if (errors.length) fail('\n  ' + errors.join('\n  '));
+for (const f of srcFiles.filter((x) => x.endsWith('.css'))) {
+  for (const m of read(f).matchAll(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g)) {
+    if (/^(data:|https?:|#)/.test(m[2])) continue;
+    assets.add(path.posix.normalize(path.posix.join(path.posix.dirname(f), m[2].split(/[?#]/)[0])));
+  }
+}
+for (const f of srcOther) {
+  if (assets.has(f)) srcFiles.push(f);
+  else console.warn(`  note: ${f} is not shipped (only .js/.css/.woff2/.txt/.json, or files referenced via new URL(..., import.meta.url) / CSS url())`);
+}
+
+// ---- debug URL params (boot.js sandbox): everything src/ reads, except player params ----
+const bootSrc = read('boot.js');
+const debugStatic = readDebugParams(bootSrc);
+if (!debugStatic) fail("boot.js is missing the \"var DEBUG_PARAMS = '...'.split(' '); // build:debug-params\" line");
+const urlParams = new Set();
+for (const f of srcFiles.filter((x) => x.endsWith('.js'))) for (const n of readUrlParams(read(f))) urlParams.add(n);
+const debugNew = [...urlParams].filter((n) => !PLAYER_PARAMS.has(n) && !debugStatic.includes(n)).sort();
+const debugParams = [...new Set([...debugStatic, ...debugNew])].sort();
 
 // Modules reachable from the entry (static + main.js module list) -> <link rel="modulepreload">.
 const preload = []; const stack = ['src/main.js']; const pre = new Set(stack);
@@ -78,8 +103,10 @@ const copy = (r) => put(r, fs.readFileSync(path.join(root, r)));
 for (const f of srcFiles) copy(f);
 for (const f of [...vendor].sort()) copy(f);
 for (const f of walk('icons')) copy(f);
-copy('boot.js');
+put('boot.js', writeDebugParams(bootSrc, debugParams));
 copy('manifest.webmanifest');
+copy('LICENSES.txt');                 // three.js MIT text + pointer to the Nunito OFL (src/ui/fonts/OFL.txt)
+copy('privacy.html');                 // privacy policy page (Play Store / Families needs a public URL)
 
 const site = (process.env.SITE_URL || '').trim().replace(/\/?$/, '/');
 let page = html.replace(/<meta name="marbot-version" content="[^"]*">/, `<meta name="marbot-version" content="${version}">`);
@@ -94,13 +121,16 @@ put('index.html', page);
 put('.nojekyll', '');
 
 // ---- service worker: full precache list + content-hashed cache name ----
-// og-image.png is only for link previews (social scrapers fetch it online), so it is not precached.
+// og-image.png is only for link previews (social scrapers fetch it online), so it is not precached. version.json is
+// written after this list on purpose: sw.js always fetches it from the network (it reports what is live right now).
 const precache = ['./', ...written.filter((f) => f !== '.nojekyll' && f !== 'icons/og-image.png').sort()];
+const sw = read('sw.js');
 const hash = crypto.createHash('sha256');
+hash.update('sw.js\0' + sw);          // a service-worker-only change still gets a fresh cache name
 for (const f of [...written].sort()) { hash.update(f + '\0'); hash.update(fs.readFileSync(path.join(out, f))); }
 const buildId = hash.digest('hex').slice(0, 10);
+// sw.js appends '|<scope path>' at runtime (one origin can host several copies of the game).
 const cacheName = `marbot-${version.replace(/[^\w.-]+/g, '-')}-${buildId}`;
-const sw = read('sw.js');
 const swOut = sw.replace(/^const BUILD = .*;$/m, `const BUILD = ${JSON.stringify({ version, cache: cacheName, files: precache })};`);
 if (swOut === sw) fail('sw.js is missing the "const BUILD = ...;" line');
 put('sw.js', swOut);
@@ -119,4 +149,5 @@ for (const [g, v] of Object.entries(groups).sort((a, b) => b[1].b - a[1].b)) con
 console.log(`  three.js files kept: ${vendor.size} of ${walk('vendor').length} (${(vendorAll / 1048576).toFixed(1)} MB in vendor/ -> ${(groups['vendor (three.js)'].b / 1048576).toFixed(2)} MB)`);
 for (const f of [...vendor].sort()) console.log('    ' + f);
 console.log(`  precache: ${precache.length} entries; modulepreload: ${preload.length} modules`);
+console.log(`  debug URL params (no-save sandbox): ${debugParams.length}` + (debugNew.length ? `, new since boot.js: ${debugNew.join(', ')} (add them to DEBUG_PARAMS in boot.js for the source page)` : ''));
 if (site !== '/') console.log(`  SITE_URL: ${site}`);

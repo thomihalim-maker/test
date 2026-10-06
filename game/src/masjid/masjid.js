@@ -1,16 +1,23 @@
-// MASJID module: modular, unlockable Nusantara mosque. API: ctx.modules.masjid = {stage, stages, place(id), group, update, playBedug, ...}
+// MASJID module: modular, unlockable Nusantara mosque + 'Desain Masjid' customisation + masjid-care anchors.
+// API (ctx.modules.masjid): stage, stages, place(id), setStage(n), group, update, playBedug, bedugPos, playKentongan,
+//   spot(name), prayerLayout(), zones(), isInside(x,z), route(from,to), applyCustom(custom,{preview}), customIds, queryCustom,
+//   viewFor(cat), setCutaway(key,on), cutaway, setMarker(name,on,{color}), ...
+// Draw-call budget note: baseline BEFORE the masjid-care work = 178 calls at ?nt&stage=8&hour=10&cam=22,12,30,0,4,-3
+// (42 masjid meshes). Style variants are merged into the shared per-material baked meshes, so they add no calls.
 import * as THREE from 'three';
 import { createAnimator } from './anim.js';
 import { makeMaterials, BUILDERS, BEDUG, PL, HALL_Z } from './stages.js';
-import { createSite } from './site.js';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { createSite, createMarkers } from './site.js';
+import { createAnchors } from './anchors.js';
+import { createCustom, viewFor, bakeKey, parseCustomQuery, sanitizeCustom, CUSTOM_IDS, CUSTOM_DEFAULTS, CUSTOM_SWATCHES, CUSTOM_ORDER, STAGE_OF } from './custom.js';
+import { bakeNormalize } from './geo.js';
 
 export const STAGES = [
   { id: 'fondasi', name: 'Fondasi & Plaza', nameEn: 'Foundation & Plaza', cost: 60, desc: 'Lantai marmer bertingkat, tangga, dan plaza ubin bermotif.', descEn: 'Tiered marble platform, stairs and a patterned tile plaza.' },
-  { id: 'dinding', name: 'Dinding & Ruang Salat', nameEn: 'Walls & Prayer Hall', cost: 100, desc: 'Dinding berlengkung, kaca patri, serambi, dan gapura paduraksa berpintu jati.', descEn: 'Arched walls, stained glass, veranda and a paduraksa gate with teak doors.' },
-  { id: 'atap', name: 'Atap Tajug Bersusun', nameEn: 'Tiered Tajug Roof', cost: 150, desc: 'Tiga tingkat atap tajug berubin tanah liat dengan mustaka emas.', descEn: 'Three-tier terracotta tajug roof crowned with a golden mustaka.' },
-  { id: 'menara', name: 'Menara', nameEn: 'Minaret', cost: 120, desc: 'Menara bersusun gaya Kudus dengan atap tajug dan kaca patri.', descEn: 'Kudus-style tiered tower with a tajug cap and stained glass.' },
-  { id: 'wudhu', name: 'Tempat Wudhu', nameEn: 'Ablution Pavilion', cost: 80, desc: 'Pancuran wudhu berpendopo dengan kolam segi delapan dan keran.', descEn: 'Ablution pavilion with an octagonal fountain basin and taps.' },
+  { id: 'dinding', name: 'Dinding & Ruang Salat', nameEn: 'Walls & Prayer Hall', cost: 100, desc: 'Dinding berlengkung, kaca patri, serambi dengan kentongan, dan gapura.', descEn: 'Arched walls, stained glass, a veranda with a kentongan, and a gate.' },
+  { id: 'atap', name: 'Atap Tajug Bersusun', nameEn: 'Tiered Tajug Roof', cost: 150, desc: 'Atap tajug bersusun dengan mustaka di puncaknya.', descEn: 'A tiered tajug roof crowned with a finial.' },
+  { id: 'menara', name: 'Menara', nameEn: 'Minaret', cost: 120, desc: 'Menara tinggi dengan pengeras suara dan lentera.', descEn: 'A tall minaret with loudspeakers and a lantern.' },
+  { id: 'wudhu', name: 'Tempat Wudhu', nameEn: 'Ablution Pavilion', cost: 80, desc: 'Pancuran wudhu berpendopo dengan kolam dan keran.', descEn: 'Ablution pavilion with a basin, spouts and taps.' },
   { id: 'bedug', name: 'Pendopo Bedug', nameEn: 'Bedug Pavilion', cost: 80, desc: 'Pendopo kayu berisi bedug besar yang bisa ditabuh.', descEn: 'Teak pavilion with a big bedug drum you can play.' },
   { id: 'interior', name: 'Mihrab, Mimbar & Karpet', nameEn: 'Mihrab, Minbar & Carpets', cost: 140, desc: 'Mihrab, mimbar berukir, karpet, sajadah, dan lampu gantung.', descEn: 'Mihrab niche, carved minbar, carpets, prayer mats and chandeliers.' },
   { id: 'taman', name: 'Taman & Lentera', nameEn: 'Garden & Lanterns', cost: 100, desc: 'Taman bunga, palem, semak, jalan setapak, dan lentera bercahaya.', descEn: 'Flower beds, palms, hedges, a stone path and glowing lanterns.' },
@@ -19,6 +26,7 @@ const I18N = {
   needPrev: ['Bangun tahap sebelumnya dulu: {name}', 'Build the previous stage first: {name}'],
   noCoins: ['Koin kurang ({cost} dibutuhkan)', 'Not enough coins ({cost} needed)'],
   built: ['{name} dibangun! +{p} pahala', '{name} built! +{p} pahala'],
+  kentongan: ['Pukul Kentongan', 'Strike Kentongan'],
 };
 const qs = new URLSearchParams(location.search);
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -44,6 +52,8 @@ export async function init(ctx) {
   const built = []; // per-stage S objects
   let glassFlash = 0, hallLight = null, nightK = 0, testLights = null;
   const heightFns = [];
+  ctx.interactables ??= [];
+  ctx.routes ??= [];
 
   // ---- standalone test harness: only when no world module is present ----
   const standalone = !ctx.modules.world;
@@ -59,6 +69,20 @@ export async function init(ctx) {
   const hourParam = qs.has('hour') ? parseFloat(qs.get('hour')) : null;
   if (hourParam !== null && standalone) ctx.hour = hourParam; // the world module owns the clock (and reads ?hour itself)
 
+  function playerPos() { const c = ctx.modules.characters; const o = c?.player?.position ?? c?.player?.pos ?? c?.player?.mesh?.position ?? c?.pos ?? c?.mesh?.position ?? c?.group?.position; return o && Number.isFinite(o.x) && Number.isFinite(o.z) ? o : null; }
+
+  // ---- anchors + customisation (both must exist before any stage is built) ----
+  const stageRef = { get stage() { return st.stage; } };
+  const anchors = createAnchors(ctx, stageRef);
+  const queryCustom = parseCustomQuery(qs.get('custom'));
+  const bakeGroup = new THREE.Group(); bakeGroup.name = 'masjid-baked'; group.add(bakeGroup);
+  const custom = createCustom(ctx, {
+    M, group, bakeParent: bakeGroup, initial: { ...(ctx.state.masjid?.custom || {}), ...(queryCustom || {}) },
+    isBuilt: n => !!built[n], isBaked: n => !!built[n]?.baked, sajadah: () => built[7]?.sajadah, lanterns: () => built[8]?.lanterns,
+    playerPos, stage: () => st.stage,
+  });
+  if (qs.get('cutaway') === '1') custom.setCutaway('query', true);
+
   // ---- stage construction ----
   function makeS(n, instant) {
     const G = new THREE.Group(); G.name = 'stage' + n; group.add(G);
@@ -71,6 +95,10 @@ export async function init(ctx) {
         const o = new THREE.Object3D(); o.position.copy(pos);
         S.R.add(o, { delay, dur: .1, onLand: (p) => { if (S.instant) return; ctx.modules.fx?.burst?.(kind, p.clone()); if (kind === 'confetti') ctx.modules.fx?.burst?.('sparkle', p.clone()); } });
       },
+      variant: cat => custom.buildVariant(S, cat),
+      layout: () => anchors.prayerLayout({ stage: Math.max(n, st.stage), staticOnly: true }),
+      matTints: () => custom.matTints(),
+      lanternGeos: () => custom.lanternGeos(),
     };
     return S;
   }
@@ -85,7 +113,7 @@ export async function init(ctx) {
     if (S.hallLight && !hallLight) { hallLight = new THREE.PointLight(0xffc678, 6, 15, 1.6); hallLight.position.set(0, PL + 3.2, HALL_Z); group.add(hallLight); }
     if (instant) { S.R.finish(); S.R.update?.(0); } else {
       building++;
-      S.R.onDone = () => { building = Math.max(0, building - 1); bake([S]); if (n === STAGES.length) sendComplete(); };
+      S.R.onDone = () => { building = Math.max(0, building - 1); bake([S]); custom.afterBake(); if (n === STAGES.length) sendComplete(); };
     }
     return S;
   }
@@ -94,33 +122,18 @@ export async function init(ctx) {
     const s = STAGES[STAGES.length - 1]; ctx.emit('build:complete', { stage: STAGES.length, id: s.id, name: sName(s) });
   }
 
-  // ---- static batching: once a stage has finished animating, merge all its static meshes per material ----
-  const bakeGroup = new THREE.Group(); bakeGroup.name = 'masjid-baked'; group.add(bakeGroup);
-  const baked = new Map(); // key -> Mesh
-  const KEEP_ATTR = ['position', 'normal', 'uv', 'color'];
-  function normalize(src, m4) {
-    const g = src.index ? src.toNonIndexed() : src.clone();
-    g.applyMatrix4(m4);
-    const n = g.attributes.position.count;
-    if (!g.attributes.normal) g.computeVertexNormals();
-    if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(n * 2), 2));
-    if (!g.attributes.color) g.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(n * 3).fill(1), 3));
-    for (const k of Object.keys(g.attributes)) if (!KEEP_ATTR.includes(k)) g.deleteAttribute(k);
-    // Zero-length normals become NaN after normalize() in the shader, and bloom spreads NaN across the whole frame.
-    const nm = g.attributes.normal.array;
-    for (let i = 0; i < nm.length; i += 3) {
-      const l = Math.hypot(nm[i], nm[i + 1], nm[i + 2]);
-      if (!(l > 1e-6)) { nm[i] = 0; nm[i + 1] = 1; nm[i + 2] = 0; }
-    }
-    g.morphAttributes = {}; g.clearGroups();
-    return g;
-  }
+  // ---- static batching: once a stage has finished animating, merge its static meshes per material into the composer's
+  //      shared meshes; style-variant roots (userData.variant) become toggleable layers of those same meshes.
   function bake(list) {
     group.updateMatrixWorld(true);
     const inv = group.matrixWorld.clone().invert(), add = new Map();
     for (const S of list) {
-      const keep = new Set(), keepRoots = [];
-      S.G.traverse(o => { if ((o.userData.keep || o.isInstancedMesh) && !keep.has(o)) { keepRoots.push(o); o.traverse(c => keep.add(c)); } });
+      const keep = new Set(), keepRoots = [], layerRoots = [];
+      S.G.traverse(o => {
+        if (keep.has(o)) return;
+        if (o.userData.variant) { layerRoots.push(o); o.traverse(c => keep.add(c)); }
+        else if (o.userData.keep || o.isInstancedMesh) { keepRoots.push(o); o.traverse(c => keep.add(c)); }
+      });
       const dispose = [];
       S.G.traverse(o => {
         if (!o.isMesh || keep.has(o)) return;
@@ -129,27 +142,20 @@ export async function init(ctx) {
         // A collapsed (scale 0) piece has a singular matrix: skip it rather than bake degenerate geometry.
         if (vis && Math.abs(o.matrixWorld.determinant()) < 1e-9) vis = false;
         if (vis && !Array.isArray(mat) && mat.visible !== false) {
-          const key = mat.uuid + (o.castShadow ? ':c' : ':n') + (o.geometry.attributes.color?.itemSize === 4 ? ':a' : '');
+          const key = bakeKey(mat, o.castShadow, o.geometry.attributes.color?.itemSize === 4);
           if (!add.has(key)) add.set(key, { mat, cast: o.castShadow, list: [] });
-          add.get(key).list.push(normalize(o.geometry, new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld)));
+          add.get(key).list.push(bakeNormalize(o.geometry, new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld)));
         }
         dispose.push(o.geometry);
       });
       for (const k of keepRoots) group.attach(k);
+      for (const r of layerRoots) custom.adopt(r, inv);
       group.remove(S.G); S.G = null; S.baked = true;
       for (const g of new Set(dispose)) g.dispose();
     }
-    for (const [key, { mat, cast, list }] of add) {
-      const prev = baked.get(key);
-      const merged = mergeGeometries(prev ? [prev.geometry, ...list] : list, false);
-      list.forEach(g => g.dispose());
-      if (!merged) { console.warn('masjid bake failed for', mat.name || key); continue; }
-      merged.computeBoundingSphere();
-      if (prev) { prev.geometry.dispose(); prev.geometry = merged; }
-      else { const mesh = new THREE.Mesh(merged, mat); mesh.castShadow = cast; mesh.receiveShadow = true; mesh.name = 'baked:' + key; bakeGroup.add(mesh); baked.set(key, mesh); }
-    }
+    for (const [key, { mat, cast, list }] of add) custom.composer.addStatic(key, mat, cast, list);
   }
-  { const init = []; for (let n = 1; n <= st.stage; n++) init.push(buildStage(n, true)); if (init.length) bake(init); }
+  { const init = []; for (let n = 1; n <= st.stage; n++) init.push(buildStage(n, true)); if (init.length) { bake(init); custom.afterBake(); } }
 
   // ---- bedug interaction ----
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
@@ -171,8 +177,55 @@ export async function init(ctx) {
     ray.setFromCamera(ndc, camera); const hits = ray.intersectObject(built[6].bedug.hit, false); if (hits.length) playBedug();
   });
   const BEDUG3 = new THREE.Vector3(BEDUG.x, 0, BEDUG.z);
-  function playerPos() { const c = ctx.modules.characters; const o = c?.player?.position ?? c?.player?.pos ?? c?.player?.mesh?.position ?? c?.pos ?? c?.mesh?.position ?? c?.group?.position; return o?.isVector3 ? o : null; }
-  ctx.on('interact', (d) => { if (!built[6]) return; if (d?.kind) { if (d.kind === 'bedug') playBedug(); return; } const p = d?.pos ?? playerPos(); if (p && Math.hypot(p.x - BEDUG.x, p.z - BEDUG.z) < 3.6) playBedug(); });
+
+  // ---- kentongan (stage 2): strike -> damped swing, wooden tok-tok (audio 'kentongan'), dust, 'kentongan:hit' ----
+  let lastKen = -9;
+  const KEN_DRUM = new THREE.Vector3(-4.5, PL + 2.1, 6.1);
+  function playKentongan() {
+    const k = built[2]?.kentongan; if (!k) return false;
+    if (ctx.time - lastKen < .28) return false; lastKen = ctx.time;
+    k.amp = Math.min(.46, (k.t < 2 ? (k.amp || 0) * Math.exp(-k.t * 2.6) : 0) + .3); k.t = 0;
+    const pos = KEN_DRUM.clone();
+    try { ctx.modules.audio?.play?.('kentongan', { pos: pos.clone(), vol: 1 }); } catch (e) { }
+    try { ctx.modules.fx?.burst?.('dust', new THREE.Vector3(pos.x, PL + 1.75, pos.z + .25), 6); } catch (e) { }
+    ctx.emit('kentongan:hit', { pos: { x: pos.x, y: pos.y, z: pos.z } });
+    return true;
+  }
+  const kenStand = new THREE.Vector3(-4.5, PL, 7.3);
+  ctx.interactables.push({
+    kind: 'kentongan', get label() { return tr('kentongan'); }, icon: 'kentongan', pos: kenStand, r: 2.2, priority: .8,
+    anim: 'bedug', yaw: Math.PI, enabled: () => st.stage >= 2 && !!built[2]?.kentongan,
+  });
+
+  ctx.on('interact', (d) => {
+    if (d?.kind === 'kentongan') { playKentongan(); return; }
+    if (!built[6]) return;
+    if (d?.kind) { if (d.kind === 'bedug') playBedug(); return; }
+    const p = d?.pos ?? playerPos(); if (p && Math.hypot(p.x - BEDUG.x, p.z - BEDUG.z) < 3.6) playBedug();
+  });
+
+  // ---- prayer / care markers (spot-anchored) + reactions to the prayer flow ----
+  const markers = createMarkers(ctx, group, name => anchors.spot(name));
+  const setMarker = (name, on, o = {}) => markers.set(name, on, o);
+  const offAll = () => { for (const n of ['adzan', 'imam', 'kentongan', 'bedug']) markers.set(n, false); };
+  ctx.on('prayer:soon', () => setMarker('adzan', true));
+  ctx.on('prayer:open', () => { setMarker('adzan', true); if (st.stage >= 2) setMarker('kentongan', true); if (st.stage >= 6) setMarker('bedug', true); });
+  ctx.on('adzan:start', () => { for (const n of ['adzan', 'kentongan', 'bedug']) setMarker(n, false); });
+  ctx.on('prayer:ready', () => setMarker('imam', true));
+  ctx.on('prayer:lead', d => { setMarker('imam', false); if (!d || d.imam !== 'npc') custom.setCutaway('prayer', true); });
+  ctx.on('prayer:done', () => { setMarker('imam', false); custom.setCutaway('prayer', false); });
+  ctx.on('prayer:close', () => { offAll(); custom.setCutaway('prayer', false); });
+  ctx.on('day:new', () => { offAll(); custom.setCutaway('prayer', false); });
+
+  // ---- routes: hall door + walk around the hall (characters.walkTo tries ctx.routes in order) ----
+  // walkTo takes the FIRST non-null route, so splice in the other routes (e.g. the animal pen gate) before/after our legs.
+  const routeFn = (from, to) => {
+    let p; try { p = anchors.route(from, to); } catch (e) { return null; }
+    if (!p || !p.length) return null;
+    const via = (a, b) => { for (const r of ctx.routes) { if (r === routeFn) continue; try { const q = r(a, b); if (Array.isArray(q) && q.length) return q; } catch (e) { } } return null; };
+    return [...(via(from, p[0]) || []), ...p, ...(via(p[p.length - 1], to) || [])];
+  };
+  ctx.routes.push(routeFn);
 
   // ---- test camera ----
   let camParam = null;
@@ -215,13 +268,33 @@ export async function init(ctx) {
     setStage(v) { // debug / preview: instantly build up to stage v
       v = Math.max(0, Math.min(STAGES.length, v | 0));
       const list = []; for (let n = st.stage + 1; n <= v; n++) list.push(buildStage(n, true));
-      if (list.length) bake(list);
       st.stage = Math.max(st.stage, v); st.parts = partsFor(st.stage);
+      if (list.length) { bake(list); custom.afterBake(); }
     },
     playBedug, bedugPos: BEDUG3,
+    // ---- masjid care anchors ----
+    spot: name => anchors.spot(name),
+    prayerLayout: (o) => anchors.prayerLayout(o),
+    zones: () => anchors.zones(),
+    isInside: (x, z) => anchors.isInside(x, z),
+    route: (from, to) => anchors.route(from, to),
+    playKentongan, kentonganPos: KEN_DRUM,
+    setMarker, get markers() { return markers.active; },
+    // ---- customisation ----
+    applyCustom(c, o = {}) { try { return custom.apply(c, o); } catch (e) { console.error('masjid.applyCustom', e); return false; } },
+    customIds: CUSTOM_IDS, customDefaults: CUSTOM_DEFAULTS, customSwatches: CUSTOM_SWATCHES, customOrder: CUSTOM_ORDER, customStage: STAGE_OF,
+    get customApplied() { return custom.applied; },
+    queryCustom: queryCustom ? { ...queryCustom } : null,
+    viewFor: cat => viewFor(cat),
+    setCutaway: (key, on) => custom.setCutaway(key, on),
+    get cutaway() { return custom.cutaway; },
+    get cutawayKeys() { return custom.cutKeys; },
+    sanitizeCustom,
     update(dt, t) {
       anim.update(dt);
       site.update(dt, t);
+      markers.update(dt, t);
+      custom.update(dt);
       const h = ctx.hour ?? 12;
       nightK = Math.max(sstep(17.2, 19.2, h), 1 - sstep(4.8, 6.4, h));
       glassFlash = Math.max(0, glassFlash - dt * 1.4);
@@ -229,6 +302,9 @@ export async function init(ctx) {
       M.flame.color.setRGB(1.6 + Math.sin(t * 9) * .1, 1.15, .5);
       if (hallLight) hallLight.intensity = 5 + nightK * 60 + glassFlash * 4;
       M.water.map.offset.set(t * .02, t * .015);
+      // kentongan swing (damped pendulum about the rope knot)
+      const K = built[2]?.kentongan;
+      if (K && K.t < 4) { K.t += dt; const a = (K.amp || .3) * Math.exp(-K.t * 2.6); K.obj.rotation.x = a * Math.sin(K.t * 7.4); K.obj.rotation.z = a * .22 * Math.sin(K.t * 5.1 + .6); if (K.t >= 4) K.obj.rotation.set(0, 0, 0); }
       // droplets
       const S5 = built[5];
       if (S5?.droplets?.ready) {
@@ -258,6 +334,8 @@ export async function init(ctx) {
       if (testLights) { testLights.sun.intensity = 3 * (1 - .93 * nightK); testLights.hemi.intensity = 1 - .45 * nightK; testLights.sun.color.set(nightK > .5 ? 0x8aa4ff : 0xfff0d0); scene.background.set(nightK > .5 ? 0x0c1230 : 0xbfe3f5); scene.fog.color.copy(scene.background); }
     },
   };
+  api.custom = { apply: api.applyCustom, ids: CUSTOM_IDS, defaults: CUSTOM_DEFAULTS, swatches: CUSTOM_SWATCHES, get current() { return custom.applied; }, viewFor };
+  api._debug = { custom, anchors, markers, built };
   const site = createSite(ctx, M, group, api);
   api.site = site;
   api.api = api;

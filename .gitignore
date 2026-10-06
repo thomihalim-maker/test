@@ -3,6 +3,8 @@ node_modules/
 
 # Production build (recreate with: cd game && npm run build)
 game/dist/
+# Snapshot for a claude.ai artifact (sh tools/build-play.sh)
+game/play-dist/
 
 # Capacitor / Android build outputs (commit game/android/ itself after `npm run cap:add`)
 game/android/.gradle/

@@ -36,7 +36,7 @@ jobs:
         run: node -e "for (const f of ['package.json','capacitor.config.json','manifest.webmanifest']) JSON.parse(require('fs').readFileSync(f,'utf8'))"
 
       - name: Upload dist (download for itch.io / manual testing)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: marbot-masjid-dist
           path: game/dist

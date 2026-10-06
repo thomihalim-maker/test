@@ -6,7 +6,8 @@ supaya jamaah berdatangan.
 
 *A cozy 3D village-masjid game for kids: care for the Eid al-Adha animals and build up the village mosque.*
 
-- **Main sekarang / Play:** https://thomihalim-maker.github.io/test/ (setelah GitHub Pages aktif, lihat panduan deploy)
+- **Main sekarang / Play:** https://thomihalim-maker.github.io/test/ (setelah GitHub Pages aktif: buat branch `main`,
+  jadikan branch default, lalu Pages → Source: GitHub Actions; lihat [game/DEPLOY.md](game/DEPLOY.md) §3)
 - Dibuat dengan [three.js](https://threejs.org) r170, ES modules murni tanpa bundler. Semua grafis dan suara
   dibuat secara prosedural, jadi game bisa dimainkan **offline** (PWA) dan dibungkus jadi aplikasi **Android** (Capacitor).
 
@@ -23,7 +24,7 @@ npm run serve:dist   # test the build   -> http://localhost:8124
 
 - [game/DEPLOY.md](game/DEPLOY.md) — build, GitHub Pages, Netlify/Vercel/itch.io, Android (APK/AAB), versi, data save.
 - [game/README_AGENTS.md](game/README_AGENTS.md) — struktur modul dan API internal game.
-- CI: [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml) (deploy `main` ke Pages),
+- CI: [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml) (deploy branch default, mis. `main`, ke Pages),
   [.github/workflows/ci.yml](.github/workflows/ci.yml) (cek build untuk pull request).
 
 ## Struktur
@@ -38,4 +39,5 @@ game/
   tools/                     build, verify, smoke test, screenshots, icon generator
 ```
 
-Lisensi pihak ketiga: three.js (MIT), font Nunito (SIL Open Font License, `game/src/ui/fonts/OFL.txt`).
+Lisensi pihak ketiga: three.js (MIT), font Nunito (SIL Open Font License) — lihat [game/LICENSES.txt](game/LICENSES.txt).
+Kebijakan privasi: [game/privacy.html](game/privacy.html) (tidak ada data yang dikumpulkan).

@@ -23,7 +23,16 @@ function noise(g, w, h, n, a, cols) {
   g.globalAlpha = 1;
 }
 function once(k, f) { return cache[k] ??= f(); }
+// hex helpers for palette-driven textures (masjid customisation): '#rrggbb' -> [r,g,b] 0..255
+const HEX = /^#?[0-9a-f]{6}$/i;
+export const isHex = v => typeof v === 'string' && HEX.test(v);
+const rgbOf = h => { const n = parseInt(String(h).replace('#', ''), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+const css = (c, a = 1) => a >= 1 ? `rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0})` : `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+const mul = (c, k) => c.map(v => Math.max(0, Math.min(255, v * k)));
+const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+const hexOf = c => '#' + c.map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
 
+export const texUtil = { rgbOf, hexOf, mul, mix };
 export const tex = {
   plaster: () => once('plaster', () => mk(256, 256, (g, w, h) => {
     g.fillStyle = '#f3e7cf'; g.fillRect(0, 0, w, h);
@@ -95,8 +104,13 @@ export const tex = {
     noise(g, w, h, 300, .2, ['#fff7c0', '#6a4208']);
   })),
   // 8-point star tessellation; tileable. mode: 'teal' | 'cream'
+  // mode: 'teal' | 'cream' | '#rrggbb' (trim colour: palette derived from the hex, gold or cream accents)
   arabesque: (mode = 'teal') => once('arab' + mode, () => mk(256, 256, (g, w, h) => {
-    const P = mode === 'teal'
+    let P;
+    if (isHex(mode)) {
+      const b = rgbOf(mode), lum = (b[0] * .3 + b[1] * .59 + b[2] * .11) / 255, warm = b[0] > b[2] * 1.6 && b[1] > b[2] * 1.2;
+      P = { bg: hexOf(mul(b, .5)), a: warm ? '#fff3c9' : '#f4d77a', b: mode, c: warm ? '#7a4a12' : '#fff3c9', d: hexOf(mul(b, lum > .45 ? .62 : .34)) };
+    } else P = mode === 'teal'
       ? { bg: '#0f5d63', a: '#f4d77a', b: '#17898f', c: '#fff3c9', d: '#093f47' }
       : { bg: '#f1e3c3', a: '#b9852d', b: '#e5cfa0', c: '#6c3d12', d: '#d9bf86' };
     g.fillStyle = P.bg; g.fillRect(0, 0, w, h);
@@ -174,13 +188,15 @@ export const tex = {
     }
     noise(g, w, h, 500, .15, ['#2a1408', '#c28a58']);
   })),
-  carpet: () => once('carpet', () => mk(256, 256, (g, w, h) => {
-    g.fillStyle = '#1f5a45'; g.fillRect(0, 0, w, h);
-    noise(g, w, h, 1500, .22, ['#0f3a2c', '#3c8a6a']);
-    g.strokeStyle = '#e2c26a'; g.lineWidth = 6; g.strokeRect(8, 8, w - 16, h - 16);
-    g.strokeStyle = '#8a1f2d'; g.lineWidth = 10; g.strokeRect(24, 24, w - 48, h - 48);
-    g.strokeStyle = '#e2c26a'; g.lineWidth = 3; g.strokeRect(38, 38, w - 76, h - 76);
-    g.fillStyle = 'rgba(190,160,90,.45)';
+  // hall carpet; base = '#rrggbb' recolours field + border band (default keeps the original green/maroon)
+  carpet: (base = null) => once('carpet' + (isHex(base) ? base : ''), () => mk(256, 256, (g, w, h) => {
+    const b = isHex(base) ? rgbOf(base) : null, gold = b && b[0] > 150 && b[1] > 110 && b[2] < 90;
+    g.fillStyle = b ? css(mul(b, .78)) : '#1f5a45'; g.fillRect(0, 0, w, h);
+    noise(g, w, h, 1500, .22, b ? [hexOf(mul(b, .5)), hexOf(mix(b, [255, 255, 255], .25))] : ['#0f3a2c', '#3c8a6a']);
+    g.strokeStyle = gold ? '#fff0c0' : '#e2c26a'; g.lineWidth = 6; g.strokeRect(8, 8, w - 16, h - 16);
+    g.strokeStyle = b ? (gold ? '#6e1f3a' : hexOf(mul(b, .42))) : '#8a1f2d'; g.lineWidth = 10; g.strokeRect(24, 24, w - 48, h - 48);
+    g.strokeStyle = gold ? '#fff0c0' : '#e2c26a'; g.lineWidth = 3; g.strokeRect(38, 38, w - 76, h - 76);
+    g.fillStyle = gold ? 'rgba(110,40,30,.4)' : 'rgba(190,160,90,.45)';
     for (let x = 64; x < w - 40; x += 32) for (let y = 64; y < h - 40; y += 32) { g.beginPath(); g.moveTo(x, y - 4); g.lineTo(x + 4, y); g.lineTo(x, y + 4); g.lineTo(x - 4, y); g.fill(); }
   })),
   brick: () => once('brick', () => mk(256, 256, (g, w, h) => {
@@ -214,14 +230,15 @@ export const tex = {
     g.fillStyle = '#e0a83a'; for (let i = 0; i < 5; i++) { g.beginPath(); g.arc(282 + i * 34, 208, 6, 0, 7); g.fill(); }
   }, { repeat: false })),
   // wooden shingles (sirap): dark grey-brown, soft stagger
-  sirap: () => once('sirap', () => mk(256, 256, (g, w, h) => {
-    g.fillStyle = '#5a4028'; g.fillRect(0, 0, w, h);
+  sirap: (hex = null) => once('sirap' + (isHex(hex) ? hex : ''), () => mk(256, 256, (g, w, h) => {
+    const hb = isHex(hex) ? rgbOf(hex) : null, BASES = hb ? [.9, 1.0, .95, 1.07].map(k => mul(hb, k)) : [[154, 115, 80], [176, 132, 88], [164, 122, 82], [186, 140, 94]];
+    g.fillStyle = hb ? css(mul(hb, .55)) : '#5a4028'; g.fillRect(0, 0, w, h);
     const rows = 6, rh = h / rows;
     for (let r = rows - 1; r >= 0; r--) {
       let x = (r % 2) * -22;
       while (x < w) {
         const sw = 34 + rnd() * 18, v = rnd(), y = r * rh;
-        const base = [[154, 115, 80], [176, 132, 88], [164, 122, 82], [186, 140, 94]][(v * 4) | 0];
+        const base = BASES[(v * 4) | 0];
         const gr = g.createLinearGradient(0, y, 0, y + rh);
         gr.addColorStop(0, `rgb(${base[0] * .9},${base[1] * .9},${base[2] * .9})`); gr.addColorStop(.55, `rgb(${base[0]},${base[1]},${base[2]})`);
         gr.addColorStop(.8, `rgb(${base[0] * .9},${base[1] * .88},${base[2] * .86})`); gr.addColorStop(1, `rgb(${base[0] * .42},${base[1] * .38},${base[2] * .34})`);
@@ -232,6 +249,25 @@ export const tex = {
       }
     }
     noise(g, w, h, 500, .08, ['#4a3020', '#d8b080']);
+  })),
+  // interlocking clay roof tiles (genteng): rows of rounded pans, each lip shading the row below. glazed = glossy streaks.
+  genteng: (hex = '#c8643a', glazed = false) => once('genteng' + hex + (glazed ? 'g' : ''), () => mk(256, 256, (g, w, h) => {
+    const b = rgbOf(isHex(hex) ? hex : '#c8643a');
+    g.fillStyle = css(mul(b, .45)); g.fillRect(0, 0, w, h);
+    const cols = 6, rows = 6, cw = w / cols, rh = h / rows;
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const x = c * cw, y = r * rh, k = .9 + rnd() * .18, base = mul(b, k);
+      const gr = g.createLinearGradient(x, 0, x + cw, 0); // rounded pan: dark valley - bright crest - dark valley
+      gr.addColorStop(0, css(mul(base, .62))); gr.addColorStop(.3, css(base)); gr.addColorStop(.5, css(mul(base, 1.16)));
+      gr.addColorStop(.72, css(base)); gr.addColorStop(1, css(mul(base, .58)));
+      g.fillStyle = gr; g.beginPath(); g.moveTo(x + 1, y + rh); g.lineTo(x + 1, y + 6); g.quadraticCurveTo(x + cw / 2, y - 3, x + cw - 1, y + 6); g.lineTo(x + cw - 1, y + rh); g.closePath(); g.fill();
+      const sh = g.createLinearGradient(0, y + rh * .62, 0, y + rh); // the next row's lip shades this one
+      sh.addColorStop(0, 'rgba(40,16,8,0)'); sh.addColorStop(1, 'rgba(40,16,8,.5)'); g.fillStyle = sh; g.fillRect(x, y + rh * .62, cw, rh * .38);
+      if (glazed) { g.fillStyle = 'rgba(255,255,255,.24)'; g.fillRect(x + cw * .37, y + 6, cw * .08, rh * .5); g.fillStyle = 'rgba(255,255,255,.1)'; g.fillRect(x + cw * .5, y + 7, cw * .05, rh * .36); }
+      else { g.fillStyle = 'rgba(255,225,190,.16)'; g.fillRect(x + cw * .42, y + 4, cw * .1, rh * .5); }
+    }
+    g.fillStyle = css(mul(b, .5)); for (let r = 0; r < rows; r++) g.fillRect(0, r * rh, w, 2); // lip line
+    noise(g, w, h, glazed ? 300 : 900, glazed ? .1 : .2, [hexOf(mul(b, .45)), hexOf(mix(b, [255, 240, 220], .5))]);
   })),
   // warm limestone (batu putih) blocks with low-contrast veins
   batu: () => once('batu', () => mk(256, 256, (g, w, h) => {
