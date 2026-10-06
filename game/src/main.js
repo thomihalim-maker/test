@@ -45,7 +45,10 @@ ctx.stats = { fps:60, calls:0, triangles:0, dpr };
 // Module load order matters. Missing modules are skipped so agents can work independently.
 const order = ['world/world','audio/audio','masjid/masjid','characters/characters','animals/animals','fx/fx','game/progress','ui/ui'];
 const mods = [];
-for (const name of order){
+// Loading-screen progress for boot.js (index.html). Harmless when nothing listens (e.g. build-play snapshot).
+const signal = (type, detail) => { try { dispatchEvent(new CustomEvent(type, { detail })); } catch (e) {} };
+for (const [i, name] of order.entries()){
+  signal('game:progress', { done:i, total:order.length, next:name });
   try{
     const m = await import(`./${name}.js`);
     const inst = await m.init(ctx); ctx.modules[name.split('/')[1]] = inst; if(inst?.update) mods.push(inst);
@@ -74,7 +77,11 @@ function frame(){
     }
   }
 }
+signal('game:progress', { done:order.length, total:order.length });
 renderer.setAnimationLoop(frame);
+// Tell the loading screen once the first frame has been drawn.
+requestAnimationFrame(()=>requestAnimationFrame(()=>signal('game:ready', { version: window.MARBOT_VERSION || 'dev' })));
 document.addEventListener('visibilitychange',()=>{ if(document.hidden) save(ctx.state); else clock.getDelta(); });
+addEventListener('pagehide',()=>save(ctx.state)); // reload / app close / update prompt
 setInterval(()=>save(ctx.state),10000);
-window.__ctx = ctx; // for debugging / test harness
+window.__ctx = ctx; // for debugging / test harness (single-player, offline: nothing secret in here)

@@ -9,6 +9,7 @@ cp -r src "$OUT/src"
 find "$OUT/src" -name 'test.html' -delete
 ln -s "$(pwd)/vendor" "$OUT/vendor"   # local-only, so the snapshot can be smoke-tested with tools/shot.mjs
 cp index.html "$OUT/index.html"
+cp boot.js manifest.webmanifest "$OUT/"; cp -r icons "$OUT/icons"   # index.html loader + icons (play.html needs neither)
 cat > "$OUT/play.html" <<'H'
 <title>Marbot Masjid</title>
 <link rel="stylesheet" href="src/ui/ui.css">

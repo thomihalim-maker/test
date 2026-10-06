@@ -43,14 +43,16 @@
     if (target < 0.3) target += (0.3 - target) * 0.06;
     if (shown < target) setP(shown + (target - shown) * 0.35);
   }, 120);
+  var lastStep = Date.now();
   win.addEventListener('game:progress', function (e) {
-    var d = e.detail || {}, f = 0.3 + 0.65 * ((d.done || 0) / (d.total || 1));
+    var d = e.detail || {}, f = 0.3 + 0.65 * ((d.done || 0) / (d.total || 1)); lastStep = Date.now();
     target = Math.max(target, f); setP(Math.max(shown, f));
     if (label && d.next) label.textContent = T.steps[String(d.next).split('/').pop()] || T.loading;
   });
   function finish() {
     if (ready || failed) return; ready = true; setP(1);
     if (boot) { boot.classList.add('done'); setTimeout(function () { if (boot.parentNode) boot.parentNode.removeChild(boot); }, 700); }
+    if (pending) softError(pending);                 // something failed while loading but the game still started
     registerSW();
   }
   win.addEventListener('game:ready', finish);
@@ -91,18 +93,33 @@
   }
   function describe(x) { try { return x && (x.stack || x.message) ? (x.message || String(x)) : String(x); } catch (e) { return 'error'; } }
   function benign(msg) { return /ResizeObserver loop|NotAllowedError|AbortError|play\(\) request was interrupted/i.test(msg || ''); }
-  function onFail(msg) {
-    if (benign(msg)) return;
-    if (ready) return softError(msg);
+  function hardFail(msg) {                            // the game cannot start: replace the loader with a panel
     if (/WebGL|webglcontext|context.*(lost|creat)/i.test(msg)) return noWebGL(msg);
     fatal(T.err, [T.errSub, lang === 'id' ? 'Something went wrong — please reload.' : 'Terjadi kesalahan — muat ulang.'], msg, true);
   }
+  // Errors while loading are not always fatal (main.js skips a broken module), so they are held until we know:
+  // the game starts -> small dismissible bar; it never gets going -> full panel (see the watchdog below).
+  var pending = null;
+  function onFail(msg) {
+    if (benign(msg)) return;
+    if (ready) return softError(msg);
+    if (!pending) pending = msg;
+  }
+  var watchdog = setInterval(function () {
+    if (ready || failed) return clearInterval(watchdog);
+    var idle = Date.now() - lastStep;
+    if (pending && idle > 20000) hardFail(pending);
+    else if (idle > 45000 && label && !$('bootSlow')) {   // very slow device or a hang: offer a way out, keep loading
+      var b = btn(T.reload, 'ghost', function () { location.reload(); }); b.id = 'bootSlow';
+      label.parentNode.insertBefore(b, label.nextSibling);
+    }
+  }, 1000);
   win.addEventListener('error', function (e) {
     if (e.filename && !/^https?:|^capacitor:/.test(e.filename)) return;            // extensions etc.
     if (!e.error && /^Script error\.?$/.test(e.message || '')) return;              // opaque cross-origin
     onFail(describe(e.error || e.message));
   });
-  win.addEventListener('unhandledrejection', function (e) { if (!ready) onFail(describe(e.reason)); else try { console.warn('[marbot] unhandled rejection', e.reason); } catch (_) {} });
+  win.addEventListener('unhandledrejection', function (e) { if (!ready) onFail(describe(e.reason)); });   // after start: console only
 
   function noWebGL(detail) {
     fatal('WebGL 2 tidak tersedia', [
@@ -164,6 +181,20 @@
     }).catch(function (e) { try { console.warn('[marbot] service worker registration failed', e); } catch (_) {} });
   }
 
+  // ---- Android (Capacitor) back button, only if @capacitor/app is installed: close panels first, press twice to leave ----
+  var App = isNative && win.Capacitor.Plugins && win.Capacitor.Plugins.App;
+  if (App && App.addListener) {
+    var lastBack = 0;
+    App.addListener('backButton', function () {
+      var now = Date.now();
+      if (now - lastBack < 1600) { if (App.minimizeApp) App.minimizeApp(); else App.exitApp(); return; }
+      lastBack = now;
+      try { win.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); } catch (e) {}   // ui.js closes open panels
+      var h = el('div', 'boot-toast'); h.textContent = lang === 'en' ? 'Press back again to leave' : 'Tekan kembali sekali lagi untuk keluar';
+      doc.body.appendChild(h); setTimeout(function () { h.parentNode && h.parentNode.removeChild(h); }, 1600);
+    });
+  }
+
   // ---- go ----
   if (params.has('nogl') || !hasWebGL2()) { noWebGL(); return; }
   var fallback, load;
@@ -172,6 +203,6 @@
   load(new URL('src/main.js', doc.baseURI).href).then(function () {
     // main.js finished its top-level work; 'game:ready' normally follows on the first frame.
     target = 0.98; fallback = setTimeout(finish, 8000);
-  }, function (e) { onFail(describe(e)); });
+  }, function (e) { hardFail(describe(e)); });
   win.addEventListener('game:ready', function () { clearTimeout(fallback); });
 })();

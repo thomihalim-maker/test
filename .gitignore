@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Production build (recreate with: cd game && npm run build)
+game/dist/
+
+# Capacitor / Android build outputs (commit game/android/ itself after `npm run cap:add`)
+game/android/.gradle/
+game/android/.idea/
+game/android/build/
+game/android/app/build/
+game/android/app/release/
+game/android/capacitor-cordova-android-plugins/build/
+game/android/local.properties
+*.apk
+*.aab
+*.keystore
+*.jks
+keystore.properties
+
+# OS / editor / tooling noise
+.DS_Store
+Thumbs.db
+*.log
+.claude/scheduled_tasks.lock
