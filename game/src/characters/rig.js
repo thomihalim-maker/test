@@ -99,7 +99,7 @@ export class People{
     const mk = (key, geo, m, out, n, c=cast, recv=true)=>{ P[key] = new PartSet(scene, geo, m, out, n, c, recv); P[key].mesh.name = name+':'+key; };
     const o1 = ol(.012), oThin = ol(.008,1.4), oHead = ol(.013,2.0);
     const matFace = faceMaterial(faceAtlas());
-    for(const v of [0,1]) mk('head'+v, B.buildHead(v,D), matFace, oHead, max, cast, false);
+    for(const v of [0,1]){ mk('head'+v, B.buildHead(v,D,true), matFace, oHead, max, cast, true); mk('head'+v+'h', B.buildHead(v,D,false), matFace, oHead, max, cast, true); }
     mk('koko', B.buildTorso('koko',D), mat, o1, max);
     mk('kid', B.buildTorso('kid',D), mat, o1, max);
     mk('gamis', B.buildTorso('gamis',D), mat, o1, max);
@@ -109,8 +109,8 @@ export class People{
     mk('shin', B.buildShin(D), mat, oThin, max*2);
     mk('sarong', B.buildSarong(D), matS, o1, max);
     mk('skirt', B.buildSkirt(D), mat, o1, max);
-    for(const h of HATS) mk('hat_'+h, B.buildHat(h,D), mat, o1, max, cast, false);
-    for(const d of DRAPES) mk('drape_'+d, B.buildDrape(d,D), mat, o1, max, cast, false);
+    for(const h of HATS) mk('hat_'+h, B.buildHat(h,D), mat, o1, max, cast, true);
+    for(const d of DRAPES) mk('drape_'+d, B.buildDrape(d,D), mat, o1, max, cast, true);
     for(const a of ACCS) mk('acc_'+a, B.buildAcc(a,D), a==='glasses'?matF:mat, a==='beard'?oThin:null, max, a==='beard', false);
     // ground-tinted blob shadows (always; cheap contact shadow)
     const c = document.createElement('canvas'); c.width=c.height=64; const g=c.getContext('2d');
@@ -150,7 +150,10 @@ export class People{
       _a.copy(_ch); S(_a,1+p[I.breath]*.5,1+p[I.breath],1+p[I.breath]*.5);
       (sp.torso==='gamis'?P.gamis:kid?P.kid:P.koko).push(_a, pal);
       if(sp.sash) P.sash.push(_ch, pal);
-      if(sp.hat==='hijab'||sp.hat==='hijabSport') P['drape_'+(sp.drape||'std')].push(_ch, pal, p[I.fx]*.5, p[I.fz]*.6);
+      const hij = sp.hat==='hijab'||sp.hat==='hijabSport';
+      if(hij){ // drape hangs with gravity: counter-rotate against the bow about the neck
+        _a.copy(_ch); T(_a,0,.42,0); RX(_a,-(p[I.lean]+p[I.pp])*.72); T(_a,0,-.42,0);
+        P['drape_'+(sp.drape||'std')].push(_a, pal, p[I.fx]*.5, p[I.fz]*.6); }
       // arms (param: negative = forward); undo chest non-uniform scale for limbs
       const AL = L>.95?1:.9;
       for(const s of [-1,1]){
@@ -171,7 +174,7 @@ export class People{
       else if(oh>.5){ eC = CELL.eyeWide; }
       let mC = m>.18 ? (sm>.9&&m>.45?CELL.mGrin:CELL.mTalk) : oh>.5 ? CELL.mO : sm<.32 ? CELL.mFlat : (sp.catSmile&&sm<.8?CELL.mCat:CELL.mSmile);
       const code = faceCode(eC, mC, sp.brow ?? CELL.browAngled, sp.cheek ?? (kid?CELL.cheekKid:CELL.cheekBlush), open);
-      P['head'+(sp.head|0)].push(_H, pal, 0, 0, code);
+      P['head'+(sp.head|0)+(hij?'h':'')].push(_H, pal, 0, 0, code);
       (P['hat_'+sp.hat]||P.hat_hairShort).push(_H, pal);
       if(sp.acc) for(const a of sp.acc) P['acc_'+a]?.push(_H, pal);
     }

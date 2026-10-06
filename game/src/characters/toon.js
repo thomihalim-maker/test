@@ -45,6 +45,15 @@ vec3 palOf(float s){
   if(s<4.5) return iP2.yzw; if(s<5.5) return iP3.xyz; if(s<6.5) return vec3(iP3.w,iP4.xy); return vec3(iP4.zw,iP5.x);
 }`;
 const FLEX = `transformed += vec3(iP5.y, 0.0, iP5.z) * aSF.y;`;
+// push the shadow lookup out along the normal: round chibi shapes stop self-shadowing into streaks, but still receive
+// real shadows from the world (porch roofs, trees)
+const SHADOW_BIAS = `#include <shadowmap_vertex>
+#if defined( USE_SHADOWMAP ) && NUM_DIR_LIGHT_SHADOWS > 0
+  for(int i=0;i<NUM_DIR_LIGHT_SHADOWS;i++){
+    vec4 swp = worldPosition + vec4(shadowWorldNormal * (directionalLightShadows[i].shadowNormalBias + 0.07), 0.0);
+    vDirectionalShadowCoord[i] = directionalShadowMatrix[i] * swp;
+  }
+#endif`;
 
 export function personMaterial({map=null, rim=0.16}={}){
   const m = new THREE.MeshToonMaterial({ color:0xffffff, gradientMap:gradientMap(), vertexColors:true, map });
@@ -52,16 +61,22 @@ export function personMaterial({map=null, rim=0.16}={}){
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\n'+HEADER)
       .replace('#include <color_vertex>', 'vColor = color.rgb * palOf(aSF.x);')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\n'+FLEX);
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n'+FLEX)
+      .replace('#include <color_vertex>', '#include <color_vertex>\n vCloth = (aSF.x>1.5 && aSF.x<6.5 && aSF.x!=5.0) ? 1.0 : 0.0;')
+      .replace('#include <common>', '#include <common>\nvarying float vCloth;')
+      .replace('#include <shadowmap_vertex>', SHADOW_BIAS);
     sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vCloth;')
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
       { float f = 1.0 - saturate(dot(normalize(vNormal), normalize(vViewPosition)));
         totalEmissiveRadiance += pow(f,3.0) * ${rim.toFixed(2)} * vec3(1.0,0.84,0.66) * diffuseColor.rgb; }`)
       .replace('#include <opaque_fragment>', `
-      { // lilac-tinted shade so white cloth keeps its form
+      { // lilac-tinted shade on cloth only (keeps white cloth's form); clamped on light pastels to avoid mud
         float lb = dot(diffuseColor.rgb, vec3(.333)) + 1e-3;
         float sh = 1.0 - clamp(dot(outgoingLight, vec3(.333)) / lb, 0.0, 1.0);
-        outgoingLight = mix(outgoingLight, outgoingLight * vec3(0.86,0.80,1.10), clamp(sh*1.4,0.0,1.0));
+        float sat = max(diffuseColor.r,max(diffuseColor.g,diffuseColor.b)) - min(diffuseColor.r,min(diffuseColor.g,diffuseColor.b));
+        float amt = vCloth * clamp(sh*1.2,0.0,1.0) * mix(0.45, 1.0, smoothstep(0.05,0.3,sat) * (1.0-smoothstep(.6,.9,lb)) + step(.85,lb)*(1.0-smoothstep(0.0,0.08,sat)));
+        outgoingLight = mix(outgoingLight, outgoingLight * vec3(0.9,0.86,1.06), amt);
       }
       #include <opaque_fragment>`);
   };
@@ -106,9 +121,9 @@ export function toonMat(color){ return new THREE.MeshToonMaterial({color, gradie
 let _gradFace;
 function gradientFace(){
   if(_gradFace) return _gradFace;
-  const d = new Uint8Array([192,226,246,255]);
+  const d = new Uint8Array([200,200,238,255]);
   _gradFace = new THREE.DataTexture(d, d.length, 1, THREE.RedFormat);
-  _gradFace.minFilter = _gradFace.magFilter = THREE.NearestFilter; _gradFace.needsUpdate = true;
+  _gradFace.minFilter = _gradFace.magFilter = THREE.LinearFilter; _gradFace.needsUpdate = true;
   return _gradFace;
 }
 export function faceMaterial(atlas, {cols=6, rows=4, eyeV=.568}={}){
@@ -119,6 +134,7 @@ export function faceMaterial(atlas, {cols=6, rows=4, eyeV=.568}={}){
       .replace('#include <common>', '#include <common>\n'+HEADER+`
         flat varying vec4 vCells; flat varying float vOpen; flat varying vec3 vHair; varying vec2 vFUV; varying float vFMask;`)
       .replace('#include <color_vertex>', 'vColor = color.rgb * palOf(aSF.x);')
+      .replace('#include <shadowmap_vertex>', SHADOW_BIAS)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         vFUV = vec2((position.x+0.31)/0.62, (position.y+0.27)/0.44);
         vFMask = smoothstep(0.1, 0.2, position.z) * step(aSF.x, 1.5) * step(0.5, aSF.x);
