@@ -208,9 +208,10 @@ Catatan Android:
 
 Contoh: `?cam=...`, `?hour=18`, `?stage=3`, `?crowd`, `?demo`, `?panel=...`, `?show=...`, `?skip`, `?q=low`.
 Parameter debug tetap tersedia di build produksi, tetapi **aman**: parameter debug yang dibaca game
-(`act anim at autowalk cam carry crowd decor demo dist event fill freeze grow hint hour hourspeed hungry introhold joy
-lineup night nt panel pen phase pitch pose prayer show skip slots stage tab warp weather yaw`, plus `?dev`)
-menyalakan **mode sandbox**: progres tidak ditulis ke (dan tidak dihapus dari) `localStorage`, dan pojok atas layar
+(`act anim at autowalk cam carry clean crowd custom cutaway decor demo dirt dist event fill freeze grow hint hour hourspeed
+hungry introhold joy lineup night nt panel pen phase pitch pose prayer prayfast prayopen show skip slots stage tab warp
+weather yaw`, plus `?dev`)
+menyalakan **mode sandbox**: progres tidak ditulis ke (dan tidak dihapus dari) `localStorage`, dan pojok kiri bawah layar
 menampilkan label kecil **"Mode uji — progres tidak disimpan"**. Jadi link seperti `?demo` tidak mengubah save asli pemain.
 
 Semua parameter lain berjalan normal dan progres tetap tersimpan: parameter pemain (`q`, `quality`, `lang`, `nosw`,

@@ -38,7 +38,7 @@
   //    the game itself reads as debug switches (plus ?dev) turn it on. Player params (?q, ?quality, ?lang, ?nosw,
   //    ?fixeddpr) and anything unknown (utm_*, fbclid, igshid, si, ref, ttclid ... from shared links) are ignored.
   //    tools/build.mjs adds every param src/ reads to this list in dist/boot.js, so new debug switches are covered too.
-  var DEBUG_PARAMS = 'act anim at autowalk cam carry crowd decor demo dev dist event fill freeze grow hint hour hourspeed hungry introhold joy lineup night nt panel pen phase pitch pose prayer show skip slots stage tab warp weather yaw'.split(' '); // build:debug-params
+  var DEBUG_PARAMS = 'act anim at autowalk cam carry clean crowd custom cutaway decor demo dev dirt dist event fill freeze grow hint hour hourspeed hungry introhold joy lineup night nt panel pen phase pitch pose prayer prayfast prayopen show skip slots stage tab warp weather yaw'.split(' '); // build:debug-params
   var isDebug = {}; for (var i = 0; i < DEBUG_PARAMS.length; i++) isDebug[DEBUG_PARAMS[i]] = 1;
   var sandbox = []; params.forEach(function (_, k) { if (isDebug[k] === 1 && sandbox.indexOf(k) < 0) sandbox.push(k); });
   var KEY = 'marbot.save', wiped = false, LS = null;

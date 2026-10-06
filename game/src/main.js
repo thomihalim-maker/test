@@ -87,7 +87,7 @@ let hadSave = (()=>{ try{ return localStorage.getItem('marbot.save')!==null; }ca
 const persist = ()=>{
   if (wiped) return;
   try{ if (hadSave && localStorage.getItem('marbot.save')===null){ wiped = true; return; } }catch(e){}
-  save(ctx.state); hadSave = true;
+  save(ctx.state); try{ hadSave = localStorage.getItem('marbot.save')!==null; }catch(e){} // a failed write (quota) is no reset
 };
 document.addEventListener('visibilitychange',()=>{ if(document.hidden) persist(); else clock.getDelta(); });
 addEventListener('pagehide',persist); // reload / app close / update prompt

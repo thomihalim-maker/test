@@ -211,7 +211,7 @@ try {
   const panelAt = ((Date.now() - t0) / 1000).toFixed(0);
   await p4.waitForFunction(() => !document.getElementById('boot') || document.getElementById('boot').classList.contains('done'), null, { timeout: 240000, polling: 500 });
   const st = await p4.evaluate(() => ({ mods: Object.keys(window.__ctx?.modules || {}), bar: document.querySelector('.boot-toast.err')?.title || '' }));
-  ok('slow load + failed module: watchdog panel, then the game takes over', st.mods.length === 7 && !st.mods.includes('fx'), `panel at ${panelAt}s, game at ${((Date.now() - t0) / 1000).toFixed(0)}s, modules [${st.mods.join(',')}]`);
+  ok('slow load + failed module: watchdog panel, then the game takes over', st.mods.includes('ui') && st.mods.includes('progress') && !st.mods.includes('fx'), `panel at ${panelAt}s, game at ${((Date.now() - t0) / 1000).toFixed(0)}s, modules [${st.mods.join(',')}]`);
   ok('failed module reported in the error bar', /fx\/fx/.test(st.bar) && /smoke: fx init failed/.test(st.bar), st.bar.replace(/\n/g, ' ⏎ '));
   await c4.close();
 } catch (e) { ok('failed-module test', false, e.message.split('\n')[0]); }

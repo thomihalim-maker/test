@@ -16,8 +16,40 @@ const PI=Math.PI;
 
 export const ACTS = {
   feed:{dur:1.5,hit:.55}, water:{dur:1.9,hit:.9}, wash:{dur:2.4,hit:.5}, pet:{dur:1.7,hit:.6}, treat:{dur:1.5,hit:.55},
-  hammer:{dur:2.5,hit:.5}, wave:{dur:1.6,hit:.2}, jump:{dur:1.2,hit:.2}, bedug:{dur:2.4,hit:.15}, greet:{dur:1.5,hit:.2}, cheer:{dur:1.4,hit:.2}
+  hammer:{dur:2.5,hit:.5}, wave:{dur:1.6,hit:.2}, jump:{dur:1.2,hit:.2}, bedug:{dur:2.4,hit:.15}, greet:{dur:1.5,hit:.2}, cheer:{dur:1.4,hit:.2},
+  // masjid care + prayer acts
+  sweep:{dur:1.3,hit:.45}, mop:{dur:1.6,hit:.6}, scoop:{dur:1.2,hit:.55}, adzan:{dur:7,hit:.5}, takbir:{dur:.8,hit:.3}, nod:{dur:1.6,hit:.3}
 };
+
+// ---- straight-arm IK: aim a hand at a point given in CHARACTER space (x right-negative, y up from the ground, z forward).
+// The point is moved into the chest frame (undo pelvis height, bow and twist) and the arm is pointed at it (arm length .278:
+// out-of-reach targets are reached as far as the arm goes along that direction). Used for the two-hand tool grips.
+const ARM = .278;
+function chestPoint(tg, x, y, z, out){
+  const a = tg.lean + tg.pp, tw = tg.twist, ca = Math.cos(a), sa = Math.sin(a);
+  const py = y - tg.py;
+  const y1 = py*ca + z*sa, z1 = -py*sa + z*ca;
+  const ct = Math.cos(tw), st = Math.sin(tw);
+  out[0] = x*ct - z1*st; out[1] = y1; out[2] = x*st + z1*ct; return out;
+}
+const _cp = [0,0,0];
+function armAt(tg, s, x, y, z){
+  chestPoint(tg, x, y, z, _cp);
+  const dx = _cp[0]-s*.214, dy = _cp[1]-.345, dz = _cp[2], n = Math.max(1e-4, Math.hypot(dx,dy,dz));
+  const sa = clamp(-dz/n,-1,1), ca = Math.max(.08, Math.sqrt(1-sa*sa));
+  const ax = Math.atan2(sa, ca), th = Math.atan2(dx/(n*ca), -dy/(n*ca));
+  if(s>0){ tg.alx = ax; tg.alz = th; } else { tg.arx = ax; tg.arz = -th; }
+}
+// A long tool (broom/mop) held in both hands near its top, its tip resting on the floor at (tx,tz) (character space).
+// The two hands sit on the tool line around the grip point (gx,gy,gz), left hand above the right. Chibi arms are short
+// (about a fifth of the body height), so a close two-hand grip in front of the belly is what keeps the handle steep.
+// P.aimX/aimZ tell props.js where the tip touches the floor; the prop then runs from that point up through the hands.
+function gripTool(tg, P, tx, tz, gx, gy, gz, sep=.075){
+  let dx = gx-tx, dy = gy, dz = gz-tz; const n = Math.hypot(dx,dy,dz)||1; dx/=n; dy/=n; dz/=n;
+  armAt(tg,  1, gx+dx*sep, gy+dy*sep, gz+dz*sep);
+  armAt(tg, -1, gx-dx*sep, gy-dy*sep, gz-dz*sep);
+  P.aimX = tx; P.aimZ = tz;
+}
 
 function sitLegs(tg, cross){
   if(cross){ tg.py=.19; tg.llx=tg.lrx=1.42; tg.llz=tg.lrz=.42; tg.klx=tg.krx=2.35; }
@@ -50,7 +82,7 @@ export function solve(P, tg){
   tg.fz = -(.1*w+.14*run) - P.accZ*.025; tg.fx = Math.sin(ph+.6)*.1*w - P.accX*.02;
   tg.sgW = 1+.07*Math.abs(s)*w; tg.hx -= (P.stoop||0)*.6;
   tg.smile = .5 + .12*Math.sin(t*.4+sd) + .15*run;
-  P.prop = null; P.propTilt = 0;
+  P.prop = null; P.propTilt = 0; P.propMode = null;
 
   // ---- carry overlays
   const car = P.carry;
@@ -61,6 +93,9 @@ export function solve(P, tg){
     tg.alx = tg.arx = -1.25 + Math.sin(ph*2)*.05*w; tg.alz = tg.arz = -.08; tg.lean = tg.lean*.6 - .06; tg.hx -= .1; P.prop='hay';
   } else if(car==='hammer'){
     tg.arx = -.95 + s*amp*.2; tg.arz = .3; P.prop='hammer';
+  } else if(car==='broom' || car==='mop'){
+    // tool held upright at the right side, one hand, swinging gently with the walk
+    tg.arx = -.3 + s*amp*.12; tg.arz = .25; P.prop = car; P.propMode = 'carry';
   }
 
   const dur = P.actDur||1, u = clamp(t/dur,0,1);
@@ -93,10 +128,16 @@ export function solve(P, tg){
       tg.py = PY + (c2<.55?.03*sstep(0,.55,c2):-.07*slam); tg.klx=tg.krx=.4*slam; tg.sy = c2<.55 ? 1+.05*sstep(0,.55,c2) : 1-.1*slam; tg.sx = 1-(tg.sy-1)*.8;
       tg.mouth = .5*slam; tg.eye = 1-.75*slam; tg.smile=.75; tg.llx=-.2*slam; tg.lrx=.25*slam; tg.hx = .12*slam;
       P.prop='hammer'; P.hit = (c2>=.6 && !P._hitDone)?(P._hitDone=true,1):0; if(c2<.3) P._hitDone=false; break; }
-    case 'wave': case 'greet': {
+    case 'wave': {
       const r = sstep(0,.15,u)*(1-sstep(.85,1,u));
       tg.arz = .3+2.3*r + Math.sin(t*11)*.35*r; tg.arx = -.15*r; tg.hz = .12*r; tg.hy=.1*r; tg.smile=1; tg.mouth=.4*r; tg.eye=1-.25*r;
       tg.py = PY+.015*Math.sin(t*11)*r; tg.roll = .05*Math.sin(t*5.5)*r; break; }
+    case 'greet': { // salaman: both hands offered forward, a soft shake, a small bow, then the right hand to the chest
+      const r = sstep(0,.15,u)*(1-sstep(.88,1,u)), shake = sstep(.15,.3,u)*(1-sstep(.62,.72,u)), chest = sstep(.62,.75,u)*r;
+      const b = Math.sin(t*14)*.08*shake;
+      tg.arx = (-1.05 + b)*r*(1-chest) - 1.0*chest; tg.arz = .02*(1-chest) - .5*chest + .16*(1-r);
+      tg.alx = (-.95 + b)*r*(1-chest) + .03*chest; tg.alz = -.02*(1-chest) + .16*(1-r) + .14*chest;
+      tg.lean = .2*r*(shake*.6+.4); tg.hx = .2*r; tg.smile = 1; tg.eye = 1-.55*r; tg.mouth = .2*shake; tg.py = PY - .015*r; break; }
     case 'cheer': {
       const r = sstep(0,.15,u)*(1-sstep(.85,1,u));
       tg.alx = tg.arx = -2.6*r; tg.alz = tg.arz = .45*r+.12; tg.smile=1; tg.mouth=.8*r; tg.eye=1-.85*r;
@@ -112,6 +153,62 @@ export function solve(P, tg){
       const f = t*7.5; const r = sstep(0,.2,u)*(1-sstep(.9,1,u));
       tg.alx = -(.9+.75*Math.max(0,Math.sin(f)))*r; tg.arx = -(.9+.75*Math.max(0,Math.sin(f+PI)))*r; tg.alz=tg.arz=-.05;
       tg.lean = .12*r + .08*Math.abs(Math.sin(f))*r; tg.py = PY-.025*Math.abs(Math.cos(f))*r; tg.klx=tg.krx=.15*r; tg.smile=.95; tg.mouth=.3*r; tg.llx=tg.lrx=0; tg.twist=Math.sin(f)*.1*r; break; }
+    // ---- masjid care (two-hand tools aimed at a point on the floor; arms solved so the handle runs through both hands)
+    case 'sweep': {
+      const r = sstep(0,.12,u)*(1-sstep(.9,1,u));
+      // stroke: wind the broom out to the right, swish it across the front, ease back (one stroke per act)
+      const a = u<.25 ? sstep(0,.25,u) : u<.55 ? 1-2*sstep(.25,.55,u) : -1+sstep(.55,1,u);
+      const swish = u>.25&&u<.55 ? Math.sin((u-.25)/.3*PI) : 0;
+      tg.lean = (.3 + .06*swish)*r; tg.pp = .04*r; tg.py = PY - .035*r; tg.twist = (-.15 - .3*a)*r;
+      tg.klx = .18*r + .1*Math.max(0,a)*r; tg.krx = .18*r + .1*Math.max(0,-a)*r;  // weight shifts from foot to foot
+      tg.llx = .1*r - .08*a*r; tg.lrx = -.06*r + .08*a*r; tg.llz = tg.lrz = .05;
+      tg.roll = .05*a*r; tg.hx = -.1*r; tg.hy = -.25*a*r; tg.hz = .04*a*r;
+      const ph = .62 + a*.62, R0 = .82;
+      gripTool(tg, P, -R0*Math.sin(ph), R0*Math.cos(ph), -.01 - .05*a, .55, .36);
+      if(r<1){ const k=1-r; tg.alx=tg.alx*r+DEF.alx*k; tg.arx=tg.arx*r+DEF.arx*k; tg.alz=tg.alz*r+DEF.alz*k; tg.arz=tg.arz*r+DEF.arz*k; }
+      tg.smile = .9; tg.mouth = .25*swish*r; tg.eye = 1-.3*swish;
+      tg.sy = 1+.02*swish; tg.sx = 1-.015*swish;
+      P.prop = 'broom'; P.propMode = 'grip'; P.propPhase = a; break; }
+    case 'mop': {
+      const r = sstep(0,.12,u)*(1-sstep(.9,1,u));
+      // two long push/pull passes over the floor
+      const w = Math.sin(u*PI*2*2 - PI/2)*.5+.5;          // 0 pulled in .. 1 pushed out
+      tg.lean = (.18 + .2*w)*r; tg.pp = .05*r; tg.py = PY - (.02+.03*w)*r;
+      tg.llx = (.08 + .22*w)*r; tg.lrx = (-.1 - .1*w)*r; tg.klx = (.15+.2*w)*r; tg.krx = .12*r; tg.llz = tg.lrz = .05;
+      tg.twist = -.12*r + Math.sin(u*PI*6)*.05*r; tg.hx = -.12*r; tg.hy = -.12*r;
+      gripTool(tg, P, -.12 + Math.sin(u*PI*4)*.07, .64 + .42*w, -.02, .55, .34 + .06*w);
+      if(r<1){ const k=1-r; tg.alx=tg.alx*r+DEF.alx*k; tg.arx=tg.arx*r+DEF.arx*k; tg.alz=tg.alz*r+DEF.alz*k; tg.arz=tg.arz*r+DEF.arz*k; }
+      tg.smile = .95; tg.mouth = .2*w*r;
+      P.prop = 'mop'; P.propMode = 'grip'; P.propPhase = w; break; }
+    case 'scoop': {
+      // crouch with the pengki flat on the floor, nudge the leaves in, then lift it up tilted back so nothing spills
+      const r = sstep(0,.18,u)*(1-sstep(.88,1,u)), lift = sstep(.45,.7,u)*(1-sstep(.88,1,u));
+      const down = r*(1-lift*.75), nudge = Math.sin(u*PI*6)*(1-lift)*r;
+      tg.py = PY - .1*down; tg.klx = tg.krx = .5*down; tg.llx = tg.lrx = .28*down; tg.llz = tg.lrz = .07;
+      tg.lean = .42*down + .12*lift; tg.pp = .1*down; tg.hx = -.2*down - .05*lift; tg.twist = -.08*r;
+      armAt(tg, -1, -.13, .27 + .3*lift, .44 - .04*lift + .02*nudge);          // right hand: pengki handle
+      armAt(tg,  1, .16 - .06*lift, .36 + .22*lift + .05*nudge, .4);           // left hand helps / steadies
+      if(r<1){ const k=1-r; tg.alx=tg.alx*r+DEF.alx*k; tg.arx=tg.arx*r+DEF.arx*k; tg.alz=tg.alz*r+DEF.alz*k; tg.arz=tg.arz*r+DEF.arz*k; }
+      tg.smile = 1; tg.mouth = .35*lift; tg.eye = 1 - .5*lift;
+      P.prop = 'pengki'; P.propTilt = (-.08*down + .5*lift)*r; P.propPhase = lift; break; }
+    case 'adzan': {
+      // traditional adzan posture: upright, both hands raised open beside the ears, chin slightly up, eyes softly closed.
+      // Purely visual: no sound or voice comes from the character. Arms swing up sideways (never through the head).
+      const r = sstep(0,.08,u)*(1-sstep(.95,1,u)), rr = Math.min(1,r*1.15);
+      tg.alx = tg.arx = -.3*rr; tg.alz = tg.arz = .16 + 2.26*rr;
+      tg.lean = -.02*r; tg.hx = -.08*r; tg.hy = 0; tg.hz = 0; tg.pr = tg.roll = 0; tg.twist = 0;
+      tg.llx = tg.lrx = 0; tg.klx = tg.krx = .04; tg.fx = 0; tg.fz = 0;
+      tg.eye = 1 - .6*r; tg.smile = .45; tg.mouth = (.2 + .12*Math.sin(t*1.8))*r;
+      tg.breath = .035*Math.sin(t*1.8); break; }
+    case 'nod': { // salam from the rows: right hand on the chest, a gentle bow and smile
+      const r = sstep(0,.2,u)*(1-sstep(.8,1,u));
+      tg.arx = -1.0*r; tg.arz = -.55*r + .16*(1-r); tg.lean = .14*r*(.6+.4*Math.sin(u*PI)); tg.hx = .25*r; tg.smile = 1; tg.eye = 1-.6*r; break; }
+    case 'duduk': sitLegs(tg,false); tg.alx=tg.arx=-.9; tg.alz=tg.arz=-.06; tg.hx=.02; tg.hy=0; tg.eye=1; tg.smile=.55; tg.lean=.02; tg.pr=tg.roll=0; tg.breath=.02*Math.sin(t*1.5+sd); break;
+    case 'salamR': case 'salamL': { const d = a==='salamR'?-1:1; sitLegs(tg,false); tg.alx=tg.arx=-.85; tg.alz=tg.arz=-.08; tg.hy=d*.95; tg.hz=-d*.1; tg.hx=.05; tg.eye=.45; tg.smile=.5; tg.pr=tg.roll=0; break; }
+    case 'khutbah': { // the khatib stands calmly and gestures gently while the jamaah sit and listen (no text, no voice)
+      const g = Math.max(0,Math.sin(t*1.1+sd));
+      tg.alx = -.35 - .45*g; tg.alz = .2 + .1*g; tg.arx = -.25; tg.arz = .12; tg.hx = .05 + .05*Math.sin(t*.7); tg.hy = Math.sin(t*.45+sd)*.35;
+      tg.smile = .55; tg.mouth = .08*g; tg.eye = 1; tg.llx=tg.lrx=0; tg.lean = .02; break; }
     // ---- prayer / sitting poses (looping, spring-blended)
     case 'qiyam': tg.alx=-1.05; tg.arx=-1.22; tg.alz=tg.arz=-.36; tg.hx=.3; tg.eye=.2; tg.smile=.25; tg.llx=tg.lrx=0; tg.klx=tg.krx=.03; tg.lean=.03+(P.stoop||0)*.5; tg.hy=0; tg.hz=0; tg.fz=0; tg.fx=0; tg.pr=0; tg.roll=0; tg.breath=.02*Math.sin(t*1.6+sd); break;
     case 'takbir': tg.alx=tg.arx=-2.45; tg.alz=tg.arz=.38; tg.hx=.08; tg.eye=.2; tg.smile=.3; tg.llx=tg.lrx=0; tg.hy=0; tg.pr=tg.roll=0; break;
