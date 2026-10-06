@@ -10,7 +10,7 @@ import { save, reset, defaultState } from '../state.js';
     document.fonts.add(f); f.load().catch(()=>{}); } }catch(e){} })();
 
 const D={ // key: [id, en]
- day:['Hari','Day'], toEid:['menuju Idul Adha','to Eid al-Adha'], eidToday:['Idul Adha!','Eid!'], eidSub:['Hari Raya Kurban','Day of Sacrifice'], daysLeft:['{n} hari lagi','{n} days left'], claim:['Ambil','Claim'], claimed:['Diambil','Claimed'], doneTap:['Tugas selesai! Ketuk untuk ambil hadiah','Task done! Tap to claim'], holdReset:['Tahan untuk hapus progres','Hold to reset progress'], danger:['Zona bahaya','Danger zone'], h1k:['Gunakan tombol WASD atau panah untuk berjalan.','Use WASD or arrow keys to walk.'], eidGloss:['Semoga Allah menerima amal kita semua','May Allah accept it from us all'],
+ day:['Hari','Day'], toEid:['menuju Idul Adha','to Eid al-Adha'], eidToday:['Idul Adha!','Eid!'], eidSub:['Hari Raya Kurban','Festival of Sacrifice'], daysLeft:['{n} hari lagi','{n} days left'], claim:['Ambil','Claim'], claimed:['Diambil','Claimed'], doneTap:['Tugas selesai! Ketuk untuk ambil hadiah','Task done! Tap to claim'], holdReset:['Tahan untuk hapus progres','Hold to reset progress'], danger:['Zona bahaya','Danger zone'], h1k:['Gunakan tombol WASD atau panah untuk berjalan.','Use WASD or arrow keys to walk.'], eidGloss:['Semoga Allah menerima amal kita semua','May Allah accept it from us all'],
  quests:['Tugas','Tasks'], tasksToday:['Tugas Hari Ini','Today\'s Tasks'], shop:['Toko','Shop'], build:['Bangun','Build'], settings:['Atur','Settings'],
  hay:['Jerami','Hay'], water:['Air','Water'], soap:['Sabun','Soap'], treat:['Camilan','Treat'],
  hayD:['Makanan utama kambing & sapi','Main feed for goats & cows'], waterD:['Air bersih segar','Fresh clean water'], soapD:['Untuk memandikan hewan','For bathing animals'], treatD:['Bikin hewan senang','Makes animals happy'],
@@ -39,7 +39,7 @@ const D={ // key: [id, en]
  goatD:['Lincah dan suka jerami','Lively, loves hay'], sheepD:['Berbulu lembut','Soft and woolly'], cowD:['Besar dan sabar','Big and patient'],
  thanks:['Terima kasih, {names}! Kalian membawa kebahagiaan untuk banyak keluarga.','Thank you, {names}! You brought joy to many families.'], rewardEid:['Hadiah Idul Adha','Eid rewards'],
  newBatch:['Hewan-hewan baru telah tiba di kandang','A new group of animals has arrived'], eidCarry:['Level, hiasan, dan masjidmu tetap tersimpan.','Your level, decorations and masjid carry over.'], eidIn:['Idul Adha: {n} hari','Eid in {n} days'], eidTmr:['Idul Adha besok!','Eid is tomorrow!'], toBook:['Lihat cara mendapatkannya di Buku','See how to earn it in the Book'], howTo:['Cara:','How:'], nextYearBtn:['Sambut Tahun Baru','Welcome the New Year'], young:['{names} masih kecil, jadi tetap tinggal dan tumbuh bersamamu.','{names} are still young, so they stay and grow with you.'],
- lvName:['Level {l}','Level {l}'], bword:['berkah','blessings'], adult:['Dewasa','Adult'], eidBanner:['Selamat Hari Raya','Happy Eid'], lvTotal:['{n} berkah terkumpul','{n} blessings collected'],
+ lvName:['Level {l}','Level {l}'], bword:['berkah','blessings'], adult:['Dewasa','Adult'], lvTotal:['{n} berkah terkumpul','{n} blessings collected'],
 };
 const PARTS=[ // fallback list if masjid module has none
  {id:'pondasi',name:['Pondasi & Lantai','Foundation & Floor'],cost:40,desc:['Dasar yang kokoh','A solid base']},
@@ -163,15 +163,20 @@ export async function init(ctx){
 
   // ---------------- hotbar ----------------
   const hotbar=$('#hotbar');
+  // contextual tools: the full strip shows at the pen (where tools matter); elsewhere it folds to the selected tool. Tap to unfold.
+  let hotOpenUntil=0, nearPen=true;
+  hotbar.addEventListener('pointerdown',()=>{ if(hotbar.classList.contains('mini')){ hotOpenUntil=performance.now()+6000; hotbar.classList.remove('mini'); } },true);
+  function updateHotbar(now){ const p=ctx.modules.characters?.pos||ctx.cameraRig?.target; if(p&&Number.isFinite(p.x)) nearPen=Math.hypot(p.x-26,p.z-6)<14;
+    hotbar.classList.toggle('mini',started&&!nearPen&&now>hotOpenUntil); }
   function renderHotbar(){
     hotbar.innerHTML=''; for(const it of SHOP){ const n=S.inventory[it.id]||0; const b=el('button','hb'+(S.tool===it.id?' sel':'')+(n<=0?' empty':''),`${ic(it.icon)}<em>${n}</em>`); b.title=t(it.id);
-      b.onclick=()=>{ S.tool=it.id; ctx.emit('tool:select',it.id); renderHotbar(); }; hotbar.appendChild(b); }
+      b.onclick=()=>{ if(S.tool!==it.id){ S.tool=it.id; ctx.emit('tool:select',it.id); } hotOpenUntil=Math.max(hotOpenUntil,performance.now()+4000); renderHotbar(); }; hotbar.appendChild(b); }
   }
   ctx.on('inventory:change',renderHotbar);
 
   // ---------------- quests (logic lives in game/progress) ----------------
   const P=()=>ctx.modules.progress;
-  const qlist=$('#qlist'); let qOpen=false, claimN=0;
+  const qlist=$('#qlist'); let qOpen=false, claimN=0, lastChip='', peekT=0;
   const qTitle=q=>L(q.title).replace('{n}',q.goal);
   const qs=()=>P()?.quests?.()||[];
   function renderTracker(){
@@ -179,7 +184,8 @@ export async function init(ctx){
     for(const q of list) qlist.appendChild(el('div','q'+(q.done?' done':'')+(q.special?' sp':''),`<div class="chk">${ic(q.done?'check':q.icon)}</div><div class="qt">${q.special?ic('star','spi'):''}${qTitle(q)}<div class="bar"><i style="width:${q.prog/q.goal*100}%"></i></div></div><div class="cnt">${q.prog}/${q.goal}</div>`));
     const cl=list.filter(q=>q.done&&!q.claimed), cur=cl[0]||list.find(q=>!q.done);
     const tr=$('#tracker'); tr.classList.toggle('claim',!!cl.length); tr.classList.toggle('open',qOpen); tr.style.display=list.length?'':'none';
-    $('#qchip').innerHTML=cur?`${ic(cl.length?'check':cur.icon)}<span class="qt">${cl.length?t('claim')+': ':''}${qTitle(cur)}</span><span class="cnt">${cur.prog}/${cur.goal}</span>${ic('chev','chev')}`:`${ic('check')}<span class="qt">${t('allDone')}</span>${ic('chev','chev')}`;
+    const chip=cur?`${ic(cl.length?'check':cur.icon)}<span class="qt">${cl.length?t('claim')+': ':''}${qTitle(cur)}</span><span class="cnt">${cur.prog}/${cur.goal}</span>${ic('chev','chev')}`:`${ic('check')}<span class="qt">${t('allDone')}</span>${ic('chev','chev')}`;
+    if(chip!==lastChip){ if(lastChip){ tr.classList.add('peek'); clearTimeout(peekT); peekT=setTimeout(()=>tr.classList.remove('peek'),4000); } lastChip=chip; $('#qchip').innerHTML=chip; }
     claimN=cl.length; renderBookBadge();
   }
   function claim(id){ const q=P()?.claim(id); if(q){ renderTracker(); if(panel==='quest') renderPanel(); } }
@@ -330,7 +336,7 @@ export async function init(ctx){
   const cardOpen=()=>summary.classList.contains('on')||eidOv.classList.contains('on');
   function nextCard(){ if(!started||cardOpen()||!cardQ.length) return; const i=cardQ.findIndex(f=>!(f.soft&&quiet())); if(i>=0) cardQ.splice(i,1)[0](); }
   function queueCard(fn){ cardQ.push(fn); nextCard(); }
-  function closeCard(o){ o.classList.remove('on'); if(o===eidOv) root.classList.remove('eid-on'); sfx('pop'); setTimeout(nextCard,250); }
+  function closeCard(o){ o.classList.remove('on'); if(o===eidOv) document.body.classList.remove('eid-on'); sfx('pop'); setTimeout(nextCard,250); }
   function statHTML(icon,val,label,i){ return `<div class="stat" style="animation-delay:${.12*i+.2}s">${ic(icon)}<div><b>${val}</b><small>${label}</small></div></div>`; }
   ctx.on('day:summary',d=>{ lastClock=''; renderAll(); if(S.daysToEid===3) toast(t('eidSoon'),'crescent','good'); queueCard(()=>showSummary(d)); });
   function showSummary(d){
@@ -362,7 +368,9 @@ export async function init(ctx){
     const nm={goat:t('goats'),sheep:t('sheeps'),cow:t('cows')}, names=R.animals.map(a=>a.name).filter(Boolean);
     const nameStr=names.length>3?names.slice(0,3).join(', ')+' …':names.join(', ')||t('animals');
     const CC=['#ff5d73','#ffc447','#2fd0b5','#6cc4ff','#c08bff','#ffffff','#9be564'];
-    const confetti=Array.from({length:26},(_,i)=>`<i style="left:${(i*37)%100}%;--c:${CC[i%CC.length]};--d:${3.2+(i%5)*.6}s;--dl:${-((i*.73)%4).toFixed(2)}s;--x:${((i%7)-3)*4}vw;--r:${(i%2?1:-1)*(360+i*25)}deg;${i%3?'':'border-radius:50%;'}"></i>`).join('');
+    // CSS-only confetti (transform-only, compositor friendly) layered ABOVE the card; shapes: strip, dot, ketupat diamond
+    const confetti=Array.from({length:32},(_,i)=>`<i class="${['','dot','kt'][i%3]}" style="left:${(i*37+11)%100}%;--c:${CC[i%CC.length]};--d:${3.4+(i%5)*.55}s;--dl:${-((i*.73)%4.2).toFixed(2)}s;--x:${((i%7)-3)*4}vw;--r:${(i%2?1:-1)*(360+i*25)}deg"></i>`).join('');
+    const bunt=`<svg viewBox="0 0 400 60" preserveAspectRatio="none"><path d="M-10 6Q200 52 410 6" stroke="#8a5a2c" stroke-width="1.6" fill="none" vector-effect="non-scaling-stroke"/>${Array.from({length:15},(_,i)=>{ const x=i*27+11, tt=x/400, y=6+(1-(2*tt-1)**2)*23; const c=['#e8483f','#ffc83d','#35b5a5','#fff6e0','#2f9d5a'][i%5]; return `<path d="M${x-8} ${y}L${x+8} ${y+.6}L${x} ${y+17}z" fill="${c}" stroke="#7a4a22" stroke-width="1"/>`; }).join('')}</svg>`;
     eidOv.innerHTML=`<div class="eidcard clay"><div class="moonbig"><i class="ring"></i><i class="ring r2"></i>${ic('crescent')}</div>
       <div class="ehead"><h1>${t('eidTitle')}</h1><div class="gr">${t('eidGreet')}<small>${t('eidGloss')}</small></div></div>
       <div class="ebody"><div class="ecol">
@@ -375,8 +383,11 @@ export async function init(ctx){
         <div class="sm carry">${t('eidCarry')}</div>
       </div></div>
       <div class="btnrow"><button class="btn gold" id="eKeep">${t('nextYearBtn')}</button></div></div>
-      <div class="eidfx" aria-hidden="true">${confetti}</div>`;
-    eidOv.classList.add('on'); save(S);
+      <div class="eidfx" aria-hidden="true">${confetti}</div><div class="ebunt" aria-hidden="true">${bunt}</div>
+      <div class="eidintro" aria-hidden="true"><i class="burst"></i><i class="burst b2"></i>${ic('crescent')}<b>${t('eidTitle')}</b><small>${t('eidSub')}</small></div>`;
+    eidOv.classList.add('on'); document.body.classList.add('eid-on'); P()?.stopPlace?.(); if(panel) closePanel(); save(S);
+    // the intro splash only animates opacity away; it is also removed by timer so a stalled animation can never cover the card
+    const intro=$('.eidintro',eidOv); if(Q.has('introhold')) intro.style.animation='none'; else setTimeout(()=>intro?.remove(),1900);
     $('#eKeep').onclick=()=>{ closeCard(eidOv); eidTimer=0; if(pr?.newYear) pr.newYear(); else { S.eidDone=false; S.daysToEid=10; S.stats.years++; } lastClock=''; sfx('chime'); renderAll(); save(S); toast(t('newBatch'),'goat','good'); setTimeout(()=>toast(t('nextYear'),'calendar','good'),1200); };
     sfx('bedug'); setTimeout(()=>sfx('chime'),900); setTimeout(()=>sfx('bedug'),1600); eidTimer=0.01; confettiWave();
   }
@@ -390,6 +401,67 @@ export async function init(ctx){
     const tree=(x,y,s,c)=>`<g transform="translate(${x} ${y}) scale(${s})"><rect x="-6" y="-40" width="12" height="46" rx="5" fill="#8a5a2c"/><circle cx="0" cy="-60" r="34" fill="${c}"/><circle cx="-24" cy="-44" r="24" fill="${c}"/><circle cx="24" cy="-46" r="24" fill="${c}"/><circle cx="-8" cy="-74" r="16" fill="#fff" opacity=".12"/></g>`;
     const palm=(x,y,s)=>`<g transform="translate(${x} ${y}) scale(${s})"><path d="M0 0Q8 -60 -4 -120" stroke="#9a6a38" stroke-width="10" fill="none" stroke-linecap="round"/>${[-70,-30,10,50,90,130].map(a=>`<path transform="translate(-4 -120) rotate(${a})" d="M0 0Q30 -40 70 -10Q35 -20 0 0" fill="#4fae4a" stroke="#2f7f35" stroke-width="2"/>`).join('')}</g>`;
     const goat=(x,y,s,f=1)=>`<g transform="translate(${x} ${y}) scale(${s*f} ${s})"><ellipse cx="0" cy="-30" rx="38" ry="24" fill="#fffaf0"/><rect x="-26" y="-12" width="9" height="22" rx="4" fill="#f1dcaa"/><rect x="16" y="-12" width="9" height="22" rx="4" fill="#f1dcaa"/><ellipse cx="38" cy="-48" rx="17" ry="14" fill="#fffaf0"/><path d="M34 -60q-4 -14 -12 -14M44 -60q2 -14 10 -14" stroke="#c9a468" stroke-width="5" fill="none" stroke-linecap="round"/><ellipse cx="50" cy="-42" rx="9" ry="7" fill="#ffd1c4"/><circle cx="40" cy="-52" r="2.6" fill="#5a3a1e"/><ellipse cx="26" cy="-48" rx="9" ry="4" transform="rotate(30 26 -48)" fill="#f1dcaa"/></g>`;
+    // Title illustration matches the in-game masjid: Demak-style 3-tier tajug (honey sirap), whitewash hall on dark
+    // wood posts, gold mustaka, brick Kudus menara with a pavilion top, bedug pendopo, and a red-brick candi bentar gate.
+    const masjidArt=()=>{
+      const R1='#c98a4f', R2='#9a5a32', RS='#7a4426', FAS='#5e3a22', WALL='#fff6e6', WOOD='#6b4426', BR='#b9583b', BRD='#8f3d28', BRL='#e08d68', STONE='#ece2cc';
+      const tier=(id,ex,ey,tx,ty,apex)=>{ // front face (lit) + right side sliver (shade) + shingle rows + fascia
+        const sx=tx*.62+ex*.38*.5, face=apex?`M${-ex} ${ey}Q${-ex*.45} ${ey-12} 0 ${ty}Q${ex*.2} ${ey-14} ${ex*.62} ${ey}Z`:`M${-ex} ${ey}Q${-(ex+tx)/2-6} ${ey-10} ${-tx} ${ty}H${tx*.72}Q${sx+6} ${ey-12} ${ex*.8} ${ey}Z`;
+        const side=apex?`M${ex*.62} ${ey}Q${ex*.2} ${ey-14} 0 ${ty}Q${ex*.45} ${ey-12} ${ex} ${ey}Z`:`M${ex*.8} ${ey}Q${sx+6} ${ey-12} ${tx*.72} ${ty}H${tx}Q${(ex+tx)/2+6} ${ey-10} ${ex} ${ey}Z`;
+        const rows=[]; for(let y=ty+7;y<ey-3;y+=8) rows.push(`M${-ex} ${y}H${ex}`);
+        return `<clipPath id="${id}"><path d="${face} ${side}"/></clipPath><path d="${face}" fill="url(#rfg)"/><path d="${side}" fill="${R2}"/><path d="${rows.join('')}" stroke="${RS}" stroke-width="2" opacity=".35" clip-path="url(#${id})"/><path d="M${-ex-4} ${ey}H${ex+4}L${ex-4} ${ey+7}H${-ex+4}Z" fill="${FAS}"/>`;
+      };
+      const band=(w,y0,y1)=>`<rect x="${-w}" y="${y0}" width="${w*2}" height="${y1-y0}" fill="${WALL}"/>${[-1,-.5,0,.5,1].map(k=>`<rect x="${k*(w-4)-2.5}" y="${y0}" width="5" height="${y1-y0}" fill="${WOOD}"/>`).join('')}<rect x="${-w}" y="${y0}" width="${w*2}" height="3" fill="rgba(90,50,20,.25)"/>`;
+      const gold=(x,y,s)=>`<g transform="translate(${x} ${y}) scale(${s})"><path d="M0 -6V-40" stroke="#c47a0c" stroke-width="3"/><ellipse cx="0" cy="-4" rx="9" ry="5" fill="#f3b33a" stroke="#a8650c" stroke-width="1.5"/><path d="M0 -30Q11 -16 7 -8H-7Q-11 -16 0 -30Z" fill="url(#gg)" stroke="#a8650c" stroke-width="1.5"/><path d="M5 -52a9 9 0 1 0 1 15a7 7 0 1 1 -1 -15z" fill="#ffd23f" stroke="#a8650c" stroke-width="1.2"/></g>`;
+      const win=(x,y,w,h)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" fill="#7a4a2a" stroke="${WOOD}" stroke-width="2.5"/><path d="M${x+w/2} ${y}V${y+h}M${x} ${y+h/3}H${x+w}M${x} ${y+h*2/3}H${x+w}" stroke="#d9a868" stroke-width="1.6"/>`;
+      const gateHalf=`<path d="M-34 104H-116V72H-104V12H-94V-8H-82V-24H-68V-38H-56V-50H-45V-62H-34Z" fill="${BR}"/>
+        <path d="M-40 104V-62H-34V104Z" fill="${BRD}"/>
+        <path d="M-116 72H-104M-104 12H-94M-94 -8H-82M-82 -24H-68M-68 -38H-56M-56 -50H-45" stroke="${BRL}" stroke-width="3"/>
+        <path d="${Array.from({length:12},(_,i)=>`M-114 ${100-i*9}H-36`).join('')}" stroke="${BRD}" stroke-width="1.2" opacity=".45"/>
+        <rect x="-118" y="66" width="84" height="7" fill="${STONE}"/><circle cx="-70" cy="36" r="5" fill="#fff" stroke="#c9b48c" stroke-width="1.5"/><circle cx="-62" cy="-14" r="4" fill="#fff" stroke="#c9b48c" stroke-width="1.5"/>`;
+      return `<defs><linearGradient id="rfg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d99a5c"/><stop offset="1" stop-color="${R1}"/></linearGradient>
+        <linearGradient id="mnr" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#c8664a"/><stop offset=".7" stop-color="${BR}"/><stop offset="1" stop-color="${BRD}"/></linearGradient></defs>
+      <g transform="translate(800 648) scale(.7)">
+        <ellipse cx="0" cy="26" rx="300" ry="26" fill="#2f7f45" opacity=".25"/>
+        <!-- Kudus menara: tapered brick shaft, cornices, ceramic plates, pavilion with a 2-tier roof -->
+        <g transform="translate(-206 0)">
+          <rect x="-40" y="-10" width="80" height="32" fill="${BRD}"/><rect x="-42" y="-14" width="84" height="7" fill="${BRL}"/>
+          <path d="M-33 -10L-29 -150H29L33 -10Z" fill="url(#mnr)"/>
+          <path d="${Array.from({length:15},(_,i)=>`M-31 ${-18-i*9}H31`).join('')}" stroke="${BRD}" stroke-width="1.2" opacity=".4"/>
+          ${[-62,-112].map(y=>`<rect x="-37" y="${y}" width="74" height="8" fill="${BRD}"/><rect x="-37" y="${y}" width="74" height="2.5" fill="${BRL}"/>`).join('')}
+          <rect x="-41" y="-158" width="82" height="9" fill="${BRD}"/><rect x="-41" y="-158" width="82" height="3" fill="${BRL}"/>
+          <path d="M-9 -12V-36a9 9 0 0 1 18 0V-12Z" fill="#4a2414"/>
+          ${[[-16,-86],[16,-86],[0,-134]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="5.5" fill="#fff" stroke="#c9b48c" stroke-width="1.5"/><circle cx="${x}" cy="${y}" r="2.2" fill="#4aa8ee"/>`).join('')}
+          <rect x="-36" y="-196" width="7" height="40" fill="${WOOD}"/><rect x="29" y="-196" width="7" height="40" fill="${WOOD}"/><rect x="-3" y="-196" width="6" height="40" fill="${WOOD}" opacity=".8"/>
+          <rect x="-38" y="-170" width="76" height="5" fill="${WOOD}"/><path d="M-30 -165V-158M-18 -165V-158M-6 -165V-158M6 -165V-158M18 -165V-158M30 -165V-158" stroke="${WOOD}" stroke-width="3"/>
+          ${tier('mt1',54,-196,30,-220,false)}${tier('mt2',36,-222,0,-254,true)}${gold(0,-254,.55)}
+        </g>
+        <!-- bedug pendopo -->
+        <g transform="translate(206 0)">
+          <rect x="-46" y="-6" width="92" height="24" fill="${STONE}"/><rect x="-46" y="-6" width="92" height="4" fill="#d6c8aa"/>
+          <rect x="-40" y="-74" width="7" height="68" fill="${WOOD}"/><rect x="33" y="-74" width="7" height="68" fill="${WOOD}"/>
+          <path d="M-20 -6L-12 -24M20 -6L12 -24" stroke="${WOOD}" stroke-width="4"/>
+          <rect x="-24" y="-46" width="48" height="26" rx="6" fill="#c98a4a" stroke="${FAS}" stroke-width="2"/><ellipse cx="-24" cy="-33" rx="6" ry="13" fill="#f3e2bf" stroke="${FAS}" stroke-width="2"/><path d="M-14 -46V-20M0 -46V-20M14 -46V-20" stroke="${FAS}" stroke-width="1.5" opacity=".5"/>
+          ${tier('pt1',58,-74,28,-98,false)}${tier('pt2',34,-100,0,-128,true)}
+        </g>
+        <!-- hall: batu putih base, whitewash walls, dark wood posts, carved door, lattice windows -->
+        <rect x="-150" y="-4" width="300" height="28" fill="${STONE}"/><rect x="-150" y="-4" width="300" height="5" fill="#d6c8aa"/>
+        <path d="${Array.from({length:9},(_,i)=>`M${-130+i*33} 3V24`).join('')}" stroke="#c9b896" stroke-width="1.5"/>
+        <rect x="-130" y="-88" width="260" height="84" fill="${WALL}"/>
+        <rect x="-130" y="-88" width="260" height="14" fill="rgba(120,70,30,.2)"/>
+        ${win(-112,-66,22,30)}${win(-74,-66,22,30)}${win(52,-66,22,30)}${win(90,-66,22,30)}
+        <rect x="-22" y="-70" width="44" height="66" rx="3" fill="#8a5530" stroke="#e0b050" stroke-width="3"/><path d="M0 -70V-4M-14 -58H-6M6 -58H14" stroke="#5e3a22" stroke-width="2.5"/><circle cx="-5" cy="-36" r="2.4" fill="#ffd23f"/><circle cx="5" cy="-36" r="2.4" fill="#ffd23f"/>
+        ${[-126,-38,30,118].map(x=>`<rect x="${x}" y="-88" width="9" height="84" fill="${WOOD}"/>`).join('')}
+        <rect x="-36" y="24" width="72" height="9" fill="#ddd0b6"/><rect x="-28" y="33" width="56" height="9" fill="#d2c4a8"/>
+        <!-- three-tier tajug -->
+        ${band(84,-150,-138)}${band(52,-201,-190)}
+        ${tier('rt1',182,-88,94,-140,false)}${tier('rt2',134,-148,62,-190,false)}${tier('rt3',90,-199,0,-268,true)}
+        ${gold(0,-268,1)}
+        <!-- stone path and the split candi bentar gate in front -->
+        <path d="M-30 104H30L74 262H-74Z" fill="#e8d9b8"/><path d="M-27 132H27M-22 166H22M-36 200H36M-46 234H46" stroke="#cdbb92" stroke-width="3"/>
+        <g>${gateHalf}</g><g transform="scale(-1 1)">${gateHalf}</g>
+      </g>`;
+    };
     const stars=Array.from({length:18},(_,i)=>`<i class="spark" style="left:${(i*53)%100}%;top:${20+(i*37)%60}%;animation-delay:${(i%7)*.45}s"></i>`).join('');
     const letters=(w,off)=>[...w].map((c,i)=>`<span style="animation-delay:${off+i*.07}s,${(off+i*.07)+1}s">${c}</span>`).join('');
     title.innerHTML=`
@@ -398,10 +470,7 @@ export async function init(ctx){
      <div class="lay" data-d="16"><svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice">${hills('#8fd6c0','#6fc0a8',660,60,1)}</svg></div>
      <div class="lay mosq" data-d="26"><svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice">
         ${hills('#6cc58a','#4fa86a',740,50,2)}
-        <g transform="translate(800 610) scale(.78)"><rect x="-150" y="0" width="300" height="130" rx="10" fill="#fff6e0"/><rect x="-150" y="0" width="300" height="14" fill="#f0c874"/><path d="M-85 0c0-70 38-120 85-120s85 50 85 120z" fill="#35b5a5"/><path d="M-60 -20c8-40 26-62 52-70" stroke="#8ff0de" stroke-width="12" fill="none" stroke-linecap="round" opacity=".7"/><path d="M0 -122v-30" stroke="#c47a0c" stroke-width="6"/><path d="M12 -168a20 20 0 1 0 -4 34a14 14 0 1 1 4 -34z" fill="#ffc83d"/>
-          <rect x="-215" y="-110" width="42" height="240" rx="8" fill="#fff6e0"/><path d="M-222 -110l28-50 28 50z" fill="#35b5a5"/><rect x="173" y="-110" width="42" height="240" rx="8" fill="#fff6e0"/><path d="M166 -110l28-50 28 50z" fill="#35b5a5"/>
-          <rect x="-205" y="-70" width="22" height="30" rx="11" fill="#ffd45a"/><rect x="183" y="-70" width="22" height="30" rx="11" fill="#ffd45a"/>
-          ${[-110,-60,60,110].map(x=>`<rect x="${x-12}" y="30" width="24" height="46" rx="12" fill="#ffd45a"/>`).join('')}<path d="M-28 130v-60a28 28 0 0 1 56 0v60z" fill="#7a4a22"/></g></svg></div>
+        ${masjidArt()}</svg></div>
      <div class="lay" data-d="40"><svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice">${hills('#8fdc6a','#5cb84a',830,60,3)}${tree(170,800,1.2,'#58b84e')}${tree(300,830,.9,'#6fc85a')}${palm(1380,810,1.2)}${tree(1500,820,1,'#58b84e')}${palm(1230,830,.9)}
         ${goat(520,845,1)}${goat(1060,850,.85,-1)}</svg></div>
      <div class="lay" data-d="60"><svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice"><path d="M0 900V850Q200 810 420 860T900 860T1400 840T1600 850V900z" fill="#4ca83e"/><g fill="#3d9232">${Array.from({length:30},(_,i)=>`<path transform="translate(${i*55+10} 870)" d="M0 40Q-6 8 -10 -8Q4 14 6 40zM8 40Q12 12 22 4Q18 22 18 40z"/>`).join('')}</g></svg></div>
@@ -436,7 +505,8 @@ export async function init(ctx){
   const show=Q.get('show'); if(show){ skip();
     if(show==='eid') setTimeout(showEid,300);
     if(show==='summary') setTimeout(()=>showSummary({day:S.day,stats:{fed:5,washed:2,happy:4,visitors:6,placed:1,coins:140,pahala:23},doneN:3,total:4,streak:2,streakBonus:10,autoCoins:25,weekday:P()?.weekday?.(S.day)}),300);
-    if(show==='level') setTimeout(()=>showLevelUp({lv:3,unlocks:P()?.unlocksAt?.(3)||[]}),300); }
+    if(show==='level') setTimeout(()=>showLevelUp({lv:3,unlocks:P()?.unlocksAt?.(3)||[]}),300);
+    if(show==='sticker'){ hStep=2; setTimeout(()=>{ const s0=P()?.STICKERS?.[0]; if(s0) ctx.emit('sticker:new',s0); },400); } }
   if(Q.has('demo')){ S.coins=340; S.pahala=Math.max(S.pahala,128); S.daily={...S.daily,fed:2,washed:1,happy:2}; renderAll(); tween.coins=S.coins; tween.pahala=S.pahala; lastPah=S.pahala; lastCoins=S.coins; }
   // an Eid that was due before a reload still gets celebrated once the player is in
   if(P()?.pendingEid) queueCard(showEid);
@@ -446,7 +516,7 @@ export async function init(ctx){
     toast, openPanel, closePanel, overlayOpen, addCoins, addPahala, spend, showSummary, showEid, showLevelUp, startGame, t, get started(){ return started; },
     update(dt){
       if(started&&performance.now()-lastInput>6000&&!hud.classList.contains('idle')) hud.classList.add('idle');
-      renderTop(dt); const now=performance.now(); if(now-acc>500){ acc=now; renderClock(); renderBookBadge(); S.hour=ctx.hour; syncLedger(); }
+      renderTop(dt); const now=performance.now(); if(now-acc>500){ acc=now; renderClock(); renderBookBadge(); updateHotbar(now); S.hour=ctx.hour; syncLedger(); }
       if(eidTimer>0){ eidTimer+=dt; if(eidTimer>5){ eidTimer=0.01; if(eidOv.classList.contains('on')) confettiWave(); else eidTimer=0; } }
       if(cardQ.length) nextCard();
       // tutorial: advance only on real actions

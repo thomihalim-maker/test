@@ -66,7 +66,7 @@ export const STICKERS = [
   { id:'vis10',      icon:'people',  rim:'#35b5a5', name:['Tuan Rumah','Kind Host'],           how:['Sambut 10 jamaah','Welcome 10 visitors'], test:(S)=>S.stats.visitors>=10 },
   { id:'vis50',      icon:'people',  rim:'#ffc83d', name:['Masjid Ramai','Busy Masjid'],       how:['Sambut 50 jamaah','Welcome 50 visitors'], test:(S)=>S.stats.visitors>=50 },
   { id:'cow300',     icon:'cow',     rim:'#c9a468', name:['Sapi Jumbo','Jumbo Cow'],           how:['Rawat sapi sampai 300 kg','Grow a cow to 300 kg'], test:(S,c)=>c.maxCow>=300 },
-  { id:'herd8',      icon:'goat',    rim:'#7fcf5a', name:['Kandang Penuh Cinta','Full Pen'],   how:['Adopsi hewan baru (8+ ekor)','Adopt a new animal (8+ in the pen)'], test:(S,c)=>c.nA>=8&&S.stats.bought>=1 },
+  { id:'herd8',      icon:'goat',    rim:'#7fcf5a', name:['Kandang Penuh Cinta','Full Pen'],   how:['Adopsi hewan sampai 8 ekor','Adopt animals until 8 live in the pen'], on:'adopt', test:(S,c)=>c.nA>=8 },
   { id:'bedug',      icon:'drum',    rim:'#f0701c', name:['Dum Dum!','Boom Boom!'],            how:['Tabuh bedug','Beat the bedug'], test:(S)=>S.stats.bedug>=1 },
   { id:'maghrib',    icon:'moon',    rim:'#7d8cf0', name:['Penanda Senja','Dusk Drummer'],     how:['Tabuh bedug saat senja','Beat the bedug at dusk'], test:(S)=>S.stats.bedugDusk>=1 },
   { id:'streak3',    icon:'star',    rim:'#ffc83d', name:['Rajin 3 Hari','3-Day Streak'],      how:['Rajin 3 hari berturut-turut','3-day streak'], test:(S)=>S.bestStreak>=3 },
@@ -165,7 +165,7 @@ export async function init(ctx){
   ctx.on('animal:petted', d=>{ const a=d?.animal; if(!a) return; const id=a.name||a.seed||'?'; if(!S.pettedToday.includes(id)){ S.pettedToday.push(id); S.daily.petted=S.pettedToday.length; S.stats.petted++; checkQuests(); } });
   ctx.on('animal:happy', ()=>bump('happy'));
   ctx.on('animal:sick', ()=>{ S.daily.sick=(S.daily.sick||0)+1; });
-  ctx.on('animal:added', ()=>{ if(!loadingBatch) bump('bought'); });
+  ctx.on('animal:added', ()=>{ if(!loadingBatch){ bump('bought'); setTimeout(()=>checkStickers('adopt'),300); } });
   ctx.on('build:placed', ()=>{ bump('placed'); setTimeout(checkStickers,500); });
   ctx.on('visitor:arrive', ()=>bump('visitors'));
   ctx.on('visitor:donate', ()=>bump('donations'));
@@ -175,9 +175,10 @@ export async function init(ctx){
 
   // ---------- stickers ----------
   function stickers(){ return STICKERS.map(s=>({ ...s, got: S.stickers[s.id]||0 })); }
-  function checkStickers(){
+  // stickers with an `on` trigger are only checked at that moment (e.g. Full Pen is earned by adopting, never at boot)
+  function checkStickers(trigger){
     const c = qctx();
-    for(const s of STICKERS) if(!S.stickers[s.id]){ let ok=false; try{ ok=s.test(S,c); }catch(e){} if(ok){ S.stickers[s.id]=S.day||1; ctx.emit('sticker:new',s); sfx('chime'); } }
+    for(const s of STICKERS) if(!S.stickers[s.id] && (!s.on || s.on===trigger)){ let ok=false; try{ ok=s.test(S,c); }catch(e){} if(ok){ S.stickers[s.id]=S.day||1; ctx.emit('sticker:new',s); sfx('chime'); } }
   }
 
   // ---------- level watcher ----------
