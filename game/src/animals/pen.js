@@ -217,7 +217,7 @@ export function buildPen(ctx,lvl=0){
     thatch:new THREE.MeshStandardMaterial({vertexColors:true,map:thatchTexture(),roughness:1}),
     misc:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.7,side:THREE.DoubleSide}),
     foam:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.4,emissive:'#bfe8ff',emissiveIntensity:.05}) }; mats.tubfoam=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.35,emissive:'#ffffff',emissiveIntensity:.18,transparent:true,opacity:.88,depthWrite:false});
-  mats.trim=new THREE.MeshStandardMaterial({vertexColors:true,map:mats.wood.map,roughness:.88}); mats.thatch.alphaHash=true; mats.trim.alphaHash=true;
+  mats.trim=new THREE.MeshStandardMaterial({vertexColors:true,map:mats.wood.map,roughness:.88}); 
   const meshes={};
   for(const k of Object.keys(B)){
     if(!B[k].length) continue;
@@ -241,7 +241,7 @@ export function buildPen(ctx,lvl=0){
     const h=ctx.hour??8; const night=Math.max(Math.min(1,Math.max(0,(h-17.3)/1.8)),Math.min(1,Math.max(0,(6.8-h)/1.5)));
     warm.intensity=night*7*(.94+.06*Math.sin(t*7)); for(const l of lanterns) l.material.emissiveIntensity=.3+night*2.2;
     { const c=ctx.camera.position, near=Math.hypot(c.x-PEN.cx-(X1-8)/2,c.z-PEN.cz-(Z1-6)/2)<28; const high=near?Math.min(1,Math.max(0,(c.y-5.5)/4)):0;
-      const o=1-.72*Math.max(high,night*.85); mats.thatch.opacity=mats.trim.opacity=o; } mats.foam.emissiveIntensity=.05+night*.5;
+      const o=1-.68*Math.max(high,night*.85); for(const mt of [mats.thatch,mats.trim]){ mt.opacity=o; const tr=o<.985; if(mt.transparent!==tr){ mt.transparent=tr; mt.depthWrite=!tr; } } } mats.foam.emissiveIntensity=.05+night*.5;
     for(const st of stations.feed){ const f=Math.max(0,st.fill); st.mesh.visible=f>0.01; st.mesh.scale.set(1,.12+.14*f,.24+.05*f); st.mesh.position.y=.58+.14*f; const sd=st.mesh.userData.strands; if(sd){ sd.visible=f>.12; sd.position.y=.6+.16*f; } }
     const w=stations.water; w.mesh.position.y=.46+.28*Math.max(.05,w.fill)+Math.sin(t*2.2)*.004; w.mesh.material.emissiveIntensity=.2+Math.sin(t*1.7)*.05; w.mesh.visible=w.fill>.01;
     const wf=stations.wash.fill??0; stations.wash.water.position.y=.3+.28*Math.max(.05,wf)+Math.sin(t*1.5)*.006; stations.wash.water.visible=wf>.01;

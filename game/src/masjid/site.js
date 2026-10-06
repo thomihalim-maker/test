@@ -196,7 +196,7 @@ export function createSite(ctx, M, parent, api) {
   let sparkT = 0;
   const markPos = V3(0, 0, 0); let markVis = 0;
   ctx.interactables ??= [];
-  ctx.interactables.push({ kind: 'build', get label() { return api.lang() ? 'Build' : 'Bangun'; }, icon: '🔨', pos: markPos, r: 2.4, priority: .5, enabled: () => marker.visible && markVis > .5 });
+  ctx.interactables.push({ kind: 'build', get label() { return api.lang() ? 'Build' : 'Bangun'; }, icon: 'hammer', pos: markPos, r: 2.4, priority: .5, enabled: () => marker.visible && markVis > .5 });
   ctx.on('interact', d => {
     if (d?.kind !== 'build' || !marker.visible) return;
     const ui = ctx.modules.ui;
