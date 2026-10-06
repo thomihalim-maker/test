@@ -145,7 +145,7 @@ export function buildTerrain(ctx, { quality='high' }={}){
     const sp=shadeAt(x,z,h,ny,tmp);
     let w=Math.pow(sp[0],0.6)*(0.75+0.5*vnoise(x*0.9,z*0.9))*S(0.82,0.92,ny)*S(-0.2,0.25,h);
     if(r>40) w*=S(0.3,0.8,h);
-    w*=S(0.0,0.6,clearance(x,z)+1.2);
+    w*=S(0.0,0.6,clearance(x,z)+1.2)*S(14.4,15.6,r);
     mcol[k*3]=tmp.r; mcol[k*3+1]=tmp.g; mcol[k*3+2]=tmp.b;
     gm[k*4]=Math.min(255,Math.sqrt(tmp.r)*255); gm[k*4+1]=Math.min(255,Math.sqrt(tmp.g)*255); gm[k*4+2]=Math.min(255,Math.sqrt(tmp.b)*255); gm[k*4+3]=clamp(w,0,1)*255;
     hh[k]=THREE.DataUtils.toHalfFloat(h);

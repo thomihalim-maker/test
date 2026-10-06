@@ -519,7 +519,7 @@ input[type=range]::-moz-range-thumb{width:44px;height:44px}
 }
 
 /* ---------- title fixes ---------- */
-#title .sun{left:6%;right:auto;top:7%}
+#title .sun{left:21%;right:auto;top:5%}
 #title .bunt{display:none;left:0;right:0;top:0;bottom:auto;height:16%}
 #title .bunt svg{position:absolute;inset:0;width:100%;height:100%}
 @media (orientation:portrait){
@@ -528,7 +528,7 @@ input[type=range]::-moz-range-thumb{width:44px;height:44px}
   #title .logo{top:19%}
   #title .lang{top:calc(.6em + var(--sat))}
 }
-@media (orientation:landscape) and (max-height:820px){ #title .mosq svg{transform:translateY(9%)} #title .tag{margin-top:.5em} }
+@media (orientation:landscape) and (max-height:820px){ #title .mosq svg{transform:translateY(2%) scale(.9);transform-origin:50% 100%} #title .tag{margin-top:.5em} #title .menu{bottom:calc(6% + var(--sab))} }
 @media (orientation:landscape) and (max-height:520px){ #title .mosq svg{transform:translateY(13%)} #title .logo .crescent{width:2.4em;height:2.4em} .lg{font-size:clamp(2.6em,13vmin,8em)} .lg.b{font-size:clamp(2.2em,11vmin,6.4em)} }
 .sheet.money .hcoin{top:2.2em}
 .sheet.money .body{padding-top:5em}
@@ -554,3 +554,4 @@ input[type=range]::-moz-range-thumb{width:44px;height:44px}
 .sheet .body>.tabs:first-child{margin-right:2.9em}
 @media (max-width:640px) and (orientation:portrait){ .sheet.money .body>.tabs:first-child{margin-right:0} }
 @media (orientation:portrait){ #title .bunt{top:6%;height:13%} #title .logo{top:24%} #title .sun{top:15%} }
+@media (orientation:landscape) and (max-height:520px){ #title .mosq svg{transform:translateY(3%) scale(.86);transform-origin:50% 100%} #title .menu{bottom:calc(3% + var(--sab))} }

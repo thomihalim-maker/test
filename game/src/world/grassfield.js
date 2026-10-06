@@ -31,7 +31,7 @@ export function createGrassField(ctx, terrain, { count = 9000, radius = 17 } = {
       vec4 mk=texture2D(uMask,tuv); float gh=texture2D(uHF,tuv).r;
       float dist=length(wp-uFocus);
       float fade=1.0-smoothstep(uR*0.55,uR*0.97,dist);
-      float s=smoothstep(0.15,0.6,mk.a)*fade*(0.75+0.6*aRnd.x);
+      float s=smoothstep(0.15,0.6,mk.a)*fade*(0.75+0.6*aRnd.x)*smoothstep(14.2,15.2,length(wp));
       float ca=cos(aRnd.y*6.283), sa=sin(aRnd.y*6.283);
       vec3 transformed=vec3(ca*position.x-sa*position.z,position.y,sa*position.x+ca*position.z)*s;
       float ww=clamp(position.y/0.6,0.0,1.0); ww*=ww;
