@@ -21,7 +21,7 @@ const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 // ------------------------------------------------------------------ catalog (ids + swatches are a contract with game/custom.js)
 export const CUSTOM = {
   roof: { sirap: '#c98a4f', sirapTua: '#7a4a2c', genteng: '#c8643a', hijau: '#2f8f5a', toska: '#1f8f8a' },
-  wall: { putih: '#fffaf0', krem: '#f6e3bf', hijau: '#d9efd2', biru: '#d6e9f7', pasir: '#ead2a8' },
+  wall: { putih: '#fffaf0', krem: '#f6e3bf', hijau: '#bfe3b0', biru: '#b9d9f2', pasir: '#e6c58f' },
   trim: { toska: '#2f8f86', hijau: '#3f8f3a', emas: '#d9a028', merah: '#9a2f3a', biru: '#2a4f9a' },
   roofStyle: { tumpang3: null, tumpang2: null, kubah: null },
   finial: { mustaka: null, kuncup: null, bulan: null, mahkota: null },
@@ -91,7 +91,10 @@ export function createComposer(parent) {
     const px = L.pivot.x, py = L.pivot.y + dy, pz = L.pivot.z, oy = L.pivot.y;
     for (const s of L.segs) {
       const attr = s.r.mesh.geometry.attributes.position, a = attr.array, o = s.orig, b = s.start * 3, n = s.count * 3;
-      if (gone) for (let i = 0; i < n; i += 3) { a[b + i] = px; a[b + i + 1] = py; a[b + i + 2] = pz; }
+      if (L.clamp && !gone) { // 'dollhouse' cut: only the part above the pivot height folds down onto it (lower wall stays)
+        if (sy === 1) a.set(o, b);
+        else for (let i = 0; i < n; i += 3) { a[b + i] = o[i]; a[b + i + 1] = o[i + 1] > oy ? oy + (o[i + 1] - oy) * sy : o[i + 1]; a[b + i + 2] = o[i + 2]; }
+      } else if (gone) for (let i = 0; i < n; i += 3) { a[b + i] = px; a[b + i + 1] = py; a[b + i + 2] = pz; }
       else if (sxz === 1 && sy === 1 && dy === 0) a.set(o, b);
       else for (let i = 0; i < n; i += 3) { a[b + i] = px + (o[i] - px) * sxz; a[b + i + 1] = py + (o[i + 1] - oy) * sy; a[b + i + 2] = pz + (o[i + 2] - pz) * sxz; }
       attr.addUpdateRange(b, n); attr.needsUpdate = true;
@@ -99,7 +102,7 @@ export function createComposer(parent) {
     setShown(L, !gone);
   }
   function addLayer(id, entries, o) {
-    const L = { id, segs: [], pivot: o.pivot.clone(), cut: !!o.cut, on: !!o.on, anim: null, offY: 0, apex: o.apex ?? 0, shown: true, ls: 1, ly: 1, ld: 0, lg: false };
+    const L = { id, segs: [], pivot: o.pivot.clone(), cut: +o.cut || 0, clamp: !!o.clamp, on: !!o.on, anim: null, offY: 0, apex: o.apex ?? 0, shown: true, ls: 1, ly: 1, ld: 0, lg: false };
     for (const [key, e] of entries) {
       const r = rec(key, e.mat, e.cast), g = one(e.list); if (!g) continue;
       const res = append(r, g); if (!res) continue;
@@ -121,7 +124,8 @@ export function createComposer(parent) {
     L.lg = null;
   }
   function setOffY(id, dy) { const L = layers.get(id); if (L && L.offY !== dy) { L.offY = dy; L.lg = null; } }
-  function update(dt, cut) {
+  /** cut: hall roof/ceiling cutaway 0..1; cut2: deep cutaway 0..1 (veranda roof, upper front wall) for layers with cut 2 */
+  function update(dt, cut, cut2 = 0) {
     for (const L of layers.values()) {
       let sxz = 1, sy = 1, gone = !L.on;
       const A = L.anim;
@@ -136,8 +140,12 @@ export function createComposer(parent) {
           if (p >= 1) { L.anim = null; gone = true; }
         }
       }
-      if (L.cut && !gone && cut > 0) { sy *= 1 - cut; sxz *= 1 + .06 * Math.sin(Math.PI * cut); if (cut >= .985) gone = true; }
-      if (!gone && (sy < .004 || sxz < .004)) gone = true;
+      const c = L.cut === 2 ? cut2 : L.cut ? cut : 0;
+      if (L.clamp) { if (!gone && c > 0) { sy *= Math.max(.02, 1 - c); sxz = 1; } }
+      else {
+        if (c > 0 && !gone) { sy *= 1 - c; sxz *= 1 + .06 * Math.sin(Math.PI * c); if (c >= .985) gone = true; }
+        if (!gone && (sy < .004 || sxz < .004)) gone = true;
+      }
       if (gone === L.lg && (gone || (sxz === L.ls && sy === L.ly)) && L.offY === L.ld) continue;
       write(L, sxz, sy, L.offY, gone); L.lg = gone; L.ls = sxz; L.ly = sy; L.ld = L.offY;
     }
@@ -406,6 +414,7 @@ const BUILD = {
   gate: { bentar: gateBentar, sederhana: gateSederhana, paduraksa: gatePaduraksa },
 };
 const ease = t => t * t * (3 - 2 * t);
+const DEEP_CUT = new Set(['decor', 'decorPorch', 'design']), DEEP_ONLY = new Set(['decorPorch']);
 
 /**
  * o: { M, group, bakeParent, initial, isBuilt(n), isBaked(n), sajadah(), lanterns(), playerPos(), stage() }
@@ -416,7 +425,7 @@ export function createCustom(ctx, o) {
   let applied = sanitizeCustom(o.initial);
   const active = {};                 // cat -> id whose layer is currently on
   let gateCols = [], pending = false, lanternShown = null, instPop = null;
-  const cutKeys = new Set(); let cut = 0, inHall = false;
+  const cutKeys = new Set(); let cut = 0, cut2 = 0, inHall = false, nShallow = 0, nDeep = 0;
 
   // ---------------- materials (instant at every stage; textures cached by id inside tex.js)
   const C = new THREE.Color(), C2 = new THREE.Color();
@@ -484,7 +493,7 @@ export function createCustom(ctx, o) {
     });
     root.parent?.remove(root); for (const g of new Set(disp)) g.dispose();
     const on = cat === 'cut' ? true : active[cat] === id;
-    const L = composer.addLayer(vid, entries, { pivot: root.userData.pivot ?? V3(0, 0, 0), cut: !!root.userData.cut, on, apex: root.userData.apex });
+    const L = composer.addLayer(vid, entries, { pivot: root.userData.pivot ?? V3(0, 0, 0), cut: +root.userData.cut || 0, clamp: !!root.userData.clamp, on, apex: root.userData.apex });
     if (cat === 'finial') L.offY = (APEX[active.roofStyle] ?? L.apex) - L.apex;
     return L;
   }
@@ -556,7 +565,12 @@ export function createCustom(ctx, o) {
   }
 
   // ---------------- cutaway (roof styles, finial, ceiling and mihrab cap squash away so the hall floor can be seen)
-  function setCutaway(key, on) { if (on) cutKeys.add(String(key)); else cutKeys.delete(String(key)); }
+  // Keys in DEEP_CUT also fold away the veranda roof and the upper half of the front (south) wall, so decor slots on the porch
+  // ceiling and the hall floor are visible from the framing camera. DEEP_ONLY keys do not lift the hall roof.
+  function setCutaway(key, on) {
+    key = String(key); if (on) cutKeys.add(key); else cutKeys.delete(key);
+    nShallow = 0; nDeep = 0; for (const k of cutKeys) { if (!DEEP_ONLY.has(k)) nShallow++; if (DEEP_CUT.has(k)) nDeep++; }
+  }
   function update(dt) {
     const st = o.stage();
     const p = st >= 2 ? o.playerPos() : null;
@@ -565,9 +579,10 @@ export function createCustom(ctx, o) {
       const ins = p.x > -5.0 - m && p.x < 5.0 + m && p.z > -7.5 - m && p.z < 2.0 + m;
       if (ins !== inHall) { inHall = ins; setCutaway('player', ins); }
     } else if (inHall) { inHall = false; setCutaway('player', false); }
-    const target = cutKeys.size && st >= 2 ? 1 : 0;
+    const target = nShallow && st >= 2 ? 1 : 0, target2 = nDeep && st >= 2 ? 1 : 0;
     cut = target > cut ? Math.min(target, cut + dt / .25) : Math.max(target, cut - dt / .25);
-    composer.update(dt, ease(cut));
+    cut2 = target2 > cut2 ? Math.min(target2, cut2 + dt / .3) : Math.max(target2, cut2 - dt / .3);
+    composer.update(dt, ease(cut), ease(cut2));
     stepInstPop(dt);
   }
 
@@ -577,7 +592,7 @@ export function createCustom(ctx, o) {
     lanternGeos: () => { lanternShown = applied.lantern; return lanternGeos(applied.lantern); },
     afterBake() { if (pending) applyStyles(true); else tintSajadah(); },
     get applied() { return { ...applied }; }, get active() { return { ...active }; },
-    get cutaway() { return ease(cut); }, get cutKeys() { return [...cutKeys]; },
+    get cutaway() { return ease(cut); }, get cutKeys() { return [...cutKeys]; }, get deepCutaway() { return ease(cut2); },
     get gateColliders() { return gateCols.slice(); },
   };
 }

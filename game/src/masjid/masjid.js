@@ -217,6 +217,16 @@ export async function init(ctx) {
   ctx.on('prayer:done', () => { setMarker('imam', false); custom.setCutaway('prayer', false); });
   ctx.on('prayer:close', () => { offAll(); custom.setCutaway('prayer', false); });
   ctx.on('day:new', () => { offAll(); custom.setCutaway('prayer', false); });
+  // decor placing: when any free slot is on the porch or in the hall, fold the veranda roof + upper front wall away
+  // (deep-only key: the hall roof itself is lifted by progress's own 'decor' key when hall slots are offered)
+  ctx.on('decor:placing', d => {
+    let inMasjid = !!(d && (d.masjid || d.inside));
+    if (d && !inMasjid) try {
+      const P = ctx.modules.progress, ids = P?.freeSlots?.(d.kind) ?? [], sp = P?.decor?.slotPos;
+      for (const id of ids) { const q = sp?.get?.(id); if (q && Math.abs(q.x) < 8.2 && q.z > -8 && q.z < 8.5) { inMasjid = true; break; } }
+    } catch (e) { }
+    custom.setCutaway('decorPorch', inMasjid);
+  });
 
   // ---- routes: hall door + walk around the hall (characters.walkTo tries ctx.routes in order) ----
   // walkTo takes the FIRST non-null route, so splice in the other routes (e.g. the animal pen gate) before/after our legs.
@@ -290,6 +300,7 @@ export async function init(ctx) {
     setCutaway: (key, on) => custom.setCutaway(key, on),
     get cutaway() { return custom.cutaway; },
     get cutawayKeys() { return custom.cutKeys; },
+    get deepCutaway() { return custom.deepCutaway; },
     sanitizeCustom,
     update(dt, t) {
       anim.update(dt);

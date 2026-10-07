@@ -112,7 +112,7 @@ export async function init(ctx){
     try{ f(pos.isVector3||pos.x!==undefined?pos:ZERO,n|0,opts); }catch(e){ console.warn('fx burst',kind,e); } }
 
   // ---- expanding ripple rings (adzan 'call' visual): one InstancedMesh, additive, max 8 live ----
-  const RMAX=8;
+  const RMAX=12;
   const ringGeo=new THREE.PlaneGeometry(2,2); ringGeo.rotateX(-Math.PI/2);
   const rAlpha=new THREE.InstancedBufferAttribute(new Float32Array(RMAX),1).setUsage(THREE.DynamicDrawUsage);
   const rCol=new THREE.InstancedBufferAttribute(new Float32Array(RMAX*3),3).setUsage(THREE.DynamicDrawUsage);
@@ -128,15 +128,18 @@ export async function init(ctx){
   const ringMesh=new THREE.InstancedMesh(ringGeo,ringMat,RMAX); ringMesh.frustumCulled=false; ringMesh.renderOrder=13; ringMesh.count=0; ringMesh.visible=false; ringMesh.castShadow=ringMesh.receiveShadow=false;
   ctx.scene.add(ringMesh);
   // live ring slots + pending (scheduled) rings; fixed-size pools, no per-frame allocation
-  const rings=[]; for(let i=0;i<RMAX;i++) rings.push({on:false,t:0,life:1,x:0,y:0,z:0,r0:.5,r1:6,cr:1,cg:.8,cb:.5,born:0});
-  const pend=[]; for(let i=0;i<24;i++) pend.push({on:false,at:0,x:0,y:0,z:0,r0:.5,r1:6,life:2.2,cr:1,cg:.8,cb:.5});
-  const rc=new THREE.Color(), rm=new THREE.Matrix4(); let clock=0, ringBorn=0;
+  const rings=[]; for(let i=0;i<RMAX;i++) rings.push({on:false,t:0,life:1,x:0,y:0,z:0,r0:.5,r1:6,cr:1,cg:.8,cb:.5,born:0,dir:false,dx:0,dz:1,yaw:0,adv:0});
+  const pend=[]; for(let i=0;i<24;i++) pend.push({on:false,at:0,x:0,y:0,z:0,r0:.5,r1:6,life:2.2,cr:1,cg:.8,cb:.5,dir:false,dx:0,dz:1,yaw:0,adv:0});
+  const rc=new THREE.Color(), rm=new THREE.Matrix4(), rq=new THREE.Quaternion(), rE=new THREE.Euler(0,0,0,'YXZ'), rP=new THREE.Vector3(), rS=new THREE.Vector3(); let clock=0, ringBorn=0;
   function startRing(q){ let s=null, old=null; for(const r of rings){ if(!r.on){ s=r; break; } if(!old||r.born<old.born) old=r; } s=s||old;
-    s.on=true; s.t=0; s.life=q.life; s.x=q.x; s.y=q.y; s.z=q.z; s.r0=q.r0; s.r1=q.r1; s.cr=q.cr; s.cg=q.cg; s.cb=q.cb; s.born=++ringBorn; }
-  function ring(pos,{color='#ffd27a',r0=.5,r1=6,life=2.2,count=3,interval=.5}={}){
+    s.on=true; s.t=0; s.life=q.life; s.x=q.x; s.y=q.y; s.z=q.z; s.r0=q.r0; s.r1=q.r1; s.cr=q.cr; s.cg=q.cg; s.cb=q.cb; s.dir=q.dir; s.dx=q.dx; s.dz=q.dz; s.yaw=q.yaw; s.adv=q.adv; s.born=++ringBorn; }
+  // dir:{x,z} → a vertical sound-wave ring facing that direction that travels `adv` m outward (horn-style); no dir → flat ground ripple
+  function ring(pos,{color='#ffd27a',r0=.5,r1=6,life=2.2,count=3,interval=.5,dir=null,adv=0}={}){
     if(!pos||!Number.isFinite(pos.x)) return 0; rc.set(color); let n=0;
+    const hasDir=!!(dir&&Number.isFinite(dir.x)&&Number.isFinite(dir.z)&&(dir.x||dir.z)); const dl=hasDir?Math.hypot(dir.x,dir.z):1;
     for(let k=0;k<Math.max(1,count|0);k++){ let q=null; for(const p of pend) if(!p.on){ q=p; break; } if(!q) break;
-      q.on=true; q.at=clock+k*interval; q.x=pos.x; q.y=pos.y??0; q.z=pos.z; q.r0=r0; q.r1=r1; q.life=Math.max(.2,life); q.cr=rc.r; q.cg=rc.g; q.cb=rc.b; n++; }
+      q.on=true; q.at=clock+k*interval; q.x=pos.x; q.y=pos.y??0; q.z=pos.z; q.r0=r0; q.r1=r1; q.life=Math.max(.2,life); q.cr=rc.r; q.cg=rc.g; q.cb=rc.b;
+      q.dir=hasDir; q.dx=hasDir?dir.x/dl:0; q.dz=hasDir?dir.z/dl:1; q.yaw=Math.atan2(q.dx,q.dz); q.adv=hasDir?(+adv||0):0; n++; }
     return n;
   }
   function stepRings(dt){
@@ -145,19 +148,36 @@ export async function init(ctx){
     let c=0;
     for(const r of rings){ if(!r.on) continue; r.t+=dt; const k=r.t/r.life; if(k>=1){ r.on=false; continue; }
       const e=1-Math.pow(1-k,2.2), rad=r.r0+(r.r1-r.r0)*e;
-      rm.makeScale(rad,1,rad); rm.setPosition(r.x,r.y+k*.6,r.z); ringMesh.setMatrixAt(c,rm);
+      if(r.dir){ // vertical ring, plane normal = horn direction, slightly squashed, drifting outward
+        rE.set(Math.PI/2,r.yaw,0); rq.setFromEuler(rE); const a=r.adv*e; rP.set(r.x+r.dx*a,r.y,r.z+r.dz*a); rS.set(rad,1,rad*.8); rm.compose(rP,rq,rS); }
+      else { rm.makeScale(rad,1,rad); rm.setPosition(r.x,r.y+k*.6,r.z); }
+      ringMesh.setMatrixAt(c,rm);
       rAlpha.array[c]=Math.min(1,k*6)*Math.pow(1-k,1.4)*.9; rWid.array[c]=.05+.05*(1-k);
       rCol.array[c*3]=r.cr; rCol.array[c*3+1]=r.cg; rCol.array[c*3+2]=r.cb; c++; }
     ringMesh.count=c; ringMesh.visible=c>0;
     if(c){ ringMesh.instanceMatrix.needsUpdate=true; rAlpha.needsUpdate=rWid.needsUpdate=rCol.needsUpdate=true; }
   }
-  // adzan: rings around the marbot every 2s until adzan:end (12s safety cap)
-  let adzanRing=null; const adzP={x:0,y:0,z:0};
-  ctx.on('adzan:start',d=>{ const p=d?.pos; if(!p||!Number.isFinite(p.x)) return; adzP.x=p.x; adzP.y=(p.y??ctx.groundHeight?.(p.x,p.z)??0)+2; adzP.z=p.z;
-    adzanRing={next:0,left:12}; burst('sparkle',{x:p.x,y:adzP.y-.3,z:p.z},10); });
+  // adzan: sound waves come from the loudspeakers (never from / around a person): the menara toa horns (stage>=4),
+  // the porch toa speakers on the veranda columns (stage 2-3), or high above the masjid site before any speaker exists.
+  const MEN={x:-11.8,z:-4.5}, MEN_TOP=10.9, PORCH_TOA_Y=0.7+2.9, PORCH_TOA_Z=6.4;
+  const stageNow=()=>{ const M=ctx.modules.masjid; return typeof M?.stage==='number'?M.stage:(ctx.state?.masjid?.stage|0); };
+  const SRC=[]; for(let i=0;i<4;i++) SRC.push({x:0,y:0,z:0,dx:0,dz:1,d:{x:0,z:1}}); let srcN=0, srcFlat=false;
+  const HORN=[[1,0],[0,1],[-1,0],[0,-1]];
+  function adzanSources(){
+    const s=stageNow(); srcN=0; srcFlat=false;
+    if(s>=4){ for(const h of HORN){ const q=SRC[srcN++]; q.x=MEN.x+h[0]*.9; q.y=MEN_TOP; q.z=MEN.z+h[1]*.9; q.dx=h[0]; q.dz=h[1]; } }
+    else if(s>=2){ for(const sx of [-1,1]){ const q=SRC[srcN++]; q.dx=Math.sin(sx*.32); q.dz=Math.cos(sx*.32); q.x=sx*3+q.dx*.35; q.y=PORCH_TOA_Y; q.z=PORCH_TOA_Z+q.dz*.35; } }
+    else { const q=SRC[srcN++]; q.x=0; q.y=(ctx.groundHeight?.(0,0)||0)+5.5; q.z=-1; q.dx=0; q.dz=1; srcFlat=true; }
+  }
+  let adzanRing=null;
+  ctx.on('adzan:start',()=>{ try{ adzanSources(); for(let i=0;i<srcN;i++){ SRC[i].d.x=SRC[i].dx; SRC[i].d.z=SRC[i].dz; } }catch(e){ srcN=0; } if(!srcN) return;
+    adzanRing={next:0,left:12}; for(let i=0;i<srcN;i++) burst('sparkle',SRC[i],srcFlat?8:5); });
   ctx.on('adzan:end',()=>{ adzanRing=null; });
   ctx.on('prayer:close',()=>{ adzanRing=null; });
-  function stepAdzan(dt){ if(!adzanRing) return; adzanRing.left-=dt; if(adzanRing.left<=0){ adzanRing=null; return; } adzanRing.next-=dt; if(adzanRing.next<=0){ adzanRing.next=2; ring(adzP,{count:3,interval:.5}); } }
+  function stepAdzan(dt){ if(!adzanRing) return; adzanRing.left-=dt; if(adzanRing.left<=0){ adzanRing=null; return; } adzanRing.next-=dt;
+    if(adzanRing.next<=0){ adzanRing.next=2;
+      if(srcFlat) ring(SRC[0],{count:2,interval:.6,r0:1.4,r1:7,life:2.4});
+      else for(let i=0;i<srcN;i++) ring(SRC[i],{count:srcN>2?2:3,interval:.6,r0:1.2,r1:srcN>2?3.6:2.8,life:2.2,dir:SRC[i].d,adv:srcN>2?3.2:2.4}); } }
 
   // ---- care / prayer event wiring ----
   const tp={x:0,y:0,z:0}; const okP=p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.z);

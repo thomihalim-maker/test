@@ -195,8 +195,12 @@ function s2(S) {
     { name: 'N', L: Lfb, holes: [win(-4.0, 1.3), { u: 0, v: 0, w: 2.4, h: 3.7, arch: true, frame: 'mihrab' }, win(4.0, 1.3)], x: 0, z: -7.75, ry: Math.PI },
     { name: 'S', L: Lfb, holes: [win(-3.4), { u: 0, v: 0, w: 2.4, h: 3.1, frame: 'door' }, win(3.4)], x: 0, z: 2.25, ry: 0 },
   ];
+  let sGrp = null;
   walls.forEach((w, wi) => {
     const grp = new THREE.Group(); place(grp, w.x, PL, w.z, w.ry);
+    if (w.name === 'S') { // deep cutaway (decor placing / carpet design): the wall above ~1.3 m folds down like a dollhouse
+      sGrp = grp; grp.userData.variant = 'cut:front'; grp.userData.cut = 2; grp.userData.clamp = true; grp.userData.pivot = V3(0, PL + 1.3, 2.25);
+    }
     grp.add(mesh(S, shade(wallGeom(w.L, WH, T, w.holes), { lo: .95, hi: 1, y0: 0, y1: 2.6, top: 1 }), M.wash));
     const fr = [], gf = [], lat = [], gl = [], bk = [];
     for (const h of w.holes) {
@@ -260,17 +264,23 @@ function s2(S) {
   }
   const yc = PL + WH - .02;
   const beam = (arr, w, h, d, x, y, z) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(x, y + h / 2, z); arr.push(shade(g, { lo: .85 })); };
-  beam(cg, 11.5, .26, 1.0, 0, yc - .26, -7.75); beam(cg, 11.5, .26, 1.0, 0, yc - .26, 2.25);
+  const fcg = [], ftg = [], ffg = []; // front (south) cornice/drip/frieze ride with the front-wall cutaway layer
+  beam(cg, 11.5, .26, 1.0, 0, yc - .26, -7.75); beam(fcg, 9.5, .26, 1.0, 0, yc - .26, 2.25);
   beam(cg, 1.0, .26, 10.5, -5.25, yc - .26, HALL_Z); beam(cg, 1.0, .26, 10.5, 5.25, yc - .26, HALL_Z);
-  beam(tg, 11.56, .07, 1.06, 0, yc - .3, -7.75); beam(tg, 11.56, .07, 1.06, 0, yc - .3, 2.25);
+  beam(tg, 11.56, .07, 1.06, 0, yc - .3, -7.75); beam(ftg, 9.5, .07, 1.06, 0, yc - .3, 2.25);
+  for (const sx of [-1, 1]) { beam(cg, 1.0, .26, 1.0, sx * 5.25, yc - .26, 2.25); beam(tg, 1.0, .07, 1.06, sx * 5.25, yc - .3, 2.25); } // corner blocks stay
   beam(tg, 1.06, .07, 10.6, -5.25, yc - .3, HALL_Z); beam(tg, 1.06, .07, 10.6, 5.25, yc - .3, HALL_Z);
   const fy = PL + 3.72, fh = .36, fz = T / 2 + .015;
   const fb = (L, x, z, ry) => { const g = new THREE.BoxGeometry(L, fh, .04); g.translate(0, fh / 2, 0); uvScale(g, L / fh, 1); xf(g, x, fy, z, ry); fg.push(flat(g, 1)); };
-  fb(10, 0, 2.25 + fz, 0); fb(10, 0, -7.75 - fz, 0); fb(10.5, 5.25 + fz, HALL_Z, Math.PI / 2); fb(10.5, -5.25 - fz, HALL_Z, Math.PI / 2);
+  fb(10, 0, 2.25 + fz, 0); ffg.push(fg.pop()); fb(10, 0, -7.75 - fz, 0); fb(10.5, 5.25 + fz, HALL_Z, Math.PI / 2); fb(10.5, -5.25 - fz, HALL_Z, Math.PI / 2);
   const sk = (L, x, z, ry) => { const g = rbox(L, .8, .62, .05, 1); xf(g, x, PL, z, ry); kg.push(shade(g, { lo: .75, hi: 1 })); };
   sk(10.9, -0, -7.75, 0); sk(11, 5.25, HALL_Z, Math.PI / 2); sk(11, -5.25, HALL_Z, Math.PI / 2); sk(3.75, -3.6, 2.25, 0); sk(3.75, 3.6, 2.25, 0);
   const pil = mesh(S, merge(pg), M.wash), cornice = mesh(S, merge(cg), M.wood), drip = mesh(S, merge(tg), M.cream, false), frieze = mesh(S, merge(fg), M.arabTeal, false), skirt = mesh(S, merge(kg), M.dado);
   G.add(pil, cornice, drip, frieze, skirt);
+  if (sGrp) { // front pieces in the S wall's local frame (placed at (0, PL, 2.25), no rotation)
+    const loc = list => { const g = merge(list); g.translate(0, -PL, -2.25); return g; };
+    sGrp.add(mesh(S, loc(fcg), M.wood), mesh(S, loc(ftg), M.cream, false), mesh(S, loc(ffg), M.arabTeal, false));
+  }
   R.add(skirt, { delay: .7, dur: .7, kind: 'grow' }); R.add(pil, { delay: 1.0, dur: .8, kind: 'grow', amp: .1 });
   for (const [o, d] of [[cornice, 1.3], [drip, 1.38], [frieze, 1.45]]) R.add(o, { delay: d + .1, dur: .6, kind: 'pop', amp: .15 });
   // serambi (open veranda): teak columns on stone umpak, teak beam with teal carved band
@@ -457,7 +467,8 @@ function s3(S) {
   variant(S, 'finial');      // golden mustaka by default; sits on whichever roof style is active
   // veranda lean-to roof (straight sirap), kept below the first tier's eave
   const vr = roofGroup(S, { a0: 6.9, b0: 2.7, a1: 5.1, b1: .25, h: .72 });
-  place(vr, 0, PL + 3.25, 4.3); G.add(vr); R.add(vr, { delay: .6, dur: 1.0, kind: 'drop', drop: 5, fx: 'dust', snd: 'pop' });
+  place(vr, 0, PL + 3.25, 4.3); G.add(vr);
+  vr.userData.variant = 'cut:veranda'; vr.userData.cut = 2; vr.userData.pivot = V3(0, PL + 3.3, 4.3); // folds away with the deep cutaway R.add(vr, { delay: .6, dur: 1.0, kind: 'drop', drop: 5, fx: 'dust', snd: 'pop' });
   S.finale(V3(0, 11, HALL_Z), 4.3, 'confetti');
 }
 
