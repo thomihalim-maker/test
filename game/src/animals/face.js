@@ -198,7 +198,7 @@ export function drawPortrait(m,size=128,mood='normal'){
       g.fillStyle='#f3c79c'; for(const k of[-4,0,4]){ g.beginPath(); g.arc(k,0,1.3,0,7); g.fill(); } g.restore(); }
     g.restore(); }
   if(mood==='sleep'){ g.save(); g.font='bold 26px sans-serif'; g.lineWidth=5; g.strokeStyle=OUT; g.fillStyle='#e9f2ff';
-    for(const [x,y,s] of [[cx+rx*.72,cy-ry*.78,1],[cx+rx*.98,cy-ry*1.12,.75]]){ g.save(); g.translate(x,y); g.scale(s,s); g.strokeText('z',0,0); g.fillText('z',0,0); g.restore(); } g.restore(); }
+    for(const [x,y,s] of [[cx+rx*.98,cy-ry*.62,1],[cx+rx*1.22,cy-ry*.98,.72]]){ g.save(); g.translate(x,y); g.scale(s,s); g.strokeText('z',0,0); g.fillText('z',0,0); g.restore(); } g.restore(); }
   g.restore();
   // gold tag + bell on the collar
   g.fillStyle='#ffd24a'; g.strokeStyle=OUT; g.lineWidth=4; g.beginPath(); g.arc(128,226,12,0,7); g.fill(); g.stroke();
