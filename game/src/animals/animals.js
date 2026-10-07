@@ -1,7 +1,8 @@
 // Sacrificial animals: goats (kambing), sheep (domba), cows (sapi). Needs AI, procedural animation, pen, interaction API.
 import * as THREE from 'three';
-import { buildAnimal, pickName } from './model.js';
-import { FACE } from './face.js';
+import { buildAnimal, pickName, KIND_NAMES, BREEDS } from './model.js';
+import { FACE, drawPortrait } from './face.js';
+export { KIND_NAMES, BREEDS };
 import { buildPen, PEN } from './pen.js';
 import { mulberry32, particleAtlas } from './textures.js';
 
@@ -428,7 +429,7 @@ export async function init(ctx){
     if(penPop>=0){ penPop+=dt; const u=penPop/.7; pen.root.scale.set(1,u>=1?1:1+Math.sin(u*Math.PI*2.5)*.18*(1-u),1); if(u>=1){ penPop=-1; pen.root.scale.set(1,1,1); } }
     { const p=playerPos(); let bd=4.5; focusA=null; for(const a of list){ const d=Math.hypot(a.pos.x-p.x,a.pos.z-p.z); if(d<bd&&a.state!=='sleep'){ bd=d; focusA=a; } } if(ctx.player?.target?.animal) focusA=ctx.player.target.animal; }
     for(const a of list){ stepAI(a,dt); move(a,dt); pose(a,dt,t); updateBubble(a,dt,t); }
-    deoverlap(); updateSplash(dt);
+    deoverlap(); updateSplash(dt); updateExtras(dt,t);
     updateParticles(dt,t);
     saveT+=dt; if(saveT>3){ saveT=0; S.pen={feed:st.feed.map(f=>+f.fill.toFixed(3)),water:+st.water.fill.toFixed(3),wash:+st.wash.fill.toFixed(3)}; for(let i=0;i<list.length;i++){ const a=list[i],d=S.animals?.[i]; if(d&&d.seed===a.seed){ d.stats={...a.stats}; d.weight=a.weight; d.neglect=a.neglect; d.sick=a.sick; d.needy=a.needy; d.petDay=a.petDay; d.dayW=a.dayW; d.baby=a.baby; d.growth=a.growth; } else persist(); } }
     if(camParam&&camParam.length>=6&&!camParam.some(Number.isNaN)){ ctx.camera.position.set(camParam[0],camParam[1],camParam[2]); ctx.camera.lookAt(camParam[3],camParam[4],camParam[5]); if(ctx.cameraRig){ try{ ctx.cameraRig.target.set(camParam[3],camParam[4],camParam[5]); }catch(e){} } }
@@ -439,7 +440,7 @@ export async function init(ctx){
     a.weight=Math.max(a.weight,a.K.w0[0]*.9); }
   function grow(a,dg){ a.growth=Math.min(1,a.growth+dg); applyGrowth(a); if(a.growth>=1) growUp(a); }
   function growUp(a){ // swap the baby mesh for the adult one (same seed => same breed colours, same name)
-    const old=a.model; const m=buildAnimal(a.kind,a.seed,false); scene.remove(old.group); old.group.traverse(o=>o.geometry?.dispose?.());
+    const old=a.model; const m=buildAnimal(a.kind,a.seed,false,a.breed||null); scene.remove(old.group); old.group.traverse(o=>o.geometry?.dispose?.());
     a.model=m; a.mesh=m.group; m.group.position.copy(a.pos); m.group.rotation.y=a.heading; m.group.userData.animal=a; scene.add(m.group);
     a.baby=false; a.growth=1; a.growE=0; a.K=a.K0; a.rad=a.K.rad; a.babyS=a.adultS=m.S; a.weight=Math.max(a.weight,a.K.w0[0]);
     sparkles(a.pos.clone().setY(.7),12); a.hopT=0; audio('chime',{pos:a.pos,vol:.6}); toast({msg:`${a.name} ${T('grown')}`,icon:'heart',kind:'good'}); ctx.emit('animal:grown',{animal:a,pos:evPos(a)}); persist(); }
@@ -461,6 +462,98 @@ export async function init(ctx){
   ctx.on('pen:upgrade',d=>rebuildPen(d?.level??S.penLevel));
   ctx.on('event:day',d=>{ weather=d?.id||''; if(weather==='hujan'||weather==='panas') for(const a of list) if(a.state==='idle'||a.state==='graze') a.stT=Math.min(a.stT,.5+Math.random()*2); });
   api.rebuildPen=rebuildPen; api.weather=()=>weather;
+
+  // =============== Hewanku roster / portraits / need alerts / highlight / pen routing ===============
+  const NEEDS=['hunger','thirst','clean','happy'];
+  const r1=(v)=>Math.round(v*10)/10, r3=(v)=>Math.round(clamp(v)*1000)/1000;
+  function needOf(a){ if(a.sick) return 'sick'; let best=null, bv=.3; for(const n of NEEDS){ const v=a.stats[n]; if(v<bv){ bv=v; best=n; } } return best; }
+  function ageOf(a){ return !a.baby?'adult':(a.growth<.5?'baby':'young'); }
+  function entry(a){ const br=a.breed; return { id:a.id, seed:a.seed, name:a.name, kind:a.kind, kindName:KIND_NAMES[a.kind], breed:br, breedName:BREEDS[a.kind]?.[br]||[br,br],
+    male:!!a.male, baby:!!a.baby, growth:r3(a.baby?a.growth:1), age:ageOf(a), weight:r1(a.weight), wMax:r1(a.K0.wMax),
+    stats:{hunger:r3(a.stats.hunger),thirst:r3(a.stats.thirst),clean:r3(a.stats.clean),happy:r3(a.stats.happy)},
+    sick:!!a.sick, sleeping:a.state==='sleep', resting:a.state==='rest', needy:!!a.needy, need:needOf(a), collar:a.model?.collar||'#ff5d8f',
+    pos:{x:+a.pos.x.toFixed(2),z:+a.pos.z.toFixed(2)}, state:a.state }; }
+  api.KIND_NAMES=KIND_NAMES; api.BREEDS=BREEDS;
+  api.roster=()=>list.slice().sort((p,q)=>p.id-q.id).map(entry);
+  api.get=(id)=>{ if(id&&typeof id==='object') return list.includes(id)?id:null; id=+id; return list.find(a=>a.id===id)||null; };
+  api.needOf=(idOrA)=>{ const a=api.get(idOrA); return a?needOf(a):null; };
+
+  // ---- portraits (2D painted badges, cached dataURLs) ----
+  const pCache=new Map();
+  function moodOf(a,mood){ if(mood&&mood!=='auto') return mood; if(a.state==='sleep') return 'sleep'; if(a.sick) return 'sick'; if(a.stats.happy>.8) return 'happy'; return 'normal'; }
+  api.portrait=(idOrA,{size=128,mood='auto'}={})=>{
+    const a=api.get(idOrA); if(!a) return '';
+    const md=moodOf(a,mood); const sz=Math.max(24,Math.min(512,size|0||128));
+    const key=a.seed+'|'+a.kind+'|'+(a.breed||'')+'|'+(a.baby?1:0)+'|'+md+'|'+sz;
+    let u=pCache.get(key); if(u) return u;
+    const m=a.model||{};
+    try{ u=drawPortrait({kind:a.kind,pal:m.pal,horns:!!m.horns,baby:a.baby,male:a.male,lash:m.lash,eyes:m.eyes,collar:m.collar,seed:a.seed},sz,md); }
+    catch(e){ console.warn('portrait failed',e); u=''; }
+    if(pCache.size>240) pCache.delete(pCache.keys().next().value);
+    if(u) pCache.set(key,u); return u; };
+  ctx.on('animal:grown',d=>{ const a=d?.animal; if(!a) return; for(const k of [...pCache.keys()]) if(k.startsWith(a.seed+'|')) pCache.delete(k); });
+
+  // ---- 'animal:need' edge-triggered alerts (threshold .3, re-armed above .5, max 1 per animal / 20s) ----
+  let needClock=0;
+  function checkNeeds(a){
+    const arm=a.needArm||(a.needArm={hunger:true,thirst:true,clean:true,happy:true}); if(a.needLast==null) a.needLast=-1e9;
+    if(a.sick&&!a.wasSick){ if(needClock-a.needLast>=20){ a.wasSick=true; a.needLast=needClock; ctx.emit('animal:need',{animal:a,id:a.id,name:a.name,need:'sick',level:r3(Math.min(a.stats.hunger,a.stats.thirst,a.stats.clean))}); } return; }
+    if(!a.sick) a.wasSick=false;
+    let pick=null, pv=.3;
+    for(const n of NEEDS){ const v=a.stats[n]; if(v>.5) arm[n]=true; if(arm[n]&&v<pv){ pv=v; pick=n; } }
+    if(pick&&needClock-a.needLast>=20){ arm[pick]=false; a.needLast=needClock; ctx.emit('animal:need',{animal:a,id:a.id,name:a.name,need:pick,level:r3(pv)}); }
+  }
+
+  // ---- highlight ring (shared InstancedMesh, 1 draw call only while something is highlighted) ----
+  const HL_MAX=8; const hl=[];
+  const ringTex=(()=>{ const c=document.createElement('canvas'); c.width=c.height=128; const g=c.getContext('2d');
+    const grd=g.createRadialGradient(64,64,0,64,64,64);
+    grd.addColorStop(0,'rgba(255,220,120,0)'); grd.addColorStop(.46,"rgba(255,220,120,.14)"); grd.addColorStop(.62,'rgba(255,236,170,.95)');
+    grd.addColorStop(.74,'rgba(255,255,235,1)'); grd.addColorStop(.82,'rgba(255,214,110,.8)'); grd.addColorStop(1,'rgba(255,200,90,0)');
+    g.fillStyle=grd; g.fillRect(0,0,128,128);
+    g.fillStyle='rgba(255,255,240,.9)'; for(let i=0;i<8;i++){ const an=i/8*Math.PI*2; const x=64+Math.cos(an)*47, y=64+Math.sin(an)*47; g.beginPath(); g.moveTo(x,y-5); g.lineTo(x+1.6,y-1.6); g.lineTo(x+5,y); g.lineTo(x+1.6,y+1.6); g.lineTo(x,y+5); g.lineTo(x-1.6,y+1.6); g.lineTo(x-5,y); g.lineTo(x-1.6,y-1.6); g.fill(); }
+    const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; })();
+  const hlMat=new THREE.MeshBasicMaterial({map:ringTex,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false,fog:false});
+  const hlMesh=new THREE.InstancedMesh(new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2),hlMat,HL_MAX);
+  hlMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); hlMesh.count=0; hlMesh.visible=false; hlMesh.frustumCulled=false; hlMesh.renderOrder=4; hlMesh.castShadow=hlMesh.receiveShadow=false; hlMesh.name='animalHighlight';
+  hlMesh.setColorAt(0,new THREE.Color(1,1,1)); scene.add(hlMesh);
+  const _m4=new THREE.Matrix4(), _q=new THREE.Quaternion(), _s=new V3(), _p=new V3(), _c=new THREE.Color(), _up=new V3(0,1,0);
+  api.highlight=(id,seconds=4)=>{ const a=api.get(id); if(!a) return false; const dur=Math.max(.5,+seconds||4);
+    let h=hl.find(x=>x.a===a); if(h){ h.dur=h.t+dur; } else { if(hl.length>=HL_MAX) hl.shift(); hl.push({a,t:0,dur}); sparkles(evPos(a).setY(a.pos.y+.3),8); }
+    a.reactT=Math.max(a.reactT,.5); if(a.state!=='sleep'&&Math.random()<.6) bleat(a); return true; };
+  api.clearHighlight=()=>{ hl.length=0; };
+  function updateHighlight(dt,t){
+    for(let i=hl.length-1;i>=0;i--){ const h=hl[i]; h.t+=dt; if(h.t>=h.dur||h.a.dead||!list.includes(h.a)) hl.splice(i,1); }
+    for(let i=0;i<hl.length;i++){ const h=hl[i], a=h.a;
+      const fin=Math.min(1,h.t/.3), fout=Math.min(1,(h.dur-h.t)/.6), al=Math.max(0,Math.min(fin,fout));
+      const pop=fin<1?(1-Math.pow(1-fin,3))*(1+.25*Math.sin(fin*Math.PI)):1;
+      const base=(a.model?.dims?.len||1)*(a.mesh.scale.x/(a.model?.S||1))*1.25+.55;
+      const sz=base*pop*(1+.07*Math.sin(t*5.5+i));
+      _p.set(a.pos.x,a.pos.y+.035,a.pos.z); _q.setFromAxisAngle(_up,t*.6+i); _s.set(sz,1,sz);
+      hlMesh.setMatrixAt(i,_m4.compose(_p,_q,_s)); hlMesh.setColorAt(i,_c.setRGB(1.7*al,1.35*al,.75*al));
+      if(Math.random()<dt*2.2) sparkles(_p.clone().setY(a.pos.y+.15+Math.random()*.4),1); }
+    hlMesh.count=hl.length; hlMesh.visible=hl.length>0;
+    if(hl.length){ hlMesh.instanceMatrix.needsUpdate=true; if(hlMesh.instanceColor) hlMesh.instanceColor.needsUpdate=true; }
+  }
+  function updateExtras(dt,t){
+    needClock+=dt; for(const a of list) checkNeeds(a);
+    updateHighlight(dt,t);
+  }
+
+  // ---- route through the pen gate (pushed into ctx.routes; re-reads the bounds every call) ----
+  const inPen=(p)=>p.x>B.x0+.15&&p.x<B.x1-.15&&p.z>B.z0+.15&&p.z<B.z1-.15;
+  function route(from,to){
+    if(!from||!to||!Number.isFinite(from.x)||!Number.isFinite(to.x)) return null;
+    const fi=inPen(from), ti=inPen(to); if(fi===ti) return null;
+    const gz=(pen.gate?.z)??PEN.cz, gOut={x:B.x0-1.5,z:gz}, gIn={x:B.x0+1.4,z:gz};
+    const o=fi?to:from; const around=[];
+    if(o.x>B.x0-.6){ // outside point is north/south/east of the pen: walk around the corner first
+      const zc=o.z<(B.z0+B.z1)/2?B.z0-1.6:B.z1+1.6;
+      if(o.x>B.x1) around.push({x:B.x1+1.6,z:zc});
+      around.push({x:B.x0-1.6,z:zc}); }
+    const outPath=[...around,gOut,gIn];
+    return fi?outPath.reverse():outPath; }
+  ctx.routes??=[]; ctx.routes.push(route); api.route=route; api.inPen=inPen;
 
   // debug / test hooks
   api.debug={ hearts,bubbles,sparkles,spawnP };

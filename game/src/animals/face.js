@@ -66,3 +66,139 @@ export function faceAtlas(){
   _tex=new THREE.CanvasTexture(c); _tex.colorSpace=THREE.SRGBColorSpace; _tex.anisotropy=4;
   return _tex;
 }
+
+// ---------------------------------------------------------------------------------------------
+// Painted 2D portraits for the Hewanku roster (front-facing chibi head badge, drawn from the breed
+// palette + the same face atlas cells as the 3D animals). Returns a PNG dataURL; callers cache it.
+// m = {kind, pal, horns, baby, male, lash, collar, seed}; mood = 'normal'|'happy'|'sleep'|'sick'
+const OUT='#3a2418';
+const hexMix=(a,b,t)=>{ const A=new THREE.Color(a), B2=new THREE.Color(b); return '#'+A.lerp(B2,t).getHexString(); };
+function rnd32(a){ return ()=>{ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+// soft clay ellipse: radial shading (lit top-left) + chunky outline
+function clay(g,x,y,rx,ry,rot,col,o={}){
+  g.save(); g.translate(x,y); g.rotate(rot||0);
+  const gr=g.createRadialGradient(-rx*.35,-ry*.45,Math.min(rx,ry)*.1,0,0,Math.max(rx,ry)*1.05);
+  gr.addColorStop(0,hexMix(col,'#ffffff',o.hi??.22)); gr.addColorStop(.55,col); gr.addColorStop(1,hexMix(col,'#3a2418',o.lo??.16));
+  g.beginPath(); g.ellipse(0,0,rx,ry,0,0,Math.PI*2); g.fillStyle=gr; g.fill();
+  if(o.line!==0){ g.lineWidth=o.line??5; g.strokeStyle=o.stroke||OUT; g.stroke(); }
+  g.restore();
+}
+function hornPath(g,pts,w0,w1,col){ // tapered horn along a quadratic path
+  g.save(); g.lineCap='round'; g.lineJoin='round';
+  const n=10; for(let pass=0;pass<2;pass++) for(let i=0;i<n;i++){ const t0=i/n,t1=(i+1)/n; const P=(t)=>{ const u=1-t; return [u*u*pts[0][0]+2*u*t*pts[1][0]+t*t*pts[2][0], u*u*pts[0][1]+2*u*t*pts[1][1]+t*t*pts[2][1]]; };
+    const a=P(t0),b=P(t1); const w=w0+(w1-w0)*t0; g.beginPath(); g.moveTo(a[0],a[1]); g.lineTo(b[0],b[1]);
+    if(pass===0){ g.strokeStyle=OUT; g.lineWidth=w+7; } else { g.strokeStyle=hexMix(col,'#ffffff',.15*(1-t0)); g.lineWidth=w; } g.stroke(); }
+  // ridges
+  g.strokeStyle=hexMix(col,OUT,.35); g.lineWidth=2;
+  for(const t of[.25,.45,.65]){ const u=1-t; const x=u*u*pts[0][0]+2*u*t*pts[1][0]+t*t*pts[2][0], y=u*u*pts[0][1]+2*u*t*pts[1][1]+t*t*pts[2][1]; const w=(w0+(w1-w0)*t)*.45; g.beginPath(); g.moveTo(x-w,y+1); g.lineTo(x+w,y-1); g.stroke(); }
+  g.restore();
+}
+function curlHorn(g,cx,cy,s,col){ // garut ram spiral
+  g.save(); g.lineCap='round';
+  const pts=[]; for(let i=0;i<=30;i++){ const t=i/30, a=-1.2+t*5.2, r=30*(1-t*.62); pts.push([cx+s*(Math.cos(a)*r), cy+Math.sin(a)*r]); }
+  for(let pass=0;pass<2;pass++){ for(let i=0;i<30;i++){ const w=17*(1-i/30*.6); g.beginPath(); g.moveTo(...pts[i]); g.lineTo(...pts[i+1]); g.lineWidth=pass?w:w+7; g.strokeStyle=pass?hexMix(col,'#ffffff',.12):OUT; g.stroke(); } }
+  g.restore();
+}
+function drawFaceCells(g,atlas,eyeIdx,mouthIdx,cx,cy,rx,ry,mouthDy,eyeScale){
+  const cw=atlas.width/FACE.COLS, ch=atlas.height/FACE.ROWS;
+  const cell=(idx,x,y,w,h)=>{ const col=idx%FACE.COLS,row=(idx/FACE.COLS)|0; g.drawImage(atlas,col*cw+4,row*ch+4,cw-8,ch-8,x,y,w,h); };
+  // atlas cell spans x:[-.95,.95]*rx, y:[-.8,+1.0]*ry around the head centre (see face.js header)
+  const w=1.9*rx, h=1.8*ry;
+  cell(FACE.cheeks,cx-w/2,cy-.8*ry,w,h);
+  const ew=w*eyeScale, eh=h*eyeScale; const ey=cy-.2*ry; // eye line sits at 85/256 of the cell
+  cell(eyeIdx,cx-ew/2,ey-eh*(85/256),ew,eh);
+  cell(mouthIdx,cx-w/2,cy-.8*ry+mouthDy,w,h);
+}
+export function drawPortrait(m,size=128,mood='normal'){
+  const R=Math.max(32,Math.min(512,size|0))*2; // 2x for crispness, downscaled below
+  const c=document.createElement('canvas'); c.width=c.height=R; const g=c.getContext('2d');
+  const k=R/256; g.scale(k,k); g.lineJoin='round'; g.lineCap='round';
+  const P=m.pal||{}, kind=m.kind, baby=!!m.baby, rng=rnd32((m.seed|0)^0x51ed);
+  const col=m.collar||'#ff5d8f';
+  // ---- badge background ----
+  const bg=g.createRadialGradient(128,104,10,128,128,124);
+  bg.addColorStop(0,hexMix(col,'#fffaf0',.86)); bg.addColorStop(.75,hexMix(col,'#fff6e6',.7)); bg.addColorStop(1,hexMix(col,'#f6dcb8',.55));
+  g.beginPath(); g.arc(128,128,122,0,Math.PI*2); g.fillStyle=bg; g.fill();
+  g.save(); g.beginPath(); g.arc(128,128,116,0,Math.PI*2); g.clip();
+  // little sparkles / grass tufts for charm
+  g.fillStyle='rgba(255,255,255,.65)'; for(let i=0;i<5;i++){ const a=rng()*6.28, r=70+rng()*35; g.beginPath(); g.arc(128+Math.cos(a)*r,110+Math.sin(a)*r*.7,2+rng()*3,0,7); g.fill(); }
+  g.fillStyle=hexMix('#8fcf6a',col,.15); g.beginPath(); g.ellipse(128,262,150,62,0,0,7); g.fill();
+  // ---- shoulders / neck ----
+  const bodyCol=kind==='sheep'?P.wool:P.base;
+  const headCol=kind==='sheep'?P.face:P.head;
+  const sc=baby?.9:1; // overall head scale
+  const cx=128, cy=baby?118:122;
+  if(kind==='sheep'){ for(let i=0;i<9;i++){ const a=Math.PI*(.05+i/8*.9); clay(g,128+Math.cos(a)*96,248-Math.sin(a)*44,30,26,0,P.wool,{line:4}); } clay(g,128,236,86,44,0,P.wool,{line:4}); }
+  else clay(g,128,240,kind==='cow'?92:78,52,0,bodyCol||'#ddd',{line:5});
+  // collar band + gold tag
+  g.save(); g.lineCap='round';
+  g.beginPath(); g.ellipse(128,206,kind==='cow'?66:56,18,0,Math.PI*.05,Math.PI*.95); g.strokeStyle=OUT; g.lineWidth=17; g.stroke(); g.strokeStyle=col; g.lineWidth=11; g.stroke();
+  g.strokeStyle='rgba(255,255,255,.45)'; g.lineWidth=3; g.beginPath(); g.ellipse(128,203,kind==='cow'?64:54,16,0,Math.PI*.25,Math.PI*.6); g.stroke();
+  g.restore();
+  // ---- head (per kind) ----
+  g.save(); g.translate(cx,cy); g.scale(sc,sc); g.translate(-cx,-cy);
+  let rx, ry, mdy, eyeS=baby?1.12:1;
+  if(kind==='goat'){
+    rx=baby?62:58; ry=baby?62:66;
+    const longE=P.k==='etawa'||P.k==='boer', ear=P.ear||headCol;
+    for(const s of[-1,1]){ // ears behind head: long droopy (etawa/boer) or perky side ears
+      const ex=cx+s*(rx*.86), ey=cy-ry*.18;
+      if(longE){ clay(g,ex+s*14,ey+30,17,longE&&P.k==='etawa'?46:38,-s*.32,ear); clay(g,ex+s*13,ey+32,8,28,-s*.32,'#f0b0ae',{line:0}); }
+      else { clay(g,ex+s*22,ey+4,36,15,s*.42,ear); clay(g,ex+s*20,ey+5,22,7,s*.42,'#f0b0ae',{line:0}); }
+    }
+    if(m.horns) for(const s of[-1,1]) hornPath(g,[[cx+s*22,cy-ry*.72],[cx+s*34,cy-ry*1.25],[cx+s*58,cy-ry*1.38]],baby?9:15,4,P.horn||'#e9ddc2');
+    clay(g,cx,cy,rx,ry,0,headCol);
+    if(P.blaze){ g.save(); g.beginPath(); g.ellipse(cx,cy,rx-3,ry-3,0,0,7); g.clip(); g.fillStyle=P.blaze; g.beginPath(); g.ellipse(cx,cy-10,11,ry,0,0,7); g.fill(); g.restore(); }
+    if(P.k==='etawa'){ g.save(); g.beginPath(); g.ellipse(cx,cy,rx-3,ry-3,0,0,7); g.clip(); clay(g,cx-rx*.7,cy-ry*.55,24,20,0,'#8a5a3a',{line:0}); g.restore(); }
+    clay(g,cx,cy-ry*.86,24,13,0,hexMix(headCol,'#ffffff',.18),{line:4}); // forelock tuft
+    if(!baby){ g.fillStyle=P.beard||headCol; g.strokeStyle=OUT; g.lineWidth=5; g.beginPath(); g.moveTo(cx-17,cy+ry*.8); g.quadraticCurveTo(cx,cy+ry*1.42,cx+17,cy+ry*.8); g.closePath(); g.fill(); g.stroke(); }
+    clay(g,cx,cy+ry*.46,rx*.6,ry*.38,0,P.muzzle||'#f0d0b0',{line:4});
+    mdy=ry*.06;
+  } else if(kind==='sheep'){
+    rx=baby?52:48; ry=baby?54:56;
+    // woolly puff ring behind the face
+    const N=13; for(let i=0;i<N;i++){ const a=i/N*Math.PI*2-Math.PI/2; if(Math.sin(a)>.75) continue; const r=rx+16+rng()*6;
+      clay(g,cx+Math.cos(a)*r*.98,cy-6+Math.sin(a)*r*1.02,24+rng()*6,22+rng()*5,0,hexMix(P.wool,'#fff1d6',.1),{line:4}); }
+    for(const s of[-1,1]){ clay(g,cx+s*(rx+30),cy-4,32,13,s*.25,P.ear||P.face); clay(g,cx+s*(rx+28),cy-3,20,6,s*.25,'#ec9fa0',{line:0}); }
+    if(!baby&&(m.horns||P.k==='garut')){ g.save(); const hs=m.horns?1:.78; for(const s of[-1,1]){ g.save(); g.translate(cx+s*(rx+6),cy-ry*.3); g.scale(hs,hs); curlHorn(g,0,0,s,P.horn||'#d8c7a5'); g.restore(); } g.restore(); }
+    clay(g,cx,cy,rx,ry,0,headCol);
+    // wool fringe cap over the forehead
+    for(let i=0;i<5;i++){ const a=(i/4-.5)*2.3; clay(g,cx+Math.sin(a)*34,cy-ry*.86+Math.abs(a)*7,19,16,0,hexMix(P.wool,'#fff1d6',.1),{line:4}); }
+    clay(g,cx,cy-ry*1.0,22,17,0,hexMix(P.wool,'#ffffff',.15),{line:4});
+    clay(g,cx,cy+ry*.5,rx*.56,ry*.34,0,P.muzzle||P.face,{line:4});
+    mdy=ry*.02;
+  } else { // cow
+    rx=baby?64:66; ry=baby?58:56;
+    const droopy=P.k==='brahman';
+    for(const s of[-1,1]){ const ex=cx+s*(rx+10), ey=cy-ry*.28;
+      if(droopy){ clay(g,ex,ey+24,20,40,-s*.55,P.ear); clay(g,ex,ey+25,10,28,-s*.55,'#f4a6a8',{line:0}); }
+      else { clay(g,ex+s*2,ey,29,15,s*.24,P.ear); clay(g,ex+s*2,ey+1,18,7,s*.24,'#f4a6a8',{line:0}); } }
+    if(m.horns) for(const s of[-1,1]) hornPath(g,[[cx+s*rx*.5,cy-ry*.78],[cx+s*rx*.95,cy-ry*1.0],[cx+s*rx*1.02,cy-ry*1.35]],baby?8:14,5,P.horn||'#efe6cf');
+    clay(g,cx,cy,rx,ry,0,headCol);
+    g.save(); g.beginPath(); g.ellipse(cx,cy,rx-3,ry-3,0,0,7); g.clip();
+    if(P.k==='holstein'){ g.fillStyle='#2c2a2e'; g.beginPath(); g.ellipse(cx+rx*.55,cy-ry*.55,rx*.55,ry*.5,.3,0,7); g.fill(); if(rng()<.7){ g.beginPath(); g.ellipse(cx-rx*.75,cy-ry*.1+rng()*10,rx*.3,ry*.28,-.4,0,7); g.fill(); } }
+    if(P.k==='bali'){ g.fillStyle='rgba(255,246,230,.55)'; g.beginPath(); g.ellipse(cx,cy+ry*.3,rx*.7,ry*.4,0,0,7); g.fill(); }
+    g.restore();
+    clay(g,cx,cy-ry*.92,26,13,0,P.k==='holstein'?'#3a373b':hexMix(headCol,'#ffffff',.1),{line:4}); // tuft
+    clay(g,cx,cy+ry*.5,rx*.66,ry*.42,0,P.muzzle||'#f2d6c8',{line:4});
+    mdy=ry*.0;
+  }
+  // ---- face (shared atlas cells) ----
+  const atlas=faceAtlas().image;
+  let eye=m.eyes?.open??(baby?FACE.eyeBaby:FACE.eyeOpen);
+  if(mood==='happy') eye=FACE.eyeHappy; else if(mood==='sleep') eye=FACE.eyeSleep; else if(mood==='sick') eye=FACE.eyeLid;
+  const mouthIdx=kind==='cow'?FACE.mCow:FACE.mGoat;
+  drawFaceCells(g,atlas,eye,mouthIdx,cx,cy,rx,ry,mdy,eyeS);
+  if(mood==='sick'){ g.fillStyle='rgba(120,170,255,.28)'; for(const s of[-1,1]){ g.beginPath(); g.ellipse(cx+s*rx*.48,cy+ry*.05,14,7,0,0,7); g.fill(); } }
+  g.restore();
+  // gold tag + bell on the collar
+  g.fillStyle='#ffd24a'; g.strokeStyle=OUT; g.lineWidth=4; g.beginPath(); g.arc(128,226,12,0,7); g.fill(); g.stroke();
+  g.fillStyle='#fff2b0'; g.beginPath(); g.arc(124,222,4,0,7); g.fill();
+  g.restore(); // disc clip
+  // ---- rims ----
+  g.beginPath(); g.arc(128,128,119,0,Math.PI*2); g.lineWidth=7; g.strokeStyle='#fff4dc'; g.stroke();
+  g.beginPath(); g.arc(128,128,123,0,Math.PI*2); g.lineWidth=3; g.strokeStyle='rgba(58,36,24,.55)'; g.stroke();
+  // downscale for smooth edges
+  const S2=R/2; const o=document.createElement('canvas'); o.width=o.height=S2; const og=o.getContext('2d'); og.imageSmoothingQuality='high'; og.drawImage(c,0,0,S2,S2);
+  return o.toDataURL('image/png');
+}

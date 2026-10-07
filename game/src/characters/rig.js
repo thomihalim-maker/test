@@ -30,7 +30,8 @@ export class Person{
     this.lastSin = 0; this.onStep = null; this.hit = 0; this.camDist = 0;
   }
   play(name, dur){ this.anim = name; this.t = 0; this.actDur = dur || 1; this.actEnd = true; this._hitDone=false; }
-  pose(name){ if(this.anim!==name){ this.anim = name; this.actEnd = false; } }
+  // base (looping) pose; a one-shot act started with play() (wave, greet, nod...) finishes first unless forced
+  pose(name, force=false){ if(!force && this.actEnd && this.t < this.actDur) return; if(this.anim!==name){ this.anim = name; this.actEnd = false; } }
   setSpec(spec){ this.spec = spec; this.pal = makePalette(spec.colors); }
   step(dt){
     this.t += dt;

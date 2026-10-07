@@ -70,10 +70,11 @@ export async function init(ctx){
   const visitors = createVisitors(ctx, {max:60});
   const pcol = { r:.4 };
 
+  let indoors = null;             // 'hall' | 'porch' | null (masjid.isInside), refreshed every frame
   player.onStep = (p,side)=>{
     const a = ctx.modules.audio, fx = ctx.modules.fx;
     if(p.speed>1.2) a?.play?.('step',{pos:p.pos.clone(), vol:.18+Math.min(.25,p.speed*.04)});
-    if(p.speed>3.2) fx?.burst?.('dust', new THREE.Vector3(p.pos.x,p.pos.y+.06,p.pos.z));
+    if(p.speed>3.2 && !indoors) fx?.burst?.('dust', new THREE.Vector3(p.pos.x,p.pos.y+.06,p.pos.z));   // clean floors: no dust puffs inside
   };
 
   const vel = new THREE.Vector3(), pvel = new THREE.Vector3(), tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
@@ -246,7 +247,7 @@ export async function init(ctx){
     if(a.sideT>0){ a.sideT -= dt; const sx=-uz*a.side, sz=ux*a.side; ux = ux*.35+sx*.94; uz = uz*.35+sz*.94; const n=Math.hypot(ux,uz)||1; ux/=n; uz/=n; }
     _wd.set(ux,0,uz);
     let remain = dFinal; if(a.path.length){ remain = d; for(let i=0;i<a.path.length;i++){ const p0=a.path[i], p1=a.path[i+1]||a.tgt; remain += Math.hypot(p1.x-p0.x,p1.z-p0.z); } }
-    a.runNow = a.run || remain > 14;
+    a.runNow = (a.run || remain > 14) && !indoors;          // no running inside the masjid
     return a.path.length ? 1 : Math.min(1, .3 + dFinal*.7);
   }
 
@@ -330,7 +331,7 @@ export async function init(ctx){
     player.yaw = angLerp(player.yaw, s.yaw, Math.min(1,dt*10));
     const ph = pr.phase;
     const pose = ph==='run' ? (pr.hold||poseAt(pr.t, pr.tlId)) : ph==='khutbah' ? 'duduk' : ph==='rise' ? 'qiyam' : 'itidal';
-    player.pose(pose);
+    player.pose(pose, true);
     if(ph==='idle' && leading.t>2) finishLead();            // aborted without a prayer:done
   }
 
@@ -368,6 +369,7 @@ export async function init(ctx){
     input.update();
     const blocked = uiBlocked();
     if(blocked){ input.move.set(0,0); input.consume(); }
+    indoors = null; if(stageNow()>=1){ try{ indoors = Mj()?.isInside?.(player.pos.x, player.pos.z) || null; }catch(e){} }
     if(LOOPACT && !act && !leading) startAct(LOOPACT,{emit:false,cancel:false});
     if(AUTO){ input.move.set(AUTO[0],AUTO[1]); if(AUTO[2]) input.run=true; }
     const mv = input.move;

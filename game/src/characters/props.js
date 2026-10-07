@@ -168,7 +168,9 @@ export function updateProps(props, person, t, dt, groundY){
       _tip.copy(_a).addScaledVector(_ax, -d);
     }
     // basis: Y along the handle, X = fan width (perpendicular to the sideways sweeping motion), Z completes
-    _bx.crossVectors(_ax, _rt); if(_bx.lengthSq()<1e-6) _bx.set(sy,0,cy); _bx.normalize();
+    if(person.propMode==='grip'){ _bx.crossVectors(_ax, _rt); if(_bx.lengthSq()<1e-6) _bx.set(sy,0,cy); }
+    else _bx.copy(_rt).addScaledVector(_ax, -_rt.dot(_ax));          // carried: show the broad side of the fan
+    _bx.normalize();
     _bz.crossVectors(_bx, _ax).normalize();
     _bm.makeBasis(_bx, _ax, _bz); o.quaternion.setFromRotationMatrix(_bm);
     o.position.copy(_tip); o.scale.setScalar(sc);

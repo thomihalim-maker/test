@@ -194,7 +194,6 @@ export function createAnchors(ctx, api) {
   const PAD = .38;                                           // player radius (.4) minus a hair: legs may graze, not cut
   const blocked = new Uint8Array(G.nx * G.nz);
   let gridKey = '';
-  const inG = (x, z) => x >= G.x0 && z >= G.z0 && x < G.x0 + G.nx * G.cs && z < G.z0 + G.nz * G.cs;
   const cols = () => ctx.colliders.filter(c => c && Number.isFinite(c.x) && Number.isFinite(c.z) && c.r > 0 && c.r < 8 &&
     c.x > G.x0 - c.r - 1 && c.x < G.x0 + G.nx * G.cs + c.r + 1 && c.z > G.z0 - c.r - 1 && c.z < G.z0 + G.nz * G.cs + c.r + 1);
   function buildGrid(list) {

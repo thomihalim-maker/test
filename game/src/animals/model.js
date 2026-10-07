@@ -116,6 +116,13 @@ function orient(pos,dir,up=new V3(0,1,0)){
 }
 
 // ---------- breed definitions ----------
+// i18n names [id,en] (shared contract: ui Hewanku panel)
+export const KIND_NAMES={ goat:['Kambing','Goat'], sheep:['Domba','Sheep'], cow:['Sapi','Cow'] };
+export const BREEDS={
+  goat:{ boer:['Boer','Boer'], kacang:['Kacang','Kacang'], etawa:['Etawa','Etawa'], pied:['Belang','Pied'], golden:['Emas','Golden'] },
+  sheep:{ white:['Putih','White'], caramel:['Karamel','Caramel'], lavender:['Lavender','Lavender'], cream:['Krem','Cream'], darkface:['Muka Gelap','Dark-faced'], garut:['Garut','Garut'], grey:['Abu-abu','Grey'] },
+  cow:{ holstein:['Holstein','Holstein'], limousin:['Limousin','Limousin'], bali:['Bali','Bali'], brahman:['Brahman','Brahman'], jersey:['Jersey','Jersey'] },
+};
 const COLLARS=['#ff2e63','#00b8a9','#ffc400','#2f6bff','#9b4dff','#ff7a00','#22c55e','#ff3fa4'];
 const NAMES={
   goat:['Bleki','Mbek','Kiki','Cemong','Gembul','Sari','Tuti','Bagas','Upil','Joko','Mocha','Pelangi','Bimo','Lintang','Cokelat'],
@@ -310,6 +317,8 @@ export function buildAnimal(kind,seed,baby=false,breedK=null){
   mesh.castShadow=true; mesh.receiveShadow=true; mesh.frustumCulled=false;
   const group=new THREE.Group(); group.add(mesh); group.scale.setScalar(L.S);
   const bm={}; BONES.forEach((n,i)=>bm[n]=bones[i]);
-  return { group, mesh, face:mesh.material.userData.face, lash:(kind!=='goat'||!male), mouthK:kind==='cow'?'cow':'goat', bones:bm, restLocal, breed:br.k, male, collar:'#'+collar.getHexString(), S:L.S,
+  const lash=(kind!=='goat'||!male);
+  return { group, mesh, face:mesh.material.userData.face, lash, pal:br, horns:hornsOn, kind, baby,
+    eyes:{ open:baby?FACE.eyeBaby:(lash?FACE.eyeLash:FACE.eyeOpen), happy:FACE.eyeHappy, sleep:FACE.eyeSleep, lid:FACE.eyeLid }, mouthK:kind==='cow'?'cow':'goat', bones:bm, restLocal, breed:br.k, male, collar:'#'+collar.getHexString(), S:L.S,
     dims:{ hipY:L.hipY, bodyY:bodyC[1], headTop:H[1]+L.hR[1], tris:(geo.index.count/3)|0, bubbleY:(H[1]+L.hR[1]+.3)*L.S, lx:L.lx, len:bR[2]*2*L.S, rad:bR[0]*L.S } };
 }

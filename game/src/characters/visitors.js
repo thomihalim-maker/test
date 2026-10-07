@@ -130,7 +130,11 @@ export function createVisitors(ctx, opts={}){
   const api = { list:V, prayer, slotsM, slotsF, PRAY, count:()=>V.length, get stageCap(){return cap();},
     get slots(){ return { men:SM, women:SF }; } };
 
-  function attraction(){ return safe(()=>ctx.modules.care?.attraction?.(), null); }
+  let attr = null, attrT = -9;
+  function attraction(){            // cached for a second: care.attraction() walks every dirt spot
+    if(ctx.time - attrT > 1 || ctx.time < attrT){ attrT = ctx.time; try{ attr = ctx.modules.care?.attraction?.() || null; }catch(e){ attr = null; } }
+    return attr;
+  }
   function cap(){
     const h = ctx.hour; if(h>21.5||h<4.5) return 0;
     const st = stageNow(); let c = st<=0 ? 2 : Math.min(40, 4+st*5);
@@ -160,7 +164,7 @@ export function createVisitors(ctx, opts={}){
     lastArrive = ctx.time; return v;
   }
   function footstep(p,side){
-    if(p.speed>3.5) ctx.modules.fx?.burst?.('dust',_p.set(p.pos.x,p.pos.y+.05,p.pos.z).clone());
+    if(p.speed>3.5 && !p._indoor) ctx.modules.fx?.burst?.('dust',_p.set(p.pos.x,p.pos.y+.05,p.pos.z).clone());   // no dust on the masjid floor
   }
   function moveTo(v,tx,tz,dt,speedMul=1){
     const p=v.person, dx=tx-p.pos.x, dz=tz-p.pos.z, d=Math.hypot(dx,dz);
@@ -357,7 +361,7 @@ export function createVisitors(ctx, opts={}){
         if(stageNow()>=1 && g.length>=Math.min(3,Math.max(1,c)) && ctx.time-lastArrive>3.5 && (oldest>7 || g.length>=6)) startPrayer();
       }
     } else if(prayer.phase==='assemble'){
-      prayer.t+=dt*sp;
+      prayer.t+=dt;                         // real time: the imam and the jamaah need to walk in (prayer.speed only speeds the prayer)
       const moving = V.filter(v=>v.state==='toSlot').length;
       const limit = prayer.imam==='player' ? 14 : 9;
       // the imam must be in place first (the player walking up, or Pak Haji); a Jumat khatib is up on the mimbar instead
@@ -379,7 +383,6 @@ export function createVisitors(ctx, opts={}){
       prayer.t += prayer.hold?0:dt*sp;
       if(prayer.t>FULL_T(prayer.tlId)+1.5) finishPrayer();
     }
-    const runPose = (delay)=>prayer.hold||poseAt(prayer.t-delay, prayer.tlId);
     const M = Mj();
     // per visitor
     for(let i=V.length-1;i>=0;i--){
@@ -408,7 +411,7 @@ export function createVisitors(ctx, opts={}){
           if(dx*dx+dz*dz>.03){ moveTo(v,sl.x,sl.z,dt,1); p.pose('loco'); break; }
           stand(v,dt,Math.PI); p.pos.x+=(sl.x-p.pos.x)*Math.min(1,dt*6); p.pos.z+=(sl.z-p.pos.z)*Math.min(1,dt*6);
           const ph = prayer.phase;
-          p.pose(ph==='run' ? runPose(v.delay) : ph==='rise' ? 'qiyam' : (ph==='assemble'||ph==='khutbah') ? 'duduk' : 'qiyam');
+          p.pose(ph==='run' ? (prayer.hold||poseAt(prayer.t-v.delay, prayer.tlId)) : ph==='rise' ? 'qiyam' : (ph==='assemble'||ph==='khutbah') ? 'duduk' : 'qiyam', true);
           coll = false;
           break; }
         // ---- NPC imam / khatib (Pak Haji)
@@ -418,7 +421,7 @@ export function createVisitors(ctx, opts={}){
           break; }
         case 'imam': {
           stand(v,dt,Math.PI); p.pos.x+=(v.imamAt.x-p.pos.x)*Math.min(1,dt*6); p.pos.z+=(v.imamAt.z-p.pos.z)*Math.min(1,dt*6);
-          const ph = prayer.phase; p.pose(ph==='run' ? runPose(0) : 'qiyam'); coll=false; break; }
+          const ph = prayer.phase; p.pose(ph==='run' ? (prayer.hold||poseAt(prayer.t, prayer.tlId)) : 'qiyam', true); coll=false; break; }
         case 'climb': { // walk up the mimbar steps (positions are scripted; no ground snap on the stairs)
           v.timer += dt*sp; snap=false; coll=false;
           const u = Math.min(1, v.timer/2.4), m = MIMBAR, gy = ctx.groundHeight(m.foot.x,m.foot.z);
@@ -428,7 +431,7 @@ export function createVisitors(ctx, opts={}){
           p.yaw = angLerp(p.yaw, u<1?Math.PI:0, Math.min(1,dt*(u<1?8:5))); p.speed = u<1?1.4:0; p.cycle += dt*5*(u<1?1:0); p.pose('loco');
           if(u>=1){ v.state='khatib'; }
           break; }
-        case 'khatib': { snap=false; coll=false; const m=MIMBAR; p.pos.set(m.top.x, ctx.groundHeight(m.foot.x,m.foot.z)+m.top.y, m.top.z); stand(v,dt,0); p.pose('khutbah'); break; }
+        case 'khatib': { snap=false; coll=false; const m=MIMBAR; p.pos.set(m.top.x, ctx.groundHeight(m.foot.x,m.foot.z)+m.top.y, m.top.z); stand(v,dt,0); p.pose('khutbah',true); break; }
         case 'descend': {
           v.timer += dt*sp; snap=false; coll=false;
           const u = Math.min(1, v.timer/1.8), m = MIMBAR, gy = ctx.groundHeight(m.foot.x,m.foot.z);
@@ -468,7 +471,7 @@ export function createVisitors(ctx, opts={}){
         const dx=pl.pos.x-p.pos.x, dz=pl.pos.z-p.pos.z; if(dx*dx+dz*dz<12){ v.waved=t; p.play('wave',1.5); emote(v,'heart'); }
       }
       // footprints: once per visitor per zone (porch / hall)
-      if(p.speed>.2 && M?.isInside){ v.zoneT-=dt; if(v.zoneT<=0){ v.zoneT=.25; const zn = safe(()=>M.isInside(p.pos.x,p.pos.z)); if(zn && !v.entered[zn]){ v.entered[zn]=1; ctx.emit('visitor:enter',{ id:v.id, zone:zn, pos:{x:p.pos.x, y:p.pos.y, z:p.pos.z} }); } } }
+      if(p.speed>.2 && M?.isInside){ v.zoneT-=dt; if(v.zoneT<=0){ v.zoneT=.25; let zn=null; try{ zn = M.isInside(p.pos.x,p.pos.z); }catch(e){} p._indoor = zn; if(zn && !v.entered[zn]){ v.entered[zn]=1; ctx.emit('visitor:enter',{ id:v.id, zone:zn, pos:{x:p.pos.x, y:p.pos.y, z:p.pos.z} }); } } }
       if(coll && (v.state!=='pray'||p.speed>.2)){ collide(p); }
       if(snap) groundSnap(p,dt);
       p.step(dt);
@@ -495,10 +498,13 @@ export function createVisitors(ctx, opts={}){
     kinds.forEach((k,i)=>{ const v=spawn({kind:k,x:(i-2.5)*1.5,z:10}); v.state='static'; v.faceYaw=0; v.person.yaw=0; v.person.pos.y=ctx.groundHeight(v.person.pos.x,10); const pn=q.get('pose'); if(pn) v.person.pose(pn); else v.person.pose(i%2?'chat':'loco'); });
     spawnT=999;
   }
-  Object.assign(api, { lineup, update, spawn, crowd, wave, setHold, startPrayer, abortPrayer, poseAt, FULL_T, timeline,
-    get held(){ return held; },
-    get gathered(){ let n=0; for(const v of V) if(v.mode==='pray' && !v.role && v.state==='gather') n++; return n; },
-    get npcImam(){ return imamV ? imamV.person : null; },
-    get waiting(){ return waveQ.length; } });
+  Object.assign(api, { lineup, update, spawn, crowd, wave, setHold, startPrayer, abortPrayer, poseAt, FULL_T, timeline });
+  // live getters (Object.assign would copy their values once)
+  Object.defineProperties(api, {
+    held:{ get(){ return held; }, enumerable:true },
+    gathered:{ get(){ let n=0; for(const v of V) if(v.mode==='pray' && !v.role && v.state==='gather') n++; return n; }, enumerable:true },
+    npcImam:{ get(){ return imamV ? imamV.person : null; }, enumerable:true },
+    waiting:{ get(){ return waveQ.length; }, enumerable:true },
+  });
   return api;
 }
