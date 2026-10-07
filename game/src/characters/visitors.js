@@ -89,6 +89,13 @@ export function poseAt(t, prayerId){
   return tl[tl.length-1][0];
 }
 const ADULT_M = { man:1, elder:1 };
+// a boy who comes to pray is dressed for it: peci and a full baju koko over his sarung (never the short play top)
+export function dressForSalat(spec){
+  if(!spec || spec.kind!=='boy') return spec;
+  if(spec.hat!=='peci' && spec.hat!=='kopiah'){ spec.hat = 'peci'; spec.colors.head = pick(PECI); }
+  spec.longTop = true; spec.bottom = 'sarong';
+  return spec;
+}
 const isMale = (v)=>v.person.spec.gender!=='f';
 
 export function createVisitors(ctx, opts={}){
@@ -125,7 +132,7 @@ export function createVisitors(ctx, opts={}){
   const SIT = [ {x:-9.5,z:14},{x:-10.5,z:15.2},{x:-8.6,z:15.4},{x:9.5,z:14},{x:10.5,z:15.2},{x:8.6,z:15.4} ];
   const prayer = { phase:'idle', t:0, hold:q.get('prayer')||null, restT:0, timer:0, speed:1, imam:null, prayerId:null, layout:null,
     imamReady:true, khutbah:false, count:0, tlId:null };
-  let nextId=1, spawnT=3, lastArrive=-99, held=false, imamV=null;
+  let nextId=1, spawnT=3, lastArrive=-99, held=false, imamV=null, joinT=0;
   const waveQ = [];
   const api = { list:V, prayer, slotsM, slotsF, PRAY, count:()=>V.length, get stageCap(){return cap();},
     get slots(){ return { men:SM, women:SF }; } };
@@ -156,6 +163,7 @@ export function createVisitors(ctx, opts={}){
     p.yaw = Math.PI; p.onStep = footstep;
     p.accX=p.accZ=0;
     const mode = opts.mode || (Math.random()<.2||spec.stoop?'sit':'pray');
+    if(mode==='pray') dressForSalat(spec);
     const v = { id:nextId++, person:p, state:'arrive', path:[], vel:new THREE.Vector3(), timer:0, slot:null, mode, emoteT:R(2,5), delay:0, donated:false, waved:-99, faceYaw:Math.PI,
       speedMax:R(2.4,3.0)*spec.speed*(opts.wave?1.25:1), waitT:0, spot:null, entered:{}, zoneT:R(0,.25), role:opts.role||null, wave:!!opts.wave };
     const g = opts.wave ? pick(GATHER_WAVE) : pick(GATHER); v.path=[ {x:g.x+R(-1,1),z:g.z+R(-.8,.8)} ]; v.gx=g;
@@ -235,6 +243,25 @@ export function createVisitors(ctx, opts={}){
     }
     imamV=null; prayer.phase='idle'; prayer.imam=null; refreshMats();
   }
+  // a straight saf: keep >= 1.0 m clear of the mimbar, >= .62 m between neighbours, and fill every row centre-out
+  // from behind the imam (the aisle / imam x), front rows first
+  const MIMBAR_C = { x:2.55, z:-6.0, r:1.2 };
+  function tidySlots(list, rowOff, layout){
+    const cx = Number.isFinite(layout?.imam?.x) ? layout.imam.x : 0, mim = (layout?.indoor && (layout.stage ?? stageNow())>=7);
+    const rows = new Map();
+    for(const s of list){
+      if(!s || !Number.isFinite(s.x) || !Number.isFinite(s.z)) continue;
+      if(mim && Math.hypot(s.x-MIMBAR_C.x, s.z-MIMBAR_C.z) < MIMBAR_C.r+1.0) continue;
+      const r = s.row|0; if(!rows.has(r)) rows.set(r, []); rows.get(r).push(s);
+    }
+    const out = [];
+    for(const r of [...rows.keys()].sort((a,b)=>a-b)){
+      const row = rows.get(r).slice().sort((p,q)=>(Math.abs(p.x-cx)-Math.abs(q.x-cx)) || (q.x-p.x)), kept = [];
+      for(const s of row) if(kept.every(k=>Math.abs(k.x-s.x)>=.62)) kept.push(s);
+      for(const s of kept) out.push({ x:s.x, z:s.z, row:r+rowOff, used:null });
+    }
+    return out;
+  }
   function startPrayer(o={}){
     const imam = o.imam==='player'||o.imam==='npc' ? o.imam : 'auto';
     if(prayer.phase!=='idle'){
@@ -244,7 +271,7 @@ export function createVisitors(ctx, opts={}){
     let layout = o.layout || safe(()=>Mj()?.prayerLayout?.(), null);
     if(layout && !(Array.isArray(layout.men) && layout.men.length)) layout = null;
     const rowOff = layout ? Math.max(1, ...layout.men.map(s=>(s.row|0)+1)) : 3;
-    if(layout){ SM = layout.men.map(s=>({x:s.x, z:s.z, row:s.row|0, used:null})); SF = (layout.women||[]).map(s=>({x:s.x, z:s.z, row:(s.row|0)+rowOff, used:null})); }
+    if(layout){ SM = tidySlots(layout.men, 0, layout); SF = tidySlots(layout.women||[], rowOff, layout); }
     else { SM = slotsM; SF = slotsF; for(const s of SM.concat(SF)) s.used=null; }
     matsBuiltIn = !!layout?.mats;
     const cand = V.filter(v=>v.mode==='pray' && !v.role && (v.state==='gather'||v.state==='arrive'||v.state==='post'||v.state==='pray'||v.state==='toSlot'));
@@ -261,8 +288,11 @@ export function createVisitors(ctx, opts={}){
     for(const v of [...men, ...women]){
       const arr = isMale(v) ? SM : SF; const sl = arr.find(s=>!s.used);
       if(!sl){ if(v.state==='toSlot'||v.state==='pray'){ v.state='gather'; v.slot=null; } continue; }
-      sl.used=v; v.slot=sl; v.state='toSlot'; v.delay = .25 + sl.row*.1 + R(0,.3); v.path = pathToSlot(v, sl, layout); v.sat=false; n++;
+      sl.used=v; v.slot=sl; v.state='toSlot'; v.delay = .25 + sl.row*.1 + R(0,.3); v.path = pathToSlot(v, sl, layout); v.sat=false; dressForSalat(v.person.spec); n++;
     }
+    // the rest of an adzan wave that has not set off yet stays home; jamaah already on their way join the back rows
+    if(imam!=='auto') waveQ.length = 0;
+    joinT = 0;
     prayer.phase='assemble'; prayer.t=0; prayer.imam=imam; prayer.prayerId=o.prayerId||null; prayer.layout=layout; prayer.khutbah=khutbah; prayer.count=n;
     prayer.tlId = (o.jumat && khutbah) ? 'jumat' : (o.prayerId||null);
     prayer.imamReady = imam!=='npc' && imam!=='player'; prayer.khT = 0;
@@ -289,7 +319,9 @@ export function createVisitors(ctx, opts={}){
   function finishPrayer(){
     const imam = prayer.imam||'auto', pid = prayer.prayerId;
     const pr = V.filter(v=>(v.state==='pray'||v.state==='toSlot') && !v.role);
+    if(pool.left<=0 || !pr.some(v=>v.wave)) poolOpen();          // an idle-window (auto / Pak Haji) prayer gets its own small pool
     for(const v of pr){
+      v.prayed = true;
       v.state='post'; v.timer=R(7,13); v.postSit=R(2.5,5); v.path=[];
       const nb = pr.find(o=>o!==v&&o.slot&&v.slot&&Math.abs(o.slot.z-v.slot.z)<.1&&Math.abs(o.slot.x-v.slot.x)<1.5);
       v.faceYaw = nb?Math.atan2(nb.person.pos.x-v.person.pos.x,nb.person.pos.z-v.person.pos.z):Math.PI*.8;
@@ -317,10 +349,20 @@ export function createVisitors(ctx, opts={}){
     if(!v.role) donate(v);
     v.path=leavePath(v);
   }
+  // Sedekah. A passing visitor gives a small coin gift. Jamaah who came for a prayer (the adzan wave, or anyone who prayed
+  // in the rows) share ONE modest pooled sedekah per prayer instead of each paying a full gift: a led prayer at stage 8 gives
+  // a few dozen coins, in line with quest rewards (15-40), never hundreds.
+  const pool = { left:0, id:0 };
+  function poolOpen(){ const st = stageNow(), mul = attraction()?.donateMul ?? 1; pool.id++; pool.left = Math.round((8 + st*3.5) * (Number.isFinite(mul)?mul:1)); }
   function donate(v){
     if(v.donated) return; v.donated=true;
     const st = stageNow(), mul = attraction()?.donateMul ?? 1;
-    const amt = Math.max(1, Math.round((3+Math.random()*8)*(1+st*.35)*(Number.isFinite(mul)?mul:1)));
+    let amt = Math.max(1, Math.round((2+Math.random()*4)*(1+st*.15)*(Number.isFinite(mul)?mul:1)));
+    if(v.wave || v.prayed){
+      amt = Math.min(pool.left, Math.max(1, Math.round(amt*.3)));
+      pool.left -= amt;
+      if(amt<=0){ emote(v, moodPick('post')); return; }          // a thankful smile instead of coins once the pool is shared out
+    }
     const ui = ctx.modules.ui;
     if(ui?.addCoins) ui.addCoins(amt,'visitor');
     else { if(ctx.state) ctx.state.coins = (ctx.state.coins||0)+amt; ctx.emit('coins:change',{coins:ctx.state?.coins, total:ctx.state?.coins, delta:amt, source:'visitor'}); }
@@ -331,7 +373,8 @@ export function createVisitors(ctx, opts={}){
   }
   // scheduled arrivals after the adzan: staggered spawns from the road, ignore the stage cap and the night rule
   function wave(n, o={}){
-    n = Math.max(0, Math.min(n|0, MAXV - V.length - waveQ.length));
+    poolOpen();
+    n = Math.max(0, Math.min(n|0, LOW ? 8 : 14, MAXV - V.length - waveQ.length));
     let t = R(.15,.5);
     for(let i=0;i<n;i++){ waveQ.push({ t, mode:o.mode||'pray', prayerId:o.prayerId||null }); t += R(.6,1.5); }
     return n;
@@ -382,6 +425,20 @@ export function createVisitors(ctx, opts={}){
     } else if(prayer.phase==='run'){
       prayer.t += prayer.hold?0:dt*sp;
       if(prayer.t>FULL_T(prayer.tlId)+1.5) finishPrayer();
+    }
+    // latecomers (the tail of an adzan wave, or anyone arriving while the rows assemble) fill the free back slots
+    // instead of waiting on the plaza through the whole prayer; nobody joins in the last part of the prayer
+    if(prayer.phase!=='idle'){
+      joinT -= dt;
+      if(joinT<=0){ joinT = .5;
+        const late = prayer.phase==='run' && prayer.t > FULL_T(prayer.tlId)*.5;
+        if(!late) for(const v of V){
+          if(v.mode!=='pray' || v.role || v.state!=='gather' || v.slot) continue;
+          const sl = (isMale(v) ? SM : SF).find(s=>!s.used); if(!sl) continue;
+          sl.used=v; v.slot=sl; v.state='toSlot'; v.delay = .25 + sl.row*.1 + R(0,.3); v.path = pathToSlot(v, sl, prayer.layout); v.sat=false;
+          dressForSalat(v.person.spec); prayer.count++; refreshMats();
+        }
+      }
     }
     const M = Mj();
     // per visitor

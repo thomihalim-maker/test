@@ -26,8 +26,11 @@ const L10N = {
   id:{ feed:'Beri Makan', water:'Beri Minum', wash:'Mandikan', treat:'Beri Camilan', pet:'Elus', fillFeed:'Isi Jerami', fillWater:'Isi Air', fillWash:'Isi Bak Cuci', bedug:'Tabuh Bedug', greet:'Sapa', act:'Aksi', sweep:'Sapu', mop:'Pel', gather:'Angkut Daun' },
   en:{ feed:'Feed', water:'Give Water', wash:'Wash', treat:'Give Treat', pet:'Pet', fillFeed:'Fill Hay', fillWater:'Fill Water', fillWash:'Fill Wash Tub', bedug:'Beat Bedug', greet:'Greet', act:'Action', sweep:'Sweep', mop:'Mop', gather:'Bag Leaves' }
 };
+// short labels for the round action button (the long interactable label stays for captions / tooltips)
+const SHORT = { adzan:['Adzan','Adzan'] };
 const PEN = { x:26, z:6, r:11 };
 const MASJID_C = { x:0, z:-1 }, CARRY_R = 17;
+const angDiff=(b,a)=>((b-a+Math.PI)%(Math.PI*2)+Math.PI*2)%(Math.PI*2)-Math.PI;
 const angLerp=(a,b,k)=>{ const d=((b-a+Math.PI)%(Math.PI*2)+Math.PI*2)%(Math.PI*2)-Math.PI; return a+d*k; };
 const hexOf = (v)=> typeof v==='string'? new THREE.Color(v).getHex() : v;
 const fin = (v)=>typeof v==='number' && Number.isFinite(v);
@@ -61,13 +64,15 @@ export async function init(ctx){
 
   const LOW = ctx.quality==='low' || q.get('quality')==='low';
   const people = new People(scene, {max:2, D:1, cast:true, name:'player'});
-  const crowdHi = new People(scene, {max:LOW?6:24, D:.75, cast:!LOW, name:'crowdHi'});
-  const NEAR = LOW ? 8 : 15;
-  const crowdLo = new People(scene, {max:64, D:.5, cast:false, name:'crowdLo'});
+  // draw-call budget (<250 at stage 8 with a prayer crowd): the near hi-detail crowd is capped and casts no real shadows
+  // (every People part set already draws a soft blob shadow under each person)
+  const crowdHi = new People(scene, {max:LOW?6:12, D:.75, cast:false, name:'crowdHi'});
+  const NEAR = LOW ? 8 : 13;
+  const crowdLo = new People(scene, {max:64, D:.5, cast:false, name:'crowdLo', outline:false});
   const props = makeProps(scene);
   const bubbles = createBubbles(scene, 14);
   const input = createInput(ctx); ctx.input = input;
-  const visitors = createVisitors(ctx, {max:60});
+  const visitors = createVisitors(ctx, {max:LOW?40:48});
   const pcol = { r:.4 };
 
   let indoors = null;             // 'hall' | 'porch' | null (masjid.isInside), refreshed every frame
@@ -91,6 +96,7 @@ export async function init(ctx){
     if(!act) return;
     const a = act; act = null;
     if(a.name!=='jump'){ player.anim='loco'; player.actEnd=false; }
+    if(a.name==='adzan' || a.kind==='adzan') endAdzanCam();
     ctx.emit('act:end',{ name:a.name, kind:a.kind, cancelled:!!cancelled, t:a.t });
     return a;
   }
@@ -102,7 +108,9 @@ export async function init(ctx){
     player.play(name, act.dur);
     if(name==='jump'){ player.jumpPhase=0; act.jt=0; act.air=false; player.jvy=0; }
     if(fin(o.yaw)) act.yaw = o.yaw;
+    else if(name==='adzan') act.yaw = Math.PI;                 // the adzan is called facing the qibla
     else if(act.target){ tmp.set(act.target.x-player.pos.x,0,act.target.z-player.pos.z); if(tmp.lengthSq()>.01) act.yaw = Math.atan2(tmp.x,tmp.z); }
+    if(name==='adzan') safe(()=>frameAdzan(act.yaw));
     return act;
   }
   function selectTool(id){
@@ -156,7 +164,7 @@ export async function init(ctx){
     const pos = player.pos; let best=null, bd=1e9;
     const consider=(c,d)=>{ if(d<bd){ bd=d; best=c; } };
     for(const it of ctx.interactables){ const p=it.pos||it; if(!p || !fin(p.x)) continue; const d=Math.hypot(p.x-pos.x,p.z-pos.z);
-      if(d<(it.r||2.5) && (!it.enabled||safe(()=>it.enabled(),false))) consider({kind:it.kind||'interact',label:L(it.label)||tr('act'),icon:it.icon||'✋',pos:p,anim:it.anim,data:it,hold:!!it.hold}, d-(it.priority||0)); }
+      if(d<(it.r||2.5) && (!it.enabled||safe(()=>it.enabled(),false))) consider({kind:it.kind||'interact',label:(SHORT[it.kind] ? L(SHORT[it.kind]) : L(it.label))||tr('act'),icon:it.icon||'✋',pos:p,anim:it.anim,data:it,hold:!!it.hold}, d-(it.priority||0)); }
     // masjid care: dirt spots and leaf piles (care decides what is nearest; a matching hotbar tool wins ties)
     const care = ctx.modules.care;
     if(care?.nearest){
@@ -288,9 +296,104 @@ export async function init(ctx){
     // whatever changed since our last write was the player dragging/zooming: keep it as their own preference
     assist.uP += R.pitch - assist.lastP; assist.uD += R.dist - assist.lastD;
     if(!inHall){ R.pitch = assist.uP; R.dist = assist.uD; assist.on = false; return; }
-    const k = 1-Math.exp(-dt*3.5), wantP = Math.max(assist.uP, .9), wantD = Math.min(14, Math.max(9, assist.uD));
+    // Animal-Crossing-style interior framing: close and steep, always looking in through the (cut-away) front of the hall,
+    // so the roofless hall floor, the dirt, the rows and the marbot are visible over the front wall and the veranda roof.
+    const k = 1-Math.exp(-dt*3.5), wantP = Math.min(1.3, Math.max(assist.uP, 1.08)), wantD = Math.min(9.5, Math.max(7, assist.uD));
     R.pitch += (wantP-R.pitch)*k; R.dist += (wantD-R.dist)*k;
+    const yd = angDiff(R.yaw, 0), YC = .5;
+    if(Math.abs(yd) > YC) R.yaw += (Math.sign(yd)*YC - yd)*k;
     assist.lastP = R.pitch; assist.lastD = R.dist;
+  }
+
+  // ---------- camera: line-of-sight helpers (raycast against the visible masjid meshes, throttled) ----------
+  const ray = new THREE.Raycaster(), occList = [], _from = new THREE.Vector3(), _to = new THREE.Vector3(), _dir = new THREE.Vector3();
+  let occListT = -99, occStage = -1;
+  function occluders(){
+    const st = stageNow();
+    if(ctx.time-occListT > 1.5 || ctx.time < occListT || st!==occStage){
+      occListT = ctx.time; occStage = st; occList.length = 0;
+      const g = Mj()?.group;
+      if(g?.traverseVisible) g.traverseVisible(o=>{ const m = o.material;
+        if((o.isMesh || o.isInstancedMesh) && m && !Array.isArray(m) && m.visible!==false && !(m.transparent && (m.opacity??1)<.9) && m.depthWrite!==false) occList.push(o); });
+    }
+    return occList;
+  }
+  // distance from `from` to the first masjid surface on the way to `to` (Infinity when clear)
+  function firstHit(from, to){
+    const list = occluders(); if(!list.length) return Infinity;
+    _dir.subVectors(to, from); const len = _dir.length(); if(len<1e-3) return Infinity; _dir.divideScalar(len);
+    ray.set(from, _dir); ray.near = .25; ray.far = len;
+    let hits = null; try{ hits = ray.intersectObjects(list, false); }catch(e){ return Infinity; }
+    return hits && hits.length ? hits[0].distance : Infinity;
+  }
+  // camera position for a rig pose (same formula as the world camera: target + (sin yaw cos p, sin p, cos yaw cos p)*dist)
+  function camPos(out, tx, ty, tz, yaw, pitch, dist){ const cp=Math.cos(pitch); return out.set(tx+Math.sin(yaw)*cp*dist, ty+Math.sin(pitch)*dist, tz+Math.cos(yaw)*cp*dist); }
+  function viewClear(tx, ty, tz, yaw, pitch, dist, eye){ _from.set(tx, eye, tz); camPos(_to, tx, ty, tz, yaw, pitch, dist); return firstHit(_from, _to) === Infinity; }
+
+  // ---------- adzan staging: a 3/4 front-side view of the marbot's raised hands, chosen so no masjid wall/roof blocks it ----------
+  let adzanCam = null;
+  function frameAdzan(faceYaw){
+    if(adzanCam!=null){ releaseCamera(adzanCam); adzanCam = null; }
+    const px = player.pos.x, pz = player.pos.z, py = player.pos.y, ty = py+.8, eye = py+1.35;
+    const fy = fin(faceYaw) ? faceYaw : player.yaw;
+    const D = 6.2, P = .3;
+    // score = clear sight lines from the head and from 1 m either side of it (a frame not crowded by a wall right next to the lens)
+    let best = null, bestS = -1;
+    for(const a of [1.2, -1.2, .9, -.9, 1.5, -1.5, .6, -.6, 1.9, -1.9, 2.4, -2.4]){
+      const cy = fy + a, sx = Math.cos(cy), sz = -Math.sin(cy);
+      camPos(_to, px, ty, pz, cy, P, D); const c0 = _to.clone();
+      _from.set(px, eye, pz); const h = firstHit(_from, c0);
+      let sc = h===Infinity ? 4 : h/D;
+      if(h===Infinity) for(const k of [-1,1]){ _from.set(px+sx*k, eye, pz+sz*k); _to.set(c0.x+sx*k*1.4, c0.y, c0.z+sz*k*1.4); if(firstHit(_from,_to)===Infinity) sc += 1; }
+      sc -= Math.abs(Math.abs(a)-1.2)*.15;                                     // prefer about 70 deg off the facing
+      if(sc > bestS){ bestS = sc; best = { yaw:cy, dist: h===Infinity ? D : Math.max(3.4, h-.4) }; }
+      if(sc >= 5.9) break;
+    }
+    if(!best) best = { yaw:fy+1.2, dist:D };
+    adzanCam = focusCamera({ x:px, y:py+.8, z:pz }, { yaw:best.yaw, pitch:P, dist:best.dist, hold:true, dur:12 });
+    return adzanCam;
+  }
+  function endAdzanCam(){ if(adzanCam!=null){ releaseCamera(adzanCam); adzanCam = null; } }
+
+  // ---------- general occlusion assist: when the masjid (roof, gate pier, menara) hides the marbot, swing the camera ----------
+  const occ = { t:0, want:null, wantP:null, baseP:null, lastYaw:null, lastP:null, userT:0 };
+  // both the chest and the head must be visible from the camera
+  const seen = (tx, ty, tz, yaw, pitch, dist, py)=>viewClear(tx, ty, tz, yaw, pitch, dist, py+1.3) && viewClear(tx, ty, tz, yaw, pitch, dist, py+.6) && viewClear(tx, ty, tz, yaw, pitch, dist, py+.25);
+  const OFFS = [.45, -.45, .9, -.9, 1.35, -1.35, 1.8, -1.8, 2.4, -2.4];
+  function updateOcclusion(dt){
+    const R = rig();
+    if(!R || R.locked || focus.length || assist.on || leading || stageNow()<1 || !R.target){
+      occ.want = occ.wantP = null; occ.lastYaw = occ.lastP = null;
+      if(occ.baseP!==null && R && !R.locked && !focus.length && !assist.on){ R.pitch = occ.baseP; } occ.baseP = null; return; }
+    if(occ.lastYaw!==null && (Math.abs(angDiff(R.yaw, occ.lastYaw))>1e-3 || Math.abs(R.pitch-occ.lastP)>1e-3)){ occ.userT = 2.5; occ.baseP = null; occ.want = occ.wantP = null; }  // the player dragged the view
+    occ.userT -= dt; occ.t -= dt;
+    if(occ.t<=0 && occ.userT<=0){
+      occ.t = .3;
+      const py = player.pos.y, tx = player.pos.x, ty = py+1.0, tz = player.pos.z, bp = occ.baseP ?? R.pitch;
+      let yaw = null, pitch = bp;
+      if(occ.want!==null && seen(tx, ty, tz, occ.want, occ.wantP ?? bp, R.dist, py)){ yaw = occ.want; pitch = occ.wantP ?? bp; }
+      else if(seen(tx, ty, tz, R.yaw, bp, R.dist, py)) yaw = R.yaw;
+      else {
+        // swing a little past the first clear direction so the marbot is not left right at the edge of a wall
+        for(const o of OFFS) if(seen(tx, ty, tz, R.yaw+o, bp, R.dist, py)){ const m = R.yaw+o+Math.sign(o)*.25; yaw = seen(tx, ty, tz, m, bp, R.dist, py) ? m : R.yaw+o; break; }
+        if(yaw===null){ const hp = Math.max(bp, 1.05);              // nothing clear at this height: look down from higher up
+          for(const o of [0, ...OFFS]) if(seen(tx, ty, tz, R.yaw+o, hp, R.dist, py)){ yaw = R.yaw+o; pitch = hp; break; } }
+      }
+      if(yaw===null){ occ.want = null; occ.wantP = null; }
+      else {
+        occ.want = Math.abs(angDiff(yaw, R.yaw))>.02 ? yaw : null;
+        if(pitch!==bp){ if(occ.baseP===null) occ.baseP = R.pitch; occ.wantP = pitch; }
+        else if(occ.baseP!==null){ occ.wantP = occ.baseP; }
+        else occ.wantP = null;
+      }
+    }
+    if(occ.userT<=0){
+      const k = 1-Math.exp(-dt*2.2);
+      if(occ.want!==null){ const d = angDiff(occ.want, R.yaw); R.yaw += d*k; if(Math.abs(d)<.02) occ.want = null; }
+      if(occ.wantP!==null){ const d = occ.wantP-R.pitch; R.pitch += d*k;
+        if(Math.abs(d)<.01){ if(occ.baseP!==null && Math.abs(occ.wantP-occ.baseP)<1e-6) occ.baseP = null; occ.wantP = null; } }
+    }
+    occ.lastYaw = R.yaw; occ.lastP = R.pitch;
   }
 
   // ---------- leading the prayer (imam) ----------
@@ -345,6 +448,7 @@ export async function init(ctx){
   ctx.on('player:carry',(c)=>{ explicitCarry = c||null; });
   ctx.on('visitor:donate',(d)=>{ if(d?.pos && Math.hypot(d.pos.x-player.pos.x,d.pos.z-player.pos.z)<8) emote(player,'coin',1.2); });
   ctx.on('prayer:done',(d)=>{ if(leading && (!d || d.imam==='player')) finishLead(); });
+  ctx.on('adzan:end',()=>{ if(!act || act.name!=='adzan') endAdzanCam(); });
   ctx.on('visitor:salam',(d)=>{ if(!leading && !act && !auto) startAct('greet',{ dur:1.6, emit:false, target:d?.pos||null }); });
 
   // ---------- test params ----------
@@ -358,9 +462,10 @@ export async function init(ctx){
 
   const LOOPACT = q.get('act');
   const AUTO = q.has('autowalk') ? q.get('autowalk').split(',').map(Number) : null;
-  const renderer = ctx.renderer, hiList = [], loList = [], playerList = [player];
+  const renderer = ctx.renderer, hiList = [], loList = [], playerList = [player], lodD = new Float32Array(96), lodS = new Float32Array(96);
   input.isBlocked = uiBlocked;
   const _grd = new THREE.Vector3();
+  let lastLang = lang(); input.setContext(null, tr('act'));
 
   // ---------- update ----------
   function update(dt,t){
@@ -461,8 +566,8 @@ export async function init(ctx){
 
     player.step(dt);
 
-    // context hint
-    ctxTimer-=dt; if(ctxTimer<=0){ ctxTimer=.15; if(!act) refreshContext(); }
+    // context hint (a language switch relabels the button at once, even in the middle of an act)
+    ctxTimer-=dt; if(ctxTimer<=0){ ctxTimer=.15; if(!act) refreshContext(); else if(lang()!==lastLang) input.setContext(ctxInfo?{icon:ctxInfo.icon,label:ctxInfo.label}:null, tr('act')); lastLang = lang(); }
 
     // camera follow target (or a focus target), then the interior assist
     const R = rig();
@@ -478,14 +583,19 @@ export async function init(ctx){
         R.target.lerp(_grd, 1-Math.exp(-dt*9));
       }
       updateAssist(dt);
+      updateOcclusion(dt);
     }
     visitors.update(dt,t);
 
     // render people (visitors split into near hi-detail / far low-detail LOD)
     hiList.length = 0; loList.length = 0;
     const cx = camera.position.x, cz = camera.position.z;
-    for(const v of visitors.list){ const p=v.person; const d=Math.hypot(p.pos.x-cx,p.pos.z-cz);
-      const near = (p._hi ? d<NEAR+2 : d<NEAR) && hiList.length<crowdHi.max; p._hi = near; (near?hiList:loList).push(p); }
+    // the crowdHi.max people nearest the camera (within the LOD range) get the outlined hi-detail set; the rest the cheap set
+    const VL = visitors.list, nV = Math.min(VL.length, lodD.length), nearR = Math.max(NEAR, (rig()?.dist||0) + 4);
+    for(let i=0;i<nV;i++){ const p=VL[i].person; const d=Math.hypot(p.pos.x-cx,p.pos.z-cz) - (p._hi ? 1.5 : 0); p._d = d; lodD[i] = d; }
+    let cut = nearR;
+    if(nV > crowdHi.max){ lodS.set(lodD.subarray(0,nV)); const srt = lodS.subarray(0,nV).sort(); cut = Math.min(nearR, srt[crowdHi.max-1] + 1e-4); }
+    for(let i=0;i<VL.length;i++){ const p=VL[i].person; const near = i<nV && p._d<cut && hiList.length<crowdHi.max; p._hi = near; (near?hiList:loList).push(p); }
     people.render(playerList); crowdHi.render(hiList); crowdLo.render(loList);
     renderer.getDrawingBufferSize(OUTLINE_U.uRes.value); OUTLINE_U.uDpr.value = renderer.getPixelRatio();
     updateProps(props, player, t, dt, player.pos.y);
@@ -496,7 +606,7 @@ export async function init(ctx){
 
   const api = { update, player, people, crowdHi, crowdLo, visitors, input, emote, startAct, doInteract, props,
     setCarry(c){ explicitCarry = c||null; }, setLook(l){ Object.assign(ctx.state.look ??= {}, l); }, play(name,o){ return startAct(name,o); },
-    walkTo, focusCamera, releaseCamera, leadPrayer, refreshContext,
+    walkTo, focusCamera, releaseCamera, leadPrayer, refreshContext, _viewClear:(...a)=>viewClear(...a), _occ:occ,
     cancelWalk(){ if(auto && !auto.lock){ endWalk('cancel'); return true; } return false; },
     get busy(){ return !!auto || !!leading || (!!act && act.dur>2.5 && act.name!=='jump'); },
     get leading(){ return !!leading; },

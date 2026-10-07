@@ -195,11 +195,14 @@ export function solve(P, tg){
       // traditional adzan posture: upright, both hands raised open beside the ears, chin slightly up, eyes softly closed.
       // Purely visual: no sound or voice comes from the character. Arms swing up sideways (never through the head).
       const r = sstep(0,.08,u)*(1-sstep(.95,1,u)), rr = Math.min(1,r*1.15);
-      tg.alx = tg.arx = -.4*rr; tg.alz = tg.arz = .16 + 2.29*rr;            // hands just in front of the ears, beside the face
-      tg.lean = -.02*r; tg.hx = -.08*r; tg.hy = 0; tg.hz = 0; tg.pr = tg.roll = 0; tg.twist = 0;
-      tg.llx = tg.lrx = 0; tg.klx = tg.krx = .04; tg.fx = 0; tg.fz = 0;
-      tg.eye = 1 - .9*r; tg.smile = .45; tg.mouth = (.13 + .1*Math.sin(t*1.8))*r;
-      tg.breath = .035*Math.sin(t*1.8); break; }
+      // Staging for a child's eye: arms opened wide to the sides (elbows out) with the open hands right beside the ears,
+      // chin raised a little, and a slow 0.6 Hz chest 'breath' sway so the long held call feels alive.
+      const sw = Math.sin(t*3.77);                                            // 0.6 Hz
+      tg.alx = tg.arx = -.48*rr; tg.alz = tg.arz = .16 + 2.2*rr;             // wide, palms beside the ears (never through the head)
+      tg.lean = -.05*r; tg.hx = -.16*r + .02*sw*r; tg.hy = 0; tg.hz = 0; tg.pr = 0; tg.roll = .025*sw*r; tg.twist = 0;
+      tg.llx = tg.lrx = 0; tg.llz = tg.lrz = .05; tg.klx = tg.krx = .04; tg.fx = 0; tg.fz = 0;
+      tg.eye = 1 - .9*r; tg.smile = .45; tg.mouth = (.13 + .08*Math.sin(t*1.8))*r;
+      tg.breath = .05*sw*r + .01; break; }
     case 'nod': { // salam from the rows: right hand on the chest, a gentle bow and smile
       const r = sstep(0,.2,u)*(1-sstep(.8,1,u));
       tg.arx = -1.0*r; tg.arz = -.55*r + .16*(1-r); tg.lean = .14*r*(.6+.4*Math.sin(u*PI)); tg.hx = .25*r; tg.smile = 1; tg.eye = 1-.6*r; break; }

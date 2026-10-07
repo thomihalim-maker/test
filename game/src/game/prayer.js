@@ -219,15 +219,16 @@ export async function init(ctx){
     syncMarkers();
     return true;
   }
-  const slowPhase = ph => ph && ph !== 'done';
+  // slow the clock only during the adzan and while the player leads (+ a short grace while jamaah line up)
+  const slowPhase = c => !!c && (c.phase === 'adzan' || c.phase === 'leading' || (c.phase === 'ready' && c.t < 20));
   function update(dt){
     if(first){ first = false;
       const po = Q.get('prayopen'); if(po) debugOpen(po);
       const pf = parseFloat(Q.get('prayfast')); if(pf > 0){ const v = V(); if(v?.prayer) v.prayer.speed = pf; }
     }
-    // clock: 25% speed while a prayer is near, open, called or being prayed (never across midnight or big jumps)
+    // clock: 25% speed during the adzan and while the player leads (never across midnight or big jumps)
     let h = ctx.hour ?? 8; const dh = h - lastH;
-    if(!freeze && slowPhase(cur?.phase) && dh > 0 && dh < .5){ h = h - SLOW * dh; ctx.hour = h; }
+    if(!freeze && slowPhase(cur) && dh > 0 && dh < .5){ h = h - SLOW * dh; ctx.hour = h; }
     lastH = h;
     if(!cur){ const p = activeAt(h); if(p && !(logOf(p.id) & 7)) begin(p, h); else if(p) closed.add(p.id); }
     if(!cur) return;

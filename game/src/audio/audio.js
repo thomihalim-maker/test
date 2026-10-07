@@ -4,6 +4,10 @@ export async function init(ctx){
   let ac=null, master, sfxBus, musBus, ambBus, verb, verbSend, comp, noiseBuf, pinkBuf;
   let muted=!!ctx.state?.settings?.mute, musicVol=ctx.state?.settings?.music ?? 0.6, sfxVol=ctx.state?.settings?.sfx ?? 1;
   let started=false, musicOn=true;
+  // ducking: named reasons -> music multiplier (min wins); birds dim while any reason is active
+  const ducks={}; let musMul=1, birdMul=1, duckTc=0.4;
+  // weather
+  let rainOn=false, windK=0, rainG=null, dripT=1;
   const rnd=(a,b)=>a+Math.random()*(b-a), pick=a=>a[(Math.random()*a.length)|0];
   const mtof=m=>440*Math.pow(2,(m-69)/12);
 
@@ -13,7 +17,7 @@ export async function init(ctx){
     comp=ac.createDynamicsCompressor(); comp.threshold.value=-14; comp.ratio.value=3; comp.attack.value=0.01; comp.release.value=0.25;
     master=ac.createGain(); master.gain.value=muted?0:0.9; master.connect(comp); comp.connect(ac.destination);
     sfxBus=ac.createGain(); sfxBus.gain.value=sfxVol; sfxBus.connect(master);
-    musBus=ac.createGain(); musBus.gain.value=0.34*musicVol; musBus.connect(master);
+    musBus=ac.createGain(); musBus.gain.value=0.34*musicVol*musMul; musBus.connect(master);
     ambBus=ac.createGain(); ambBus.gain.value=0.5; ambBus.connect(master);
     // reverb: generated decaying noise impulse
     const len=ac.sampleRate*2.2, ir=ac.createBuffer(2,len,ac.sampleRate);
@@ -70,6 +74,41 @@ export async function init(ctx){
     munch(t,d){ for(let i=0;i<3;i++){ noise(t+i*0.13,0.07,d,{type:'bandpass',f:rnd(1400,2200),q:1.2,peak:0.28}); noise(t+i*0.13,0.05,d,{type:'lowpass',f:400,peak:0.2}); } },
     bleat_goat(t,d){ const f=rnd(380,460); formant(t,f,0.75,[[1000,7,1],[1900,9,0.7],[2900,10,0.3]],d,{peak:0.5,vib:rnd(26,34),vibAmt:0.05,am:0,glide:f*0.82}); },
     bleat_sheep(t,d){ const f=rnd(260,320); formant(t,f,0.9,[[780,6,1],[1400,8,0.7],[2400,10,0.25]],d,{peak:0.45,vib:rnd(18,24),vibAmt:0.045,glide:f*0.85}); },
+    // ---- masjid care / prayer (no voice, no formant: brushes, wood, bells only) ----
+    sweep(t,d){ // soft dry bristle swish: two overlapping brushed-noise strokes
+      noise(t,0.22,d,{type:'bandpass',f:rnd(2600,3200),f2:rnd(1300,1700),q:0.9,peak:0.2,a:0.04});
+      noise(t+0.05,0.16,d,{type:'highpass',f:rnd(4200,5200),peak:0.07,a:0.03});
+      for(let i=0;i<3;i++) noise(t+0.04+i*0.05,0.025,d,{type:'bandpass',f:rnd(3500,6000),q:3,peak:0.05}); },
+    mop(t,d){ // wet slosh: lowpassed noise push + a few watery blips
+      noise(t,0.32,d,{type:'lowpass',f:700,f2:1500,q:1.4,peak:0.22,a:0.05});
+      noise(t+0.08,0.22,d,{type:'bandpass',f:1100,f2:600,q:2.2,peak:0.12,a:0.03});
+      for(let i=0;i<3;i++){ const tt=t+0.12+i*rnd(0.05,0.09); const o=ac.createOscillator(), g=ac.createGain(); o.type='sine'; const f=rnd(500,900); o.frequency.setValueAtTime(f,tt); o.frequency.exponentialRampToValueAtTime(f*1.8,tt+0.05); env(g,tt,0.003,0.05,0.05); o.connect(g); g.connect(d); o.start(tt); o.stop(tt+0.1); } },
+    squeak(t,d){ // clean-floor squeak + tiny 'ting'
+      const o=ac.createOscillator(), g=ac.createGain(); o.type='sine'; o.frequency.setValueAtTime(1500,t); o.frequency.exponentialRampToValueAtTime(2500,t+0.09); env(g,t,0.01,0.08,0.09); o.connect(g); g.connect(d); o.start(t); o.stop(t+0.15);
+      bell(mtof(96),t+0.08,d,0.08,0.5); },
+    leaves(t,d){ // rustle: a scatter of tiny crackles under a soft hiss
+      noise(t,0.38,d,{type:'bandpass',f:3200,q:0.7,peak:0.07,a:0.06});
+      for(let i=0;i<7;i++) noise(t+rnd(0,0.35),0.03,d,{type:'bandpass',f:rnd(2500,6000),q:2.5,peak:rnd(0.05,0.11)}); },
+    bag(t,d){ // soft thump of leaves landing in the pengki
+      noise(t,0.12,d,{type:'lowpass',f:380,peak:0.3}); osc('sine',rnd(82,96),t,0.16,d,0.26,0.004);
+      noise(t+0.02,0.14,d,{type:'bandpass',f:1800,q:0.8,peak:0.06}); },
+    pile(t,d){ // light crunch
+      for(let i=0;i<4;i++) noise(t+i*rnd(0.03,0.05),0.035,d,{type:'bandpass',f:rnd(1400,2600),q:1.6,peak:rnd(0.1,0.16)}); },
+    kentongan(t,d){ // hollow wooden slit drum: tok..tok-tok, bandpassed 600-1000 Hz, short decay
+      const n=Math.random()<0.5?2:3, gaps=[0,0.34,0.5];
+      for(let i=0;i<n;i++){ const tt=t+gaps[i]+rnd(0,0.02), f=rnd(760,840)*(i===n-1?0.94:1);
+        const o=ac.createOscillator(), g=ac.createGain(); o.type='sine'; o.frequency.setValueAtTime(f*1.12,tt); o.frequency.exponentialRampToValueAtTime(f,tt+0.03); env(g,tt,0.002,0.28,0.16); o.connect(g); g.connect(d); o.start(tt); o.stop(tt+0.25);
+        osc('triangle',f*0.62,tt,0.1,d,0.1,0.002);
+        noise(tt,0.06,d,{type:'bandpass',f:rnd(820,960),q:5,peak:0.22,a:0.001}); noise(tt,0.012,d,{type:'highpass',f:2500,peak:0.06,a:0.001}); } },
+    adzan_chime(t,d){ // gentle gamelan/kalimba bell swell chord ~3.5s (bells and pads only; never a voice)
+      const ch=[62,66,69,74,78];
+      ch.forEach((m,i)=>bell(mtof(m),t+i*0.16,d,0.075,3.0-i*0.2));
+      bell(mtof(50),t,d,0.1,3.6);
+      for(const [m,det] of [[62,-5],[69,5],[74,0]]){ const o=ac.createOscillator(), g=ac.createGain(), fl=ac.createBiquadFilter(); o.type='triangle'; o.frequency.value=mtof(m); o.detune.value=det; fl.type='lowpass'; fl.frequency.value=900;
+        g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.04,t+1.4); g.gain.linearRampToValueAtTime(0.0001,t+3.6); o.connect(fl); fl.connect(g); g.connect(d); o.start(t); o.stop(t+3.7); }
+      bell(mtof(81),t+1.5,d,0.05,2.0); },
+    prayer_start(t,d){ bell(mtof(50),t,d,0.16,3.2); osc('sine',mtof(38),t,2.4,d,0.08,0.02); },
+    salam(t,d){ bell(mtof(76),t,d,0.12,1.4); bell(mtof(81),t+0.2,d,0.13,1.9); osc('sine',mtof(64),t,1.6,d,0.04,0.05); },
     moo(t,d){ const f=rnd(98,115); formant(t,f*1.15,1.5,[[420,5,1],[820,6,0.7],[2200,10,0.15]],d,{peak:0.7,vib:4.5,vibAmt:0.012,glide:f*0.9}); },
   };
   const ALIAS={bleat:'bleat_goat',goat:'bleat_goat',sheep:'bleat_sheep',cow:'moo',click:'ui_tap',tap:'ui_tap',success:'chime'};
@@ -97,6 +136,12 @@ export async function init(ctx){
     const wl=ac.createOscillator(), wlg=ac.createGain(); wl.frequency.value=0.6; wlg.gain.value=500; wl.connect(wlg); wlg.connect(waterF.frequency); wl.start();
     birdG=ac.createGain(); birdG.gain.value=1; birdG.connect(ambBus); const br=ac.createGain(); br.gain.value=0.3; birdG.connect(br); br.connect(verbSend);
     cricketG=ac.createGain(); cricketG.gain.value=0; cricketG.connect(ambBus);
+    // rain bed (silent until setWeather({rain:true}))
+    const rn=loopNoise(pinkBuf,ambBus,'lowpass',2500,0.5,0.0); rainG=rn.g;
+  }
+  function drip(){ // occasional soft drip ticks from eaves
+    const t=ac.currentTime+0.01, p=ac.createStereoPanner?ac.createStereoPanner():null; if(p){p.pan.value=rnd(-0.8,0.8); p.connect(ambBus);} const dest=p||ambBus;
+    const o=ac.createOscillator(), g=ac.createGain(), f=rnd(1300,2400); o.type='sine'; o.frequency.setValueAtTime(f,t); o.frequency.exponentialRampToValueAtTime(f*1.6,t+0.04); env(g,t,0.002,rnd(0.02,0.045),0.06); o.connect(g); g.connect(dest); o.start(t); o.stop(t+0.12);
   }
   function chirp(){
     const t=ac.currentTime+0.01, pan=rnd(-0.8,0.8), base=rnd(2200,4200), n=(Math.random()*4|0)+2, step=rnd(0.07,0.12);
@@ -117,8 +162,10 @@ export async function init(ctx){
   function ambient(dt){
     const h=ctx.hour??12; const day=Math.max(0,Math.min(1,Math.sin((h-6)/12*Math.PI)*1.6)); nightness=1-day;
     const tc=ac.currentTime;
-    windG.gain.setTargetAtTime(0.05+0.03*nightness,tc,1);
-    birdG.gain.setTargetAtTime(day,tc,1.5);
+    windG.gain.setTargetAtTime((0.05+0.03*nightness)*(1+windK*2.6),tc,1);
+    birdG.gain.setTargetAtTime(day*birdMul*(rainOn?0.3:1),tc,birdMul<1?0.5:1.5);
+    if(rainG) rainG.gain.setTargetAtTime(rainOn?0.06:0,tc,1.2);
+    if(rainOn){ dripT-=dt; if(dripT<=0){ dripT=rnd(0.3,1.4); drip(); } }
     cricketG.gain.setTargetAtTime(nightness,tc,1.5);
     // water louder near pond (-24,14) and a gentle base level
     const tg=ctx.cameraRig?.target; let wv=0.025; if(tg){ const d=Math.hypot(tg.x+24,tg.z-14); wv=0.02+0.12*Math.max(0,1-d/28); }
@@ -138,6 +185,7 @@ export async function init(ctx){
     g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.035,t+dur*0.4); g.gain.linearRampToValueAtTime(0.0001,t+dur); o.connect(fl); fl.connect(g); g.connect(musBus); o.start(t); o.stop(t+dur+0.1); } }
   function music(){
     if(!started||!musicOn||muted) { if(ac && nextNoteT<ac.currentTime) nextNoteT=ac.currentTime+0.2; return; }
+    if(musMul<0.02){ nextNoteT=Math.max(nextNoteT,ac.currentTime+0.2); return; } // respectful quiet during salat
     buildDelay(); const beat=60/tempo/2; // eighth notes
     while(nextNoteT<ac.currentTime+0.4){
       const t=nextNoteT, root=ROOTS[barIdx%ROOTS.length], stepInBar=step%8;
@@ -155,16 +203,52 @@ export async function init(ctx){
   }
 
   // ---------- API ----------
-  function apply(){ if(!ac) return; master.gain.setTargetAtTime(muted?0:0.9,ac.currentTime,0.05); musBus.gain.setTargetAtTime(0.34*musicVol,ac.currentTime,0.1); sfxBus.gain.setTargetAtTime(sfxVol,ac.currentTime,0.05); }
+  function apply(){ if(!ac) return; master.gain.setTargetAtTime(muted?0:0.9,ac.currentTime,0.05); musBus.gain.setTargetAtTime(0.34*musicVol*musMul,ac.currentTime,duckTc); sfxBus.gain.setTargetAtTime(sfxVol,ac.currentTime,0.05); }
+  function reduck(tc){
+    let m=1; for(const k in ducks) m=Math.min(m,ducks[k].level);
+    musMul=m; birdMul=Object.keys(ducks).length?0.6:1; duckTc=tc;
+    if(ac) musBus.gain.setTargetAtTime(0.34*musicVol*musMul,ac.currentTime,duckTc);
+  }
+  // duck(on, level=.2, {key, fade, ttl}): fade = seconds to (mostly) reach the target; ttl = safety auto-release
+  function duck(on,level=0.2,{key='manual',fade=on?0.8:2,ttl=0}={}){
+    if(on) ducks[key]={level:Math.max(0,Math.min(1,+level||0)),ttl:ttl||0}; else delete ducks[key];
+    reduck(Math.max(0.03,fade/3));
+  }
+  function unduckAll(fade=2){ for(const k in ducks) if(k!=='manual') delete ducks[k]; reduck(Math.max(0.03,fade/3)); }
+  function setWeather({rain,wind}={}){ if(rain!==undefined) rainOn=!!rain; if(wind!==undefined) windK=Math.max(0,Math.min(1,+wind||0)); }
+  // ---- event wiring ----
+  const now=()=>performance.now()/1000; let lastSweep=-9, lastSqueak=-9, lastBell=-9, lastPop=-9;
+  const P=d=>{ const p=d?.pos; return p&&Number.isFinite(p.x)&&Number.isFinite(p.z)?p:undefined; };
+  ctx.on('care:stroke',d=>{ const t=now(); if(t-lastSweep<0.25) return; lastSweep=t; play(d?.tool==='pel'?'mop':'sweep',{pos:P(d),vol:0.6}); });
+  ctx.on('care:clean',d=>{ if(!d?.removed||d.tool!=='pel') return; const t=now(); if(t-lastSqueak<0.15) return; lastSqueak=t; play('squeak',{pos:P(d),vol:0.7}); });
+  ctx.on('care:pile',d=>play('leaves',{pos:P(d),vol:0.7}));
+  ctx.on('care:gather',d=>{ play('bag',{pos:P(d),vol:0.9}); play('pile',{pos:P(d),vol:0.7}); });
+  ctx.on('visitor:salam',d=>{ const t=now(); if(t-lastPop<0.2) return; lastPop=t; play('pop',{pos:P(d),vol:0.3}); });
+  ctx.on('adzan:start',d=>{ duck(true,0.15,{key:'adzan',fade:1.2,ttl:30}); play('adzan_chime',{pos:P(d),vol:1.3}); });
+  ctx.on('adzan:end',()=>duck(false,0,{key:'adzan',fade:2}));
+  const bellOnce=()=>{ const t=now(); if(t-lastBell<4) return; lastBell=t; play('prayer_start',{vol:0.8}); };
+  ctx.on('prayer:lead',()=>{ duck(true,0.1,{key:'lead',fade:1.5,ttl:240}); bellOnce(); });
+  ctx.on('prayer:start',()=>{ duck(true,0,{key:'prayer',fade:1.5,ttl:240}); bellOnce(); });
+  ctx.on('prayer:done',()=>{ delete ducks.prayer; delete ducks.lead; delete ducks.adzan; reduck(1); play('salam',{vol:0.8}); });
+  ctx.on('prayer:close',()=>unduckAll(2));
+  const weatherFor=id=>setWeather({rain:id==='hujan',wind:id==='angin'?0.8:0});
+  ctx.on('event:day',d=>weatherFor(d?.id));
+  try{ weatherFor(ctx.state?.event?.id); }catch(e){}
   const api={
-    play, unlock,
+    play, unlock, duck, unduckAll, setWeather,
+    get weather(){ return {rain:rainOn,wind:windK}; },
+    get ducking(){ return musMul; },
+    debug:{ get musGain(){ return musBus?musBus.gain.value:0.34*musicVol*musMul; }, get target(){ return 0.34*musicVol*musMul; }, get master(){ return master?master.gain.value:(muted?0:0.9); }, get ducks(){ return JSON.parse(JSON.stringify(ducks)); } },
     get muted(){return muted}, setMuted(m){ muted=!!m; if(ctx.state.settings) ctx.state.settings.mute=muted; apply(); },
     setMusic(v){ musicVol=v; if(ctx.state.settings) ctx.state.settings.music=v; apply(); },
     setSfx(v){ sfxVol=v; if(ctx.state.settings) ctx.state.settings.sfx=v; apply(); },
     get musicVol(){return musicVol}, get sfxVol(){return sfxVol},
     get ready(){ return !!ac && ac.state==='running'; },
     names:Object.keys(SFX),
-    update(dt){ if(!ac||ac.state!=='running') return; try{ ambient(dt); music(); }catch(e){ console.warn('audio',e); } },
+    update(dt){
+      // safety: a duck reason never outlives its ttl (e.g. if prayer:done was never emitted)
+      let ch=false; for(const k in ducks){ const r=ducks[k]; if(r.ttl>0){ r.ttl-=dt; if(r.ttl<=0){ delete ducks[k]; ch=true; } } } if(ch) reduck(1);
+      if(!ac||ac.state!=='running') return; try{ ambient(dt); music(); }catch(e){ console.warn('audio',e); } },
   };
   return api;
 }

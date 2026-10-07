@@ -26,36 +26,51 @@ function leafTexture() {
   g.lineWidth = 2; for (let i = -3; i <= 3; i++) { const y = i * 14; g.beginPath(); g.moveTo(0, y); g.lineTo(22 - Math.abs(i) * 3, y - 12); g.moveTo(0, y); g.lineTo(-22 + Math.abs(i) * 3, y - 12); g.stroke(); }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 2; return t;
 }
+// 4x2 atlas, soft "cute dirt" tiles (warm, saturated, alpha <= .75, no dark greys):
+//  (0,0) dust puffs + sparkle   (1,0) mud puddle w/ light rim   (2,0) soft-grey bare footprints (hall)
+//  (3,0) carpet crumbs          (0,1) warm taupe footprints (porch/plaza)
 function decalAtlas() {
-  const S = 256, c = canvas(S * 2, S * 2), g = c.getContext('2d');
-  const R = (a, b) => a + Math.random() * (b - a);
-  // tile (0,0) top-left in canvas = uv (0,.5): dust — soft beige blotch with grit
-  const tile = (tx, ty, fn) => { g.save(); g.translate(tx * S + S / 2, ty * S + S / 2); g.beginPath(); g.rect(-S / 2 + 2, -S / 2 + 2, S - 4, S - 4); g.clip(); fn(); g.restore(); };
+  const S = 256, c = canvas(S * 4, S * 2), g = c.getContext('2d');
+  let seed = 7; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  const R = (a, b) => a + rnd() * (b - a);
+  const tile = (tx, ty, fn) => { g.save(); g.translate(tx * S + S / 2, ty * S + S / 2); g.beginPath(); g.rect(-S / 2 + 3, -S / 2 + 3, S - 6, S - 6); g.clip(); fn(); g.restore(); };
+  const sparkle = (x, y, r, a = .75) => { g.fillStyle = `rgba(255,252,236,${a})`; g.beginPath(); g.moveTo(x, y - r); g.quadraticCurveTo(x, y, x + r, y); g.quadraticCurveTo(x, y, x, y + r); g.quadraticCurveTo(x, y, x - r, y); g.quadraticCurveTo(x, y, x, y - r); g.fill(); };
+  const puff = (x, y, r, rgb, a) => { const gr = g.createRadialGradient(x - r * .25, y - r * .25, r * .1, x, y, r);
+    gr.addColorStop(0, `rgba(${rgb[0] + 30},${rgb[1] + 28},${rgb[2] + 24},${a})`); gr.addColorStop(.7, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a * .92})`); gr.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
+    g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); };
+  // dust: 4 soft beige puffs in a little cloud + a sparkle
   tile(0, 0, () => {
-    // warm sandy dust: overlapping soft puffs, a darker grit speckle, a few fluffy dust bunnies and twigs
-    for (let i = 0; i < 9; i++) { const x = R(-38, 38), y = R(-34, 34), r = R(44, 78); const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(168,134,92,.5)'); gr.addColorStop(.6, 'rgba(176,144,104,.32)'); gr.addColorStop(1, 'rgba(176,144,104,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); }
-    for (let i = 0; i < 140; i++) { const a = R(0, TAU), r = Math.sqrt(Math.random()) * 92; g.fillStyle = `rgba(${R(96, 136) | 0},${R(76, 104) | 0},${R(50, 72) | 0},${R(.45, .9)})`; g.beginPath(); g.arc(Math.cos(a) * r, Math.sin(a) * r, R(1.4, 4.2), 0, TAU); g.fill(); }
-    for (let i = 0; i < 3; i++) { const x = R(-50, 50), y = R(-45, 45); for (let k = 0; k < 7; k++) { g.fillStyle = `rgba(${R(160, 182) | 0},${R(146, 164) | 0},${R(122, 140) | 0},.42)`; g.beginPath(); g.arc(x + R(-9, 9), y + R(-7, 7), R(4, 8), 0, TAU); g.fill(); } }
-    g.strokeStyle = 'rgba(110,84,52,.6)'; g.lineWidth = 2.4; g.lineCap = 'round'; for (let i = 0; i < 10; i++) { const a = R(0, TAU), r = R(10, 80); g.beginPath(); g.moveTo(Math.cos(a) * r, Math.sin(a) * r); g.lineTo(Math.cos(a) * r + R(-16, 16), Math.sin(a) * r + R(-16, 16)); g.stroke(); }
+    const P = [[-34, 14, 44], [10, -16, 50], [40, 22, 38], [-6, 34, 34], [-40, -26, 28]];
+    for (const [x, y, r] of P) puff(x, y, r, [214, 172, 112], .7);
+    g.fillStyle = 'rgba(176,128,72,.55)'; for (let i = 0; i < 10; i++) { g.beginPath(); g.arc(R(-50, 50), R(-30, 40), R(2.5, 4.5), 0, TAU); g.fill(); }
+    sparkle(46, -40, 16); sparkle(-52, 46, 9, .6);
   });
-  // tile (1,0): mud — glossy brown puddle, darker rim, splatter
+  // mud: rounded warm-brown puddle, lighter rim, 2 highlight dots
   tile(1, 0, () => {
-    const blob = (sc, col) => { g.fillStyle = col; g.beginPath(); for (let i = 0; i <= 24; i++) { const a = i / 24 * TAU, r = (72 + 14 * Math.sin(a * 3 + 1) + 9 * Math.sin(a * 5 + 2)) * sc; i ? g.lineTo(Math.cos(a) * r, Math.sin(a) * r * .82) : g.moveTo(Math.cos(a) * r, Math.sin(a) * r * .82); } g.closePath(); g.fill(); };
-    blob(1.08, 'rgba(70,46,26,.85)'); blob(.95, 'rgba(110,76,44,.95)'); blob(.7, 'rgba(128,90,52,.95)');
-    g.fillStyle = 'rgba(255,240,210,.35)'; g.beginPath(); g.ellipse(-22, -20, 26, 9, -.5, 0, TAU); g.fill(); g.beginPath(); g.ellipse(18, 14, 10, 4, -.4, 0, TAU); g.fill();
-    for (let i = 0; i < 16; i++) { const a = R(0, TAU), r = R(86, 112); g.fillStyle = 'rgba(96,64,36,.85)'; g.beginPath(); g.arc(Math.cos(a) * r, Math.sin(a) * r * .85, R(3, 8), 0, TAU); g.fill(); }
+    const blob = (sc, col) => { g.fillStyle = col; g.beginPath(); for (let i = 0; i <= 40; i++) { const a = i / 40 * TAU, r = (80 + 9 * Math.sin(a * 3 + 1) + 5 * Math.sin(a * 2 + 2)) * sc; i ? g.lineTo(Math.cos(a) * r, Math.sin(a) * r * .8) : g.moveTo(Math.cos(a) * r, Math.sin(a) * r * .8); } g.closePath(); g.fill(); };
+    blob(1.08, 'rgba(226,174,112,.72)'); blob(.94, 'rgba(184,122,62,.75)'); blob(.7, 'rgba(198,136,72,.75)');
+    g.fillStyle = 'rgba(255,240,214,.72)'; g.beginPath(); g.ellipse(-26, -20, 18, 9, -.4, 0, TAU); g.fill();
+    g.beginPath(); g.arc(4, -30, 6, 0, TAU); g.fill(); g.beginPath(); g.arc(30, 18, 4, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(226,174,112,.7)'; for (const [x, y, r] of [[98, -8, 9], [-96, 22, 7], [70, 62, 6]]) { g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); }
   });
-  // sole shapes (toes point to the top of the tile = toward -z in the world when rot = 0)
-  const sandal = (x, y, flip) => { g.save(); g.translate(x, y); g.scale(flip, 1); g.rotate(.08);
-    g.fillStyle = 'rgba(120,76,36,.9)'; g.beginPath(); g.ellipse(0, -34, 24, 36, 0, 0, TAU); g.fill(); g.beginPath(); g.ellipse(2, 34, 19, 28, 0, 0, TAU); g.fill(); g.fillRect(-18, -20, 37, 50);
-    g.fillStyle = 'rgba(84,52,24,.85)'; for (let k = 0; k < 6; k++) g.fillRect(-15, -52 + k * 18, 30, 4); g.restore(); };
-  const bare = (x, y, flip) => { g.save(); g.translate(x, y); g.scale(flip, 1); g.rotate(.06);
-    g.fillStyle = 'rgba(150,190,215,.55)'; g.beginPath(); g.ellipse(4, -22, 21, 26, .15, 0, TAU); g.fill(); g.beginPath(); g.ellipse(0, 36, 16, 20, 0, 0, TAU); g.fill();
-    g.beginPath(); g.ellipse(-8, 8, 9, 22, .05, 0, TAU); g.fill();
-    const toes = [[-14, -58, 9], [-1, -62, 7.5], [11, -60, 6.5], [20, -54, 5.5], [27, -45, 5]]; for (const [tx, ty, r] of toes) { g.beginPath(); g.arc(tx, ty, r, 0, TAU); g.fill(); }
-    g.fillStyle = 'rgba(235,248,255,.6)'; g.beginPath(); g.ellipse(-2, -26, 8, 5, .4, 0, TAU); g.fill(); g.restore(); };
-  tile(0, 1, () => { sandal(-34, 18, 1); sandal(34, -22, -1); });
-  tile(1, 1, () => { bare(-32, 20, -1); bare(32, -20, 1); });
+  // bare foot (toes to the top = -z when rot 0): rounded sole + heel + 5 toes, clean silhouette
+  const foot = (x, y, flip, rgb, a) => { g.save(); g.translate(x, y); g.scale(flip, 1); g.rotate(.1 * flip);
+    g.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`;
+    g.beginPath(); g.ellipse(2, -10, 22, 30, .12, 0, TAU); g.fill(); g.beginPath(); g.ellipse(-2, 38, 17, 20, 0, 0, TAU); g.fill();
+    g.beginPath(); g.ellipse(-6, 14, 13, 22, .05, 0, TAU); g.fill();
+    for (const [tx, ty, r] of [[-12, -52, 9], [2, -57, 7.5], [14, -55, 6.5], [23, -49, 5.5], [29, -40, 5]]) { g.beginPath(); g.arc(tx, ty, r, 0, TAU); g.fill(); }
+    g.fillStyle = `rgba(255,255,255,${a * .35})`; g.beginPath(); g.ellipse(-4, -16, 7, 11, .2, 0, TAU); g.fill();
+    g.restore(); };
+  tile(2, 0, () => { foot(-34, 22, -1, [168, 166, 182], .66); foot(34, -18, 1, [168, 166, 182], .66); });
+  tile(0, 1, () => { foot(-34, 22, -1, [176, 132, 96], .7); foot(34, -18, 1, [176, 132, 96], .7); });
+  // carpet crumbs: a few pale rounded crumbs + a soft halo + sparkle (reads light on the dark carpet)
+  tile(3, 0, () => {
+    puff(0, 0, 70, [246, 226, 184], .3);
+    for (let i = 0; i < 14; i++) { const a = R(0, TAU), r = Math.sqrt(rnd()) * 62, x = Math.cos(a) * r, y = Math.sin(a) * r, rr = R(5, 10);
+      g.fillStyle = 'rgba(214,170,110,.6)'; g.beginPath(); g.arc(x + 1.5, y + 1.5, rr, 0, TAU); g.fill();
+      g.fillStyle = 'rgba(252,236,198,.75)'; g.beginPath(); g.arc(x, y, rr, 0, TAU); g.fill(); }
+    sparkle(40, -44, 14);
+  });
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
 function wetTexture() {
@@ -102,7 +117,7 @@ function patchDecal(mat, tiled) {
   mat.onBeforeCompile = (sh) => {
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', `#include <common>\nattribute float aFade; varying float vFade;${tiled ? '\nattribute vec2 aTile;' : ''}`)
-      .replace('#include <uv_vertex>', `#include <uv_vertex>\n vFade = aFade;${tiled ? '\n#ifdef USE_MAP\n vMapUv = vMapUv * 0.5 + aTile;\n#endif' : ''}`);
+      .replace('#include <uv_vertex>', `#include <uv_vertex>\n vFade = aFade;${tiled ? '\n#ifdef USE_MAP\n vMapUv = vMapUv * vec2(0.25, 0.5) + aTile;\n#endif' : ''}`);
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying float vFade;')
       .replace('#include <alphamap_fragment>', '#include <alphamap_fragment>\n diffuseColor.a *= vFade;');
@@ -112,10 +127,10 @@ function patchDecal(mat, tiled) {
 
 const PILE_COLS = [[1, .78, .28], [.98, .5, .2], [.72, .86, .32], [1, .64, .22], [.9, .36, .18], [1, .88, .4], [.62, .8, .3]];
 const LEAF_COLS = ['#bfe05a', '#f2cf48', '#ffb03c', '#f08a34', '#b4d850', '#e8643a', '#ffd95a', '#a6cc4a'].map(h => new THREE.Color(h));
-const TILE = { 1: [0, .5], 2: [.5, .5], 3: [0, 0], 4: [.5, 0] }; // dust, mud, sandal print, bare print (uv offsets)
+const TILE = { 1: [0, .5], 2: [.25, .5], 3: [0, 0], 4: [.5, .5], 5: [.75, .5] }; // dust, mud, porch print, hall print, carpet crumbs (uv offsets)
 const BASE = { 0: 1.35, 1: 1.15, 2: 1.05, 3: 1.0 };
-// hall prints are pale bare-foot marks (shoes stay outside); porch/plaza prints are muddy sandals
-const tileOf = s => s.t === 1 ? 1 : s.t === 2 ? 2 : s.zone === 'hall' ? 4 : 3;
+// hall prints are soft grey bare feet (shoes stay outside); porch/plaza prints warm taupe; dust on the carpet (y above the plinth) = crumbs
+const tileOf = s => s.t === 1 ? (s.zone === 'hall' && s.y > .725 ? 5 : 1) : s.t === 2 ? 2 : s.zone === 'hall' ? 4 : 3;
 
 export function createDirtRenderer(ctx, { cap = 160 } = {}) {
   const root = new THREE.Group(); root.name = 'dirt'; ctx.scene.add(root);
@@ -154,12 +169,13 @@ export function createDirtRenderer(ctx, { cap = 160 } = {}) {
   function put(mesh, i, x, y, z, rot, sx, sy, sz) { Q.setFromAxisAngle(Yax, rot); M4.compose(P.set(x, y, z), Q, SC.set(sx, sy, sz)); mesh.setMatrixAt(i, M4); }
   function rebuild(t) {
     const tn = now(); let nl = 0, nd = 0, anim = false;
-    const hl = hlTool ? .06 : 0;
+    const hl = hlTool ? .03 : 0, pp = hlTool ? ctx.modules.characters?.pos : null, px = pp ? pp.x : 1e9, pz = pp ? pp.z : 1e9;
     for (const s of spots) {
       const m = meta.get(s.id); let k = 1, wob = 0;
       if (m) { const u = (tn - m.born) / .6; if (u < 1) { k = easeBack(Math.max(0, u)); anim = true; }
         if (m.poke != null) { const v = (tn - m.poke) / .45; if (v < 1) { wob = Math.sin(v * 20) * (1 - v) * .18; anim = true; } else m.poke = null; } }
-      const pulse = (hl && toolOf(s.t) === hlTool) ? 1 + hl * Math.sin(t * 5 + s.id) : 1;
+      let pulse = 1; // cleanable with the held tool: gentle pulse; within reach (~2.4m): a clear bob so kids see what to clean
+      if (hl && toolOf(s.t) === hlTool) { const dx = s.x - px, dz = s.z - pz, near = dx * dx + dz * dz < 5.8; pulse = 1 + (near ? .12 : hl) * Math.sin(t * (near ? 6 : 4) + s.id); }
       const sc = (.6 + .4 * s.amt) * BASE[s.t] * k * pulse * (1 + wob);
       if (s.t === 0) { if (nl >= CAP) continue; put(leaves, nl, s.x, s.y + .004, s.z, s.rot + wob, sc, sc * (1 + wob), sc); col.copy(LEAF_COLS[s.id % LEAF_COLS.length]); leaves.setColorAt(nl, col); nl++; }
       else { if (nd >= CAP) continue; const tt = TILE[tileOf(s)];

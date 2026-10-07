@@ -12,7 +12,11 @@ const CSS = `
   display:flex;flex-direction:column;align-items:center;justify-content:center;font:800 14px/1.1 ui-rounded,system-ui,sans-serif;color:#5a3300;cursor:pointer;transition:transform .12s,opacity .2s,filter .2s}
 #mb-act .ic{width:38px;height:38px;line-height:1;filter:drop-shadow(0 2px 0 rgba(255,255,255,.5))}
 #mb-act .ic svg{width:100%;height:100%;display:block}
-#mb-act .lb{margin-top:2px;text-shadow:0 1px 0 rgba(255,255,255,.6)}
+#mb-act .lb{margin-top:2px;max-width:76px;text-align:center;overflow-wrap:anywhere;hyphens:auto;text-shadow:0 1px 0 rgba(255,255,255,.6)}
+#mb-act .lb.m{font-size:12px;line-height:1.05}
+#mb-act .lb.l{font-size:11px;line-height:1.02;max-width:72px}
+#mb-act .lb.xl{font-size:10px;line-height:1.02;max-width:80px;letter-spacing:-.2px}
+#mb-act.long .ic{width:32px;height:32px}
 #mb-act.idle{filter:saturate(.9);opacity:.95}
 #mb-act.down{transform:scale(.9)}
 #mb-act.ready{animation:mbpulse 1.1s ease-in-out infinite}
@@ -29,11 +33,12 @@ const hasSprite=id=>!!document.getElementById('i-'+id);
 const icoId=e=>{ const m=ICO[e]; if(m) return hasSprite(m)||!SPRITE_FALLBACK[m]?m:null; return typeof e==='string'&&/^[a-z][a-z0-9-]*$/.test(e)&&hasSprite(e)?e:null; };
 const icoSvg=e=>{const id=icoId(e);if(id) return `<svg viewBox="0 0 48 48"><use href="#i-${id}"/></svg>`; const em=SPRITE_FALLBACK[ICO[e]??e]??(typeof e==='string'&&/^[a-z][a-z0-9-]*$/.test(e)?'✋':e); return `<span style="font-size:28px">${em??''}</span>`;};
 export function createInput(ctx){
+  const idleDefault = ()=>((ctx.state?.lang ?? ctx.state?.settings?.lang)==='en' ? 'Action' : 'Aksi');
   const input = { move:new THREE.Vector2(), actionPressed:false, actionJustPressed:false, run:false, touch:false, tool:null, hasTool:false };
   const style = document.createElement('style'); style.textContent = CSS; document.head.appendChild(style);
   const root = document.createElement('div'); root.id='mb-input';
   root.innerHTML = `<div id="mb-joy"><div class="base"></div><div class="knob"></div></div>
-    <div id="mb-act" class="idle"><div class="ic">${icoSvg("✋")}</div><div class="lb">Aksi</div></div>`;
+    <div id="mb-act" class="idle"><div class="ic">${icoSvg("✋")}</div><div class="lb">${idleDefault()}</div></div>`;
   document.body.appendChild(root);
   const joy = root.querySelector('#mb-joy'), knob = joy.querySelector('.knob'), act = root.querySelector('#mb-act');
   const q = new URLSearchParams(location.search);
@@ -93,11 +98,15 @@ export function createInput(ctx){
 
   // contextual UI
   let lastIc=null;
-  input.setContext = (c, idleLabel='Aksi')=>{ // {icon,label} or null
-    const ic=act.querySelector('.ic'), lb=act.querySelector('.lb'); const icon=c?c.icon:'✋', label=c?c.label:idleLabel;
+  // long labels ("Kumandangkan Adzan", "Angkut Daun") shrink and wrap to two lines inside the round button
+  const fit = (lb, label)=>{ const n=label.length, w=label.split(/\s+/).reduce((m,x)=>Math.max(m,x.length),0);
+    const cls = w>11 ? 'xl' : (n>14 || w>10) ? 'l' : (n>9 || w>8) ? 'm' : '';
+    for(const k of ['m','l','xl']) lb.classList.toggle(k, cls===k); act.classList.toggle('long', cls==='l'||cls==='xl'); };
+  input.setContext = (c, idleLabel)=>{ // {icon,label} or null
+    const ic=act.querySelector('.ic'), lb=act.querySelector('.lb'); const icon=c?c.icon:'✋', label=String(c?c.label:(idleLabel||idleDefault()));
     act.classList.toggle('idle',!c); act.classList.toggle('ready',!!c);
     const key=icon+'|'+(icoId(icon)||''); if(key!==lastIc){ ic.innerHTML=icoSvg(icon); lastIc=key; }
-    if(lb.textContent!==label) lb.textContent=label;
+    if(lb.textContent!==label){ lb.textContent=label; fit(lb,label); }
   };
   input.dispose = ()=>root.remove();
   return input;

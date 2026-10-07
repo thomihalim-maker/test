@@ -91,11 +91,11 @@ const ACCS = ['moustache','beard','goatee','glasses'];
 
 let _sarongTex = null;
 export class People{
-  constructor(scene, {max=72, D=1, cast=true, name='people'}={}){
+  constructor(scene, {max=72, D=1, cast=true, name='people', outline=true}={}){
     this.scene = scene; this.max = max; this.D = D;
     _sarongTex ??= sarongTexture();
     const mat = personMaterial(), matS = personMaterial({map:_sarongTex}), matF = personMaterial({rim:0});
-    const ol = (t,mx=2.0)=>outlineMaterial(t,mx);
+    const ol = (t,mx=2.0)=>outline ? outlineMaterial(t,mx) : null;    // far LOD crowds skip the ink outline (half the draw calls)
     const P = this.parts = {};
     const mk = (key, geo, m, out, n, c=cast, recv=true)=>{ P[key] = new PartSet(scene, geo, m, out, n, c, recv); P[key].mesh.name = name+':'+key; };
     const o1 = ol(.012), oThin = ol(.008,1.4), oHead = ol(.013,2.0);
@@ -149,7 +149,7 @@ export class People{
       const ty = kid ? .86 : 1;
       _ch.copy(_p); RX(_ch,p[I.lean]); RY(_ch,p[I.twist]); RZ(_ch,p[I.roll]); S(_ch,bw,ty,bw);
       _a.copy(_ch); S(_a,1+p[I.breath]*.5,1+p[I.breath],1+p[I.breath]*.5);
-      (sp.torso==='gamis'?P.gamis:kid?P.kid:P.koko).push(_a, pal);
+      (sp.torso==='gamis'?P.gamis:(kid && !sp.longTop)?P.kid:P.koko).push(_a, pal);   // longTop: a boy dressed for salat wears a full baju koko
       if(sp.sash) P.sash.push(_ch, pal);
       const hij = sp.hat==='hijab'||sp.hat==='hijabSport';
       if(hij){ // drape hangs with gravity: counter-rotate against the bow about the neck

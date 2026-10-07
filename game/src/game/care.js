@@ -9,11 +9,14 @@ export const TYPES = { leaf:{ t:0, tool:'sapu', w:.6 }, dust:{ t:1, tool:'sapu',
 const TN = ['leaf','dust','mud','print'];
 const KIND_TOOL = { sweep:'sapu', mop:'pel', gather:null };
 const ZONE_TYPES = { plaza:['leaf'], porch:['leaf','dust','mud','print'], hall:['dust','print'], wudhu:['mud'] };
-const CAPS = { plaza:36, porch:18, hall:14, wudhu:6 };
-const RATES = { plaza:{ leaf:1.5 }, porch:{ leaf:.6, dust:.5 }, hall:{ dust:.6 }, wudhu:{} };   // spots per in-game hour
+const CAPS = { plaza:36, porch:18, hall:22, wudhu:6 };
+const RATES = { plaza:{ leaf:4 }, porch:{ leaf:1, dust:.8 }, hall:{ dust:1.2 }, wudhu:{} };   // spots per in-game hour (spec)
 const RAIN = { porch:{ mud:2 }, wudhu:{ mud:1 } };
 const STROKE = { sapu:{ leaf:1.0, dust:.55 }, pel:{ mud:.5, print:.5 } };
-const MAX_SPOTS = 160, MAX_PILES = 12, DIV = 45;
+const MAX_SPOTS = 160, MAX_PILES = 12, DIV = 30;
+// gentle ceiling: natural build-up (time, visitors, overnight) stops once the dirt weight reaches this share of DIV,
+// split over the zones by cap, so an un-swept masjid settles around 30% instead of 0. Only debug addDirt ignores it.
+const SOFT_MAX = .7, CLEAN_FLOOR = 20;
 const PL = .7, MINARET = { x:-11.8, z:-4.5 }, BEDUG = { x:11, z:-3.5 }, WUDHU = { x:-11, z:6.5 };
 const LABEL = { sweep:['Sapu','Sweep'], mop:['Pel Lantai','Mop'], gather:['Angkut Daun','Bag Leaves'] };
 const ICON = { sweep:'broom', mop:'mop', gather:'leafpile' }, ANIM = { sweep:'sweep', mop:'mop', gather:'scoop' };
@@ -88,6 +91,15 @@ export async function init(ctx){
     return true;
   }
   const zoneCount = id => { let n = 0; for(const s of spots) if(s.zone === id) n++; return n; };
+  const zoneLoad = id => { let l = 0; for(const s of spots) if(s.zone === id) l += s.amt * TYPES[s.type].w; return l; };
+  // natural dirt is allowed while the zone is under its share of the soft ceiling (and the total, piles included, too)
+  function roomFor(id){
+    let capSum = 0; for(const z of zones) capSum += cap(z.id);
+    const budget = SOFT_MAX * DIV * cap(id) / Math.max(1, capSum);
+    if(zoneLoad(id) >= budget) return false;
+    let tot = piles.length * .3; for(const s of spots) tot += s.amt * TYPES[s.type].w;
+    return tot < SOFT_MAX * DIV;
+  }
   function makeSpot(type, zn, x, z, amt=1, rot=null, instant=false){
     if(spots.length >= MAX_SPOTS) return null;
     const s = { id:nextId++, type, t:TYPES[type].t, x:r2(x), y:zn.floorY(x,z), z:r2(z), zone:zn.id, amt:Math.min(1, Math.max(.05, amt)), rot:rot ?? r2(rand() * 6.28) };
@@ -97,7 +109,7 @@ export async function init(ctx){
   function spawnIn(zn, type, n=1, { ignoreCap=false, instant=false, at=null, cluster=0 } = {}){
     let made = 0;
     for(let k = 0; k < n; k++){
-      if(spots.length >= MAX_SPOTS || (!ignoreCap && zoneCount(zn.id) >= cap(zn.id))) break;
+      if(spots.length >= MAX_SPOTS || (!ignoreCap && (zoneCount(zn.id) >= cap(zn.id) || !roomFor(zn.id)))) break;
       let p = null;
       for(let tries = 0; tries < 10 && !p; tries++){ const c = at || zn.sample(rand); if(c && Number.isFinite(c.x) && Number.isFinite(c.z) && zn.contains(c.x,c.z) && freeAt(c.x,c.z)) p = c; }
       if(!p) continue;
@@ -106,7 +118,7 @@ export async function init(ctx){
         const extra = cluster ? cluster - 1 : 1 + Math.floor(rand() * 3);
         for(let j = 0; j < extra && k + 1 < n; j++){
           for(let tries = 0; tries < 5; tries++){ const a = rand() * 6.28, r = .3 + rand() * .3, x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r;
-            if(zn.contains(x,z) && !nearCollider(x,z,.3) && freeAt(x,z,.28) && (ignoreCap || zoneCount(zn.id) < cap(zn.id))){ if(makeSpot(type, zn, x, z, 1, null, instant)){ made++; k++; } break; } }
+            if(zn.contains(x,z) && !nearCollider(x,z,.3) && freeAt(x,z,.28) && (ignoreCap || (zoneCount(zn.id) < cap(zn.id) && roomFor(zn.id)))){ if(makeSpot(type, zn, x, z, 1, null, instant)){ made++; k++; } break; } }
         }
       }
     }
@@ -145,15 +157,19 @@ export async function init(ctx){
 
   // ---------- kebersihan ----------
   function load(list=spots){ let s = 0; for(const sp of list) s += sp.amt * TYPES[sp.type].w; return s; }
-  function clean(){ let l = load(); for(const p of piles) l += .3; return Math.round(100 * Math.min(1, Math.max(0, 1 - l / DIV))); }
+  // kebersihan never reads below CLEAN_FLOOR: an un-swept masjid is "ready for a sweep", never a 0 / failure
+  function rawClean(){ let l = load(); for(const p of piles) l += .3; return Math.round(100 * Math.min(1, Math.max(0, 1 - l / DIV))); }
+  function clean(){ return Math.max(CLEAN_FLOOR, rawClean()); }
+  const LEVELS = [[90, 'sparkle', ['Berkilau!','Sparkling!']], [70, 'happy', ['Bersih','Clean']], [40, 'ok', ['Lumayan','Okay']], [0, 'sweep', ['Ayo bersihkan!','Let\'s tidy up!']]];
+  function level(c=clean()){ for(const l of LEVELS) if(c >= l[0]) return { face:l[1], label:l[2] }; return { face:'sweep', label:LEVELS[3][2] }; }
   function zoneClean(id){ const l = load(spots.filter(s => s.zone === id)); const c = Math.max(1, (CAPS[id] ?? 10) * .5); return Math.round(100 * Math.min(1, Math.max(0, 1 - l / c))); }
-  function attraction(){ const c = clean(); return { clean:c, capMul:.7 + .6 * c / 100, donateMul:.8 + .5 * c / 100, mood:c >= 70 ? 'happy' : c >= 40 ? 'ok' : 'meh' }; }
+  function attraction(){ const c = clean(); return { clean:c, capMul:.7 + .6 * c / 100, donateMul:.8 + .5 * c / 100, mood:c >= 70 ? 'happy' : c >= 40 ? 'ok' : 'meh', ...level(c) }; }
   let lastClean = null, dirtyDay = -1;
   function evaluate(){
     const c = clean();
     if(S.daily) S.daily.clean = c;
     if(lastClean !== null && c !== lastClean){
-      const prev = lastClean; lastClean = c; ctx.emit('care:change', { clean:c, prev });
+      const prev = lastClean; lastClean = c; ctx.emit('care:change', { clean:c, prev, ...level(c) });
       if(c < 50 && prev >= 50 && dirtyDay !== S.day){ dirtyDay = S.day; ctx.emit('care:dirty', { clean:c }); }
     } else lastClean = c;
     // daily milestones (checked on every tick so a steady value still counts)
@@ -260,7 +276,7 @@ export async function init(ctx){
         const r = rateOf(zn.id, type); if(!r) continue;
         const k = zn.id + ':' + type; acc[k] = (acc[k] || 0) + r * dh;
         if(acc[k] >= 1){
-          if(zoneCount(zn.id) >= cap(zn.id)){ acc[k] = 0; continue; }
+          if(zoneCount(zn.id) >= cap(zn.id) || !roomFor(zn.id)){ acc[k] = 0; continue; }
           const n = type === 'leaf' ? 2 + Math.floor(rand() * 3) : 1;
           spawnIn(zn, type, n, { cluster:n }); acc[k] -= n;
         }
@@ -271,10 +287,10 @@ export async function init(ctx){
     const pz = byId.plaza; if(pz) spawnIn(pz, 'leaf', 6);
     const hz = byId.hall; if(hz) spawnIn(hz, 'dust', 2);
   }
-  const printChance = () => event === 'hujan' ? .4 : .1;
+  const printChance = () => event === 'hujan' ? .8 : .3;
   function footprintAt(zid, pos, rot){
     const zn = byId[zid] || (pos && zoneAt(pos.x, pos.z)); if(!zn || !pos) return 0;
-    if(zoneCount(zn.id) >= cap(zn.id)) return 0;
+    if(zoneCount(zn.id) >= cap(zn.id) || !roomFor(zn.id)) return 0;
     const x = pos.x + R(-.3,.3), z = pos.z + R(-.3,.3);
     if(!zn.contains(x,z) || !freeAt(x,z,.35)) return 0;
     const s = makeSpot('print', zn, x, z, 1, rot ?? R(-.4,.4)); if(s){ renderer.touch(); persist(); return 1; } return 0;
@@ -329,7 +345,7 @@ export async function init(ctx){
   const near = [];
   return {
     TYPES, CAPS, spots, piles, zones:() => zones,
-    clean, zoneClean, nearest, cleanAt, gather, addDirt, wipe, attraction, setHighlight, renderer,
+    clean, rawClean, level, zoneClean, nearest, cleanAt, gather, addDirt, wipe, attraction, setHighlight, renderer,
     get cap(){ return Object.fromEntries(Object.keys(CAPS).map(k => [k, cap(k)])); },
     get capTotal(){ return Object.keys(CAPS).reduce((s,k) => s + cap(k), 0); },
     update(dt, t){

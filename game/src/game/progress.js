@@ -258,14 +258,18 @@ export async function init(ctx){
     if(!(S.decor.owned[kind]>0)) return false;
     if(placing) stopPlace();
     placing=kind; const ids=freeSlots(kind); decor.showSlots(ids);
-    const zones = ids.map(slotZone), allHall = ids.length>0 && zones.every(z=>z==='hall'), allMasjid = ids.length>0 && zones.every(z=>z==='hall'||z==='porch');
+    const zones = ids.map(slotZone), allHall = ids.length>0 && zones.every(z=>z==='hall');
+    const nIn = zones.filter(z=>z==='hall'||z==='porch').length, anyHall = zones.includes('hall');
+    // frame the masjid when every slot is there, when most are, or when hall slots are offered at all (they hide under the roof otherwise)
+    const frameM = ids.length>0 && (nIn===ids.length || nIn*2>=ids.length || anyHall), allMasjid = ids.length>0 && nIn===ids.length;
     const C = ctx.modules.characters, M = Mj();
-    if((allHall||allMasjid) && C?.focusCamera){
-      try{ camTok = allHall ? C.focusCamera({x:0,y:PL+1,z:-2.6},{dist:11,pitch:.95,yaw:0,hold:true}) : C.focusCamera({x:0,y:PL+1.2,z:1.2},{dist:17,pitch:.62,yaw:0,hold:true}); }catch(e){ camTok=null; }
+    if(frameM && C?.focusCamera){
+      try{ camTok = allHall ? C.focusCamera({x:0,y:PL+1,z:-2.6},{dist:11,pitch:.95,yaw:0,hold:true}) : C.focusCamera({x:0,y:PL+1.2,z:anyHall?.2:1.2},{dist:anyHall?16:17,pitch:anyHall?.78:.62,yaw:0,hold:true}); }catch(e){ camTok=null; }
     }
-    if(allHall||allMasjid){ try{ M?.setCutaway?.('decor',true); cutOn=true; }catch(e){} }
-    if(camTok==null){ const R=ctx.cameraRig; if(R&&!camSave){ camSave={ dist:R.dist, pitch:R.pitch }; R.dist=Math.max(R.dist,allMasjid?18:26); R.pitch=Math.max(R.pitch,.95); } }
-    ctx.emit('decor:placing',{ kind, slots:ids.length, masjid:allMasjid, hall:allHall }); return true;
+    if(anyHall||allMasjid){ try{ M?.setCutaway?.('decor',true); cutOn=true; }catch(e){} }
+    if(camTok==null){ const R=ctx.cameraRig; if(R&&!camSave){ camSave={ dist:R.dist, pitch:R.pitch }; R.dist=Math.max(R.dist,frameM?18:26); R.pitch=Math.max(R.pitch,.95); } }
+    const hint = allMasjid||anyHall ? (nIn===ids.length ? ['Ketuk lingkaran di dalam masjid atau serambi','Tap a circle inside the masjid or on the porch'] : ['Ketuk lingkaran di dalam masjid, serambi atau plaza','Tap a circle inside the masjid, on the porch or plaza']) : null;
+    ctx.emit('decor:placing',{ kind, slots:ids.length, masjid:frameM, hall:allHall, inside:anyHall, hint }); return true;
   }
   function stopPlace(){ if(!placing) return; placing=null; decor.showSlots(null); const R=ctx.cameraRig; if(R&&camSave){ R.dist=camSave.dist; R.pitch=camSave.pitch; } camSave=null;
     if(camTok!=null){ try{ ctx.modules.characters?.releaseCamera?.(camTok); }catch(e){} camTok=null; }
@@ -333,7 +337,20 @@ export async function init(ctx){
   }
 
   // ---------- init ----------
-  if(!Array.isArray(S.quests?.list) || !S.quests.list.length || S.quests.day!==S.day) rollDay(); else rainSet();
+  const preCare = !S.care?.seeded;                // save from before masjid care existed (care.js seeds on its first boot)
+  if(!Array.isArray(S.quests?.list) || !S.quests.list.length || S.quests.day!==S.day) rollDay(); else { rainSet(); if(preCare) migrateQuests(); }
+  // an old save loaded mid-day keeps its quests but gains one masjid job right away (the main job guarantee)
+  function migrateQuests(){
+    const list = S.quests.list, isM = id => { const d=QUESTS.find(q=>q.id===id); return d && (d.cat==='masjid' || d.id==='build'); };
+    if(list.some(q=>isM(q.id))) return;
+    const c = qctx(), E = EVENTS[S.event?.id] || {}, R = rng(S.year*7919 + S.day*104729 + 23);
+    const pool = QUESTS.filter(q=>q.cat==='masjid' && !list.some(p=>p.id===q.id) && !(E.ban||[]).includes(q.id) && (()=>{ try{ return q.can(c); }catch(e){ return false; } })());
+    if(!pool.length) return;
+    const pref = pool.find(q=>q.id==='sweep') || pool[Math.floor(R()*pool.length)], n = pref.goal(c);
+    const entry = { id:pref.id, goal:n, coins:pref.coins(n), pahala:pref.pahala };
+    let ri = -1; if(list.length >= questSlots()) for(let i=list.length-1;i>=0;i--){ const q=list[i]; if(!q.special && !S.quests.claimed?.[q.id] && !isM(q.id)){ const d=defOf(q); if(!d || (S.daily?.[d.stat]||0) < q.goal){ ri=i; break; } } }
+    if(ri>=0) list[ri] = entry; else list.push(entry);
+  }
   if(S.daysToEid<=0 && S.eidDone) newYear();            // celebrated but the new year never started (reload)
   pendingEid = S.daysToEid<=0 && !S.eidDone;
   if(!S.berkahSeen) S.berkahSeen = level();
