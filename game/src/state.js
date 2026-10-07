@@ -22,6 +22,7 @@ export const defaultState = ()=>({
   prayer:{ day:0, log:{} },                 // today's prayer log, bitmask per id: 1 player adzan, 2 player led, 4 NPC led
   tips:{},                                  // one-time UI tips: key -> day shown
   stickers:{},                              // id -> day unlocked
+  unlocks:{},                               // gradual features (game/unlocks): id -> day unlocked; _v marks a migrated/new record
   tutDone:false, eidDone:false, tool:'hay', hour:8,
 });
 /** today's counters, always derived from the schema so new counters can never drift */
@@ -34,7 +35,7 @@ const r2=v=>Math.round(v*100)/100;
 function sanitize(s){ const d=defaultState();
   s.day=num(s.day,d.day,1); s.daysToEid=num(s.daysToEid,d.daysToEid,0,99); s.coins=num(s.coins,d.coins,0); s.pahala=num(s.pahala,d.pahala,0); s.hour=num(s.hour,8,0,24);
   s.year=num(s.year,1,1,9999); s.streak=num(s.streak,0,0,9999); s.bestStreak=num(s.bestStreak,0,0,9999); s.berkahSeen=num(s.berkahSeen,0,0,99); s.penLevel=num(s.penLevel,0,0,9);
-  for(const k of ['masjid','settings','daily','quests','stats','inventory','event','decor','stickers','care','prayer','tips']) if(!obj(s[k])) s[k]=d[k];
+  for(const k of ['masjid','settings','daily','quests','stats','inventory','event','decor','stickers','care','prayer','tips','unlocks']) if(!obj(s[k])) s[k]=d[k];
   if(!obj(s.masjid.parts)) s.masjid.parts={}; s.masjid.stage=num(s.masjid.stage,0,0,99);
   // masjid design: only well-formed ids survive (unknown-but-well-formed ids fall back to defaults in custom.js / masjid)
   { const c=obj(s.masjid.custom)?s.masjid.custom:{}, out={};
@@ -63,6 +64,7 @@ function sanitize(s){ const d=defaultState();
     P.day=num(P.day,0,0); for(const id of PRAYER_IDS) if(Number.isFinite(log[id])) out[id]=Math.round(num(log[id],0,0,7)); P.log=out; P.lima=!!P.lima; }
   for(const k in s.tips){ if(!ID.test(k)||!Number.isFinite(s.tips[k])||s.tips[k]<1) delete s.tips[k]; }
   if(!TOOLS.includes(s.tool)) s.tool='hay';
+  for(const k in s.unlocks){ if(!ID.test(k)||!Number.isFinite(s.unlocks[k])) delete s.unlocks[k]; else s.unlocks[k]=Math.round(num(s.unlocks[k],1,1,99999)); }
   for(const k in s.stickers){ if(!ID.test(k)) delete s.stickers[k]; else s.stickers[k]=num(s.stickers[k],1,1); }
   if(typeof s.outfit!=='string'||!ID.test(s.outfit)) s.outfit='klasik';
   if(s.look!==undefined&&!obj(s.look)) delete s.look;

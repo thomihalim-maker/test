@@ -25,6 +25,7 @@ export function createCare(U){
   const M = n => ctx.modules[n];
   const safe = (f, d) => { try{ const r = f(); return r === undefined ? d : r; }catch(e){ return d; } };
   const ppos = () => { const p = M('characters')?.pos || ctx.cameraRig?.target; return p && Number.isFinite(p.x) ? p : null; };
+  const on = id => safe(() => { const u = M('unlocks'); return u?.isUnlocked ? !!u.isUnlocked(id) : true; }, true);
 
   // ---------- DOM ----------
   const row = el('div'); row.id = 'carerow';
@@ -46,7 +47,10 @@ export function createCare(U){
   let prKey = '';
   function renderPrayer(){
     const P = M('prayer'); const cur = P && safe(() => P.current(), null);
-    if(!cur){ prChip.style.display = 'none'; return; }
+    // calm HUD: the chip only appears from the "soon" reminder through the adzan (and, once the player may lead,
+    // while the jamaah gather). Idle hours, a prayer in progress or a finished one show nothing.
+    const ph0 = cur?.phase, show = !!cur && on('adzan') && (ph0 === 'soon' || ph0 === 'open' || ph0 === 'adzan' || (on('imam') && (ph0 === 'called' || ph0 === 'ready')));
+    if(!show){ prChip.style.display = 'none'; return; }
     prChip.style.display = '';
     const nm = cur.name ? L(cur.name) : cur.id, ph = cur.phase;
     let a, b, cls = '', icon = 'clock';
@@ -74,7 +78,9 @@ export function createCare(U){
   let clLast = -1;
   function renderClean(force){
     const C = M('care'); const c = C && safe(() => C.clean(), null);
-    if(c == null || !Number.isFinite(c)){ clPill.style.display = 'none'; return; }
+    // only when it matters: the masjid needs a sweep, a cleaning tool is in hand, or the marbot is on the plaza
+    const p = ppos(), onPlaza = !!p && Math.hypot(p.x, p.z + 1) < 15, tool = S.tool === 'sapu' || S.tool === 'pel';
+    if(c == null || !Number.isFinite(c) || !on('sapu') || !(c < 60 || tool || onPlaza)){ clPill.style.display = 'none'; return; }
     clPill.style.display = '';
     if(c === clLast && !force) return; clLast = c;
     $('clN').textContent = c + '%'; $('clBar').style.width = Math.max(4, c) + '%';
@@ -186,7 +192,7 @@ export function createCare(U){
   ctx.on('prayer:soon', d => { prKey = ''; renderPrayer(); pulse(prChip); U.toast(T('soon', { p:prName(d) }), 'clock', '', { stale:phaseIs('soon', 'idle') }); });
   ctx.on('prayer:open', d => { prKey = ''; renderPrayer(); pulse(prChip); U.toast(T('open', { p:prName(d) }), 'adzan', 'good', { stale:phaseIs('open') });
     tip('prayerOpen', stage() >= 4 ? TX.tipOpen : [TX.goMic[0], TX.goMic[1]], 'adzan'); });
-  ctx.on('prayer:ready', () => { prKey = ''; renderPrayer(); pulse(prChip); tip('prayerReady', TX.tipReady, 'imam'); });
+  ctx.on('prayer:ready', () => { prKey = ''; renderPrayer(); if(on('imam')){ pulse(prChip); tip('prayerReady', TX.tipReady, 'imam'); } });
   ctx.on('adzan:start', () => { closeTip('prayerOpen'); });
   for(const e of ['prayer:lead','prayer:start']) ctx.on(e, () => { closeTip('prayerOpen'); closeTip('prayerReady'); });
   for(const e of ['prayer:lead','prayer:start','prayer:done','prayer:close','adzan:start','adzan:end']) ctx.on(e, () => { prKey = ''; renderPrayer(); });
@@ -227,7 +233,7 @@ export function createCare(U){
     row.classList.toggle('off', !U.started());
     renderPrayer(); renderClean(); renderAnimal(); layoutStack();
     // first time near dirt: one gentle tip
-    dirtT += .5; if(dirtT >= 1.5 && U.started() && !S.tips?.dirt){ dirtT = 0; const C = M('care'), p = ppos(); const n = C && p && safe(() => C.nearest(p, 3.5), null); if(n && n.kind !== 'gather' && n.tool !== 'pel') tip('dirt', TX.tipDirt, 'broom'); }
+    dirtT += .5; if(dirtT >= 1.5 && U.started() && !S.tips?.dirt && on('sapu')){ dirtT = 0; const C = M('care'), p = ppos(); const n = C && p && safe(() => C.nearest(p, 3.5), null); if(n && n.kind !== 'gather' && n.tool !== 'pel') tip('dirt', TX.tipDirt, 'broom'); }
   }
   function refresh(){ prKey = ''; anKey = ''; renderPrayer(); renderClean(true); renderAnimal(); }
   return { update, refresh, caption, tip, closeTip, showGo, hideGo, walkGuide, layout:layoutStack, T, get captionOn(){ return capOn; } };

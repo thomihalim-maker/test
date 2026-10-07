@@ -6,6 +6,7 @@
 import { createDecor, DECOR_KINDS, SLOTS, slotMeta, slotFits, slotsFor, slotZone, ZONE_LABEL } from './decor.js';
 import { CATALOG, ORDER as CUSTOM_ORDER } from './catalog.js';
 import { save, freshDaily } from '../state.js';
+import { createUnlocks, FEATURES } from './unlocks.js';
 
 // pahala needed to reach level i+1 (pahala is never spent, so it is a lifetime total)
 export const LEVELS = [0, 40, 100, 180, 300, 450, 650, 900, 1200, 1600];
@@ -17,7 +18,9 @@ export const OUTFITS = [
   { id:'senja',  lv:7, name:['Ungu Senja','Dusk Purple'], look:{ koko:0xf3e6ff, sarong:0x6a3f9a, peci:0x221830 } },
   { id:'putih',  lv:9, name:['Putih Berseri','Radiant White'], look:{ koko:0xffffff, sarong:0xc9a24a, peci:0xf4efe2 } },
 ];
-const SLOT_LV = [[1,3],[3,4],[6,5]];          // [level, quest slots]
+// gentle task count: 2 on the first days, 3 until day 5, then 4; a high Berkah level adds one more (max 5)
+const SLOT_LV = [[6,1]];                      // [level, extra quest slots]
+const daySlots = d => d <= 2 ? 2 : d <= 5 ? 3 : 4;
 const PEN_LV = { 4:1, 8:2 };                  // level -> pen upgrade level
 export const WEEKDAYS = [['Senin','Mon'],['Selasa','Tue'],['Rabu','Wed'],['Kamis','Thu'],['Jumat','Fri'],['Sabtu','Sat'],['Ahad','Sun']];
 
@@ -25,8 +28,8 @@ export const EVENTS = {
   cerah: { icon:'sun',    w:3,   name:['Cerah','Sunny'],              desc:['Hari yang cerah dan tenang.','A calm, sunny day.'] },
   panas: { icon:'hot',    w:2,   name:['Panas Terik','Heatwave'],     desc:['Hewan cepat haus. Siapkan air!','Animals get thirsty fast. Bring water!'], force:['water'] },
   hujan: { icon:'rain',   w:2,   name:['Hujan','Rainy Day'],          desc:['Hewan berteduh, tak perlu banyak mandi.','Animals shelter; less washing needed.'], ban:['wash','washcow'], force:['mop'] },
-  angin: { icon:'wind',   w:1.5, name:['Berangin','Windy Day'],       desc:['Daun berguguran, siapkan sapu!','Leaves are falling, grab the broom!'], force:['sweep'] },
-  pasar: { icon:'bag',    w:1.5, name:['Hari Pasar','Market Day'],    desc:['Perlengkapan diskon 25% di toko!','Supplies 25% off in the shop!'] },
+  angin: { icon:'wind',   w:1.5, need:'sapu', name:['Berangin','Windy Day'],       desc:['Daun berguguran, siapkan sapu!','Leaves are falling, grab the broom!'], force:['sweep'] },
+  pasar: { icon:'bag',    w:1.5, need:'shop', name:['Hari Pasar','Market Day'],    desc:['Perlengkapan diskon 25% di toko!','Supplies 25% off in the shop!'] },
   tamu:  { icon:'chat',   w:1.5, name:['Tamu Istimewa','Special Guest'], desc:['Pak Ustadz berkunjung dan punya permintaan.','A guest visits with a special request.'], special:true },
   ramai: { icon:'people', w:1,   name:['Jamaah Ramai','Busy Day'],    desc:['Banyak jamaah datang hari ini.','Lots of visitors today.'], force:['vis'], crowd:4 },
   jumat: { icon:'dome',   w:0,   name:['Jumat Berkah','Blessed Friday'], desc:['Hadiah tugas ×1.5 dan jamaah ramai!','Task rewards ×1.5 and lots of visitors!'], force:['vis'], crowd:6, mul:1.5 },
@@ -40,7 +43,7 @@ export const QUESTS = [
   { id:'wash',    cat:'care',  icon:'soap',   stat:'washed',     title:['Mandikan {n} hewan','Wash {n} animals'],               goal:c=>clampI(c.nA*.3,1,3), can:c=>c.nA>0, coins:n=>15+n*6, pahala:5 },
   { id:'washcow', cat:'care',  icon:'cow',    stat:'washedCow',  title:['Mandikan sapi','Wash a cow'],                          goal:()=>1, can:c=>c.nCow>0, coins:()=>25, pahala:5 },
   { id:'treat',   cat:'care',  icon:'treat',  stat:'treats',     title:['Beri camilan ke {n} hewan','Give {n} treats'],         goal:c=>clampI(c.nA*.3,1,3), can:c=>c.nA>0, coins:n=>10+n*5, pahala:4 },
-  { id:'pet',     cat:'care',  icon:'heart',  stat:'petted',     title:['Elus semua hewan ({n})','Pet every animal ({n})'],    goal:c=>clampI(c.nA,1,12), can:c=>c.nA>0, coins:n=>12+n*3, pahala:6 },
+  { id:'pet',     cat:'care',  icon:'heart',  stat:'petted',     title:['Elus {n} hewan dengan sayang','Give {n} animals a gentle pat'],    goal:c=>clampI(c.nA,1,12), can:c=>c.nA>0, coins:n=>12+n*3, pahala:6 },
   { id:'happy',   cat:'care',  icon:'heart',  stat:'happy',      title:['Buat {n} hewan senang','Make {n} animals happy'],      goal:c=>clampI(c.nA*.4,2,5), can:c=>c.nA>0, coins:n=>12+n*4, pahala:5 },
   { id:'healthy', cat:'care',  icon:'pahala', stat:'healthy',    title:['Jaga semua hewan sehat sampai sore','Keep every animal healthy till evening'], goal:()=>1, can:c=>c.nA>0, coins:()=>30, pahala:8 },
   { id:'build',   cat:'build', icon:'dome',   stat:'placed',     title:['Bangun tahap masjid berikutnya','Build the next masjid stage'], goal:()=>1, can:c=>c.stage<c.stages, coins:()=>30, pahala:8 },
@@ -50,12 +53,12 @@ export const QUESTS = [
   { id:'donate',  cat:'social',icon:'coin',   stat:'donations',  title:['Terima {n} sedekah jamaah','Receive {n} donations'],    goal:c=>clampI(1+c.stage*.5,2,5), can:c=>c.stage>=1, coins:n=>8+n*3, pahala:4 },
   { id:'pray',    cat:'social',icon:'flag',   stat:'prayers',    title:['Saksikan salat berjamaah','See the jamaah pray together'], goal:()=>1, can:c=>c.stage>=2, coins:()=>20, pahala:8 },
   { id:'bedug',   cat:'social',icon:'drum',   stat:'bedugDusk',  title:['Tabuh bedug saat senja (17–19)','Beat the bedug at dusk (5–7pm)'], goal:()=>1, can:c=>c.bedug, coins:()=>20, pahala:6 },
-  { id:'coins',   cat:'misc',  icon:'coin',   stat:'coins',      title:['Kumpulkan {n} koin hari ini','Earn {n} coins today'],   goal:c=>clampI(30+c.stage*12,30,140), can:()=>true, coins:()=>15, pahala:4 },
+  { id:'coins',   cat:'misc',  icon:'coin',   stat:'coins',      title:['Kumpulkan {n} koin','Collect {n} coins'],   goal:c=>clampI(30+c.stage*12,30,140), can:()=>true, coins:()=>15, pahala:4 },
   // masjid care: sweeping, mopping, adzan, imam, decorating, designing
   { id:'sweep',   cat:'masjid',icon:'broom',  stat:'swept',      title:['Sapu {n} kotoran','Sweep {n} messes'],                 goal:c=>clampI(5+c.stage*.6,5,12), can:()=>true, coins:n=>10+n*2, pahala:5 },
   { id:'mop',     cat:'masjid',icon:'mop',    stat:'mopped',     title:['Pel {n} noda lantai','Mop {n} floor stains'],          goal:c=>clampI(3+c.stage*.4,3,7), can:c=>c.stage>=1, coins:n=>12+n*3, pahala:5 },
   { id:'pile',    cat:'masjid',icon:'leafpile',stat:'piles',     title:['Angkut {n} tumpukan daun','Bag {n} leaf piles'],       goal:c=>clampI(1+c.stage*.25,1,3), can:()=>true, coins:n=>10+n*5, pahala:4 },
-  { id:'clean',   cat:'masjid',icon:'sparkle',stat:'cleanDusk',  title:['Masjid bersih (80%) saat senja','Masjid clean (80%) at dusk'], goal:()=>1, can:c=>c.stage>=1, coins:()=>25, pahala:8 },
+  { id:'clean',   cat:'masjid',icon:'sparkle',stat:'cleanDusk',  title:['Masjid rapi dan bersih saat senja','A tidy, clean masjid by dusk'], goal:()=>1, can:c=>c.stage>=1, coins:()=>25, pahala:8 },
   { id:'adzan',   cat:'masjid',icon:'adzan',  stat:'adzan',      title:['Kumandangkan adzan {n} kali','Call the adzan {n} time(s)'], goal:c=>clampI(1+c.lv/4,1,3), can:()=>true, coins:n=>15+n*5, pahala:6 },
   { id:'imam',    cat:'masjid',icon:'imam',   stat:'imam',       title:['Pimpin salat berjamaah','Lead the congregation in prayer'], goal:()=>1, can:c=>c.stage>=1, coins:()=>20, pahala:10 },
   { id:'tanda',   cat:'masjid',icon:'drum',   stat:'tanda',      title:['Tabuh kentongan/bedug sebelum adzan','Strike the kentongan/bedug before adzan'], goal:()=>1, can:c=>c.stage>=2&&c.kentongan, coins:()=>15, pahala:5 },
@@ -125,12 +128,19 @@ export async function init(ctx){
   const levelOf = p => { let l=1; for(let i=0;i<LEVELS.length;i++) if(p>=LEVELS[i]) l=i+1; return l; };
   const level = () => levelOf(S.pahala||0);
   function levelInfo(){ const lv=level(), cur=LEVELS[lv-1], next=LEVELS[lv]; return { lv, max:LEVELS.length, cur, next:next??null, pct: next ? Math.min(1,((S.pahala||0)-cur)/(next-cur)) : 1, pahala:S.pahala||0 }; }
-  const questSlots = (lv=level()) => SLOT_LV.reduce((s,[l,n])=>lv>=l?n:s,3);
+  const questSlots = (lv=level()) => Math.min(5, daySlots(S.day|0) + SLOT_LV.reduce((s,[l,n])=>lv>=l?s+n:s,0));
+  // gradual features (sapu, wash, shop, adzan, pel, imam, decor, book, design) — see unlocks.js
+  // (a ?stage= preview is local to the masjid module and never unlocks anything: read the saved stage then)
+  const unl = createUnlocks(ctx, { level, stage:()=>{ const m=Mj(); return m && typeof m.stage==='number' && !m.preview ? m.stage : (S.masjid?.stage|0); } });
+  ctx.modules.unlocks = unl;
+  const on = id => unl.isUnlocked(id);
+  const LV_FEAT = { imam:2, decor:3, book:3, design:4 };   // features a Berkah level brings (imam/design can also come from building)
   function unlocksAt(lv){ const u=[];
     for(const o of OUTFITS) if(o.lv===lv&&lv>1) u.push({ type:'outfit', id:o.id, icon:'shirt', name:o.name });
     for(const d of DECOR_KINDS) if(d.lv===lv&&lv>1) u.push({ type:'decor', id:d.id, icon:d.icon, name:d.name });
     for(const cat of CUSTOM_ORDER) for(const o of CATALOG[cat].options) if(o.lv===lv&&o.price>0) u.push({ type:'custom', cat, id:o.id, icon:CATALOG[cat].icon, name:o.name, catName:CATALOG[cat].name, swatch:o.swatch||null });
-    for(const [l,n] of SLOT_LV) if(l===lv&&lv>1) u.push({ type:'slot', icon:'scroll', name:[`Slot tugas ke-${n}`,`Task slot #${n}`] });
+    for(const [l] of SLOT_LV) if(l===lv&&lv>1) u.push({ type:'slot', icon:'scroll', name:['Satu tugas tambahan','One extra task'] });
+    for(const f of FEATURES) if(LV_FEAT[f.id]===lv) u.push({ type:'feature', id:f.id, icon:f.icon, name:f.name });
     if(PEN_LV[lv]) u.push({ type:'pen', icon:'goat', name:['Kandang lebih luas','Bigger pen'] });
     return u; }
 
@@ -147,29 +157,34 @@ export async function init(ctx){
   // ---------- day roll: event + quests ----------
   const weekday = d => ((d-1)%7+7)%7;
   const isJumat = d => weekday(d)===4;
+  let booting = true;
   function rollDay(){
+    if(!booting) unl.check();                     // a new day may bring a new activity (announced by the UI, one card at a time)
     const R = rng(S.year*7919 + S.day*104729 + 17), c = qctx();
     let ev = 'cerah';
     if(isJumat(S.day)) ev='jumat';
-    else if(!(S.day===1&&S.year===1)){ const keys=Object.keys(EVENTS).filter(k=>EVENTS[k].w>0&&k!==S.event?.id); const tot=keys.reduce((s,k)=>s+EVENTS[k].w,0); let r=R()*tot; for(const k of keys){ r-=EVENTS[k].w; if(r<=0){ ev=k; break; } } }
+    else if(!(S.day===1&&S.year===1)){ const keys=Object.keys(EVENTS).filter(k=>EVENTS[k].w>0&&k!==S.event?.id&&(!EVENTS[k].need||on(EVENTS[k].need))); const tot=keys.reduce((s,k)=>s+EVENTS[k].w,0); let r=R()*tot; for(const k of keys){ r-=EVENTS[k].w; if(r<=0){ ev=k; break; } } }
     if(Q.get('event')&&EVENTS[Q.get('event')]) ev=Q.get('event');
     const E = EVENTS[ev];
     S.event = { day:S.day, id:ev };
-    const pool = QUESTS.filter(q=>{ try{ return q.can(c) && !(E.ban||[]).includes(q.id); }catch(e){ return false; } });
+    // only activities the player already has: the variety arrives gradually
+    const pool = QUESTS.filter(q=>{ try{ return unl.questOk(q.id) && q.can(c) && !(E.ban||[]).includes(q.id); }catch(e){ return false; } });
     const picked = [], has = id => picked.some(q=>q.id===id), slots = questSlots();
     const isMasjid = q => q.cat==='masjid' || q.id==='build';             // caring for the masjid is the main job
     const careN = () => picked.filter(q=>q.cat==='care').length, careMax = slots>=4 ? 2 : 99;
     const yesterday = id => (S.quests?.list||[]).some(p=>p.id===id);
-    const first = S.day===1 && S.year===1 ? ['sweep','feed','build'] : [];
-    for(const id of [...first, ...(E.force||[])]){ const q=pool.find(p=>p.id===id); if(q&&!has(id)&&picked.length<slots) picked.push(q); }
+    const first = S.day===1 && S.year===1 ? ['feed','build'] : [];
+    // a feature that just arrived offers one gentle "try it" task
+    const intro = []; for(const f of unl.recent()){ const id=unl.INTRO_QUEST[f.id]; if(id){ intro.push(id); break; } }
+    for(const id of [...first, ...intro, ...(E.force||[])]){ const q=pool.find(p=>p.id===id); if(q&&!has(id)&&picked.length<slots) picked.push(q); }
     // guarantee: at least two masjid jobs (exempt from the same-category spread penalty)
-    if(slots>=3){ const need = () => 2 - picked.filter(isMasjid).length;
+    if(slots>=3){ const need = () => (slots>=4?2:1) - picked.filter(isMasjid).length;
       const mq = pool.filter(q=>isMasjid(q)&&!has(q.id)).map(q=>({q,k:R()+yesterday(q.id)*.35})).sort((a,b)=>a.k-b.k);
       for(const {q} of mq){ if(need()<=0||picked.length>=slots) break; picked.push(q); } }
     const rest = pool.filter(q=>!has(q.id)).map(q=>({q,k:R()+(picked.some(p=>p.cat===q.cat)?.6:0)+yesterday(q.id)*.35})).sort((a,b)=>a.k-b.k);
     for(const {q} of rest){ if(picked.length>=slots) break; if(q.cat==='care'&&careN()>=careMax) continue; picked.push(q); }
     const list = picked.map(q=>{ const n=q.goal(c); return { id:q.id, goal:n, coins:q.coins(n), pahala:q.pahala }; });
-    if(E.special){ const gs=GUEST.filter(g=>g.can(c)); if(gs.length){ const g=gs[Math.floor(R()*gs.length)], n=g.goal(c); list.push({ id:'guest', guest:GUEST.indexOf(g), goal:n, coins:40+n*5, pahala:15, special:true }); } }
+    if(E.special){ const gs=GUEST.filter(g=>g.can(c)&&(!unl.STAT_NEED[g.stat]||on(unl.STAT_NEED[g.stat]))); if(gs.length){ const g=gs[Math.floor(R()*gs.length)], n=g.goal(c); list.push({ id:'guest', guest:GUEST.indexOf(g), goal:n, coins:40+n*5, pahala:15, special:true }); } }
     S.quests = { day:S.day, list, claimed:{} };
     S.daily = freshDaily(); S.pettedToday = []; notified.clear();
     rainSet(); ctx.emit('event:day',{ id:ev, day:S.day, ...E });
@@ -337,7 +352,10 @@ export async function init(ctx){
   }
 
   // ---------- init ----------
-  const preCare = !S.care?.seeded;                // save from before masjid care existed (care.js seeds on its first boot)
+  // a list rolled before gradual unlocks may hold activities this player does not have yet: drop the untouched ones
+  if(Array.isArray(S.quests?.list) && S.quests.day===S.day){ S.quests.list = S.quests.list.filter(q=>{ if(q.special||unl.questOk(q.id)) return true; const d=QUESTS.find(x=>x.id===q.id); return !!S.quests.claimed?.[q.id] || (d && (S.daily?.[d.stat]||0)>0); }); }
+  if(!unl.tools().includes(S.tool)) S.tool = 'hay';
+  const preCare = !S.care?.seeded && on('sapu');  // save from before masjid care existed (care.js seeds on its first boot)
   if(!Array.isArray(S.quests?.list) || !S.quests.list.length || S.quests.day!==S.day) rollDay(); else { rainSet(); if(preCare) migrateQuests(); }
   // an old save loaded mid-day keeps its quests but gains one masjid job right away (the main job guarantee)
   function migrateQuests(){
@@ -357,14 +375,15 @@ export async function init(ctx){
   if(S.outfit && S.outfit!=='klasik') { const o=OUTFITS.find(x=>x.id===S.outfit); if(o&&level()>=o.lv) S.look={ ...(S.look||{}), ...o.look }; }
   if(Q.get('decor')==='all'){ S.decor.placed = SLOTS.map((s,i)=>{ const fit=DECOR_KINDS.filter(k=>k.fits.includes(slotMeta(s).t)); return { slot:s[0], kind:fit[i%fit.length].id }; }); decor.sync(S.decor.placed); }
   if(Q.has('slots')) decor.showSlots(freeSlots(Q.get('slots')||null));
-  setTimeout(()=>{ checkQuests(); checkStickers(); ctx.emit('event:day',{ id:S.event.id, day:S.day, ...EVENTS[S.event.id] }); },1500);
+  booting = false;
+  setTimeout(()=>{ checkQuests(); checkStickers(); ctx.emit('event:day',{ id:S.event.id, day:S.day, ...EVENTS[S.event.id] }); unl.check(); },1500);
   // jump the clock without tripping the day rollover (debug / prayer.debugOpen)
   function setHour(h){ if(!Number.isFinite(h)) return; ctx.hour = ((h%24)+24)%24; prevHour = ctx.hour; }
 
   const subs = [];
   const api = {
     LEVELS, OUTFITS, EVENTS, STICKERS, QUESTS, DECOR_KINDS, WEEKDAYS, SLOTS,
-    level, levelInfo, unlocksAt, questSlots, quests, claim, stickers, outfits, setOutfit, checkQuests, checkStickers, setHour,
+    level, levelInfo, unlocksAt, questSlots, unlocks:unl, isUnlocked:on, quests, claim, stickers, outfits, setOutfit, checkQuests, checkStickers, setHour,
     decorKinds, buyDecor, placeDecor, storeDecor, startPlace, stopPlace, placeAuto, freeSlots, slotFits, slotsFor, get placing(){ return placing; }, decor,
     priceMul, weekday, isJumat, event:()=>({ id:S.event?.id||'cerah', ...EVENTS[S.event?.id||'cerah'] }),
     get pendingEid(){ return pendingEid; }, celebrateEid, newYear, endDay, rollDay, gradeAnimal, eidForecast,
@@ -377,6 +396,9 @@ export async function init(ctx){
       const now=performance.now(); if(now-acc>500){ acc=now;
         if(!S.daily.healthy && h>=17 && !S.daily.sick && (A()?.list||[]).length && !(A().list.some(a=>a.sick))) { S.daily.healthy=1; checkQuests(); }
         if(Math.random()<.2) checkStickers();
+        unl.check();                              // stage / level / day milestones open new activities
+        // until washing arrives the animals stay fresh, so no one is asked for something they cannot do yet
+        if(!on('wash')) for(const a of A()?.list||[]){ const s=a.stats; if(s&&s.clean<.9) s.clean=.9; }
       }
       // busy days: a few extra visitors spread over the day
       const E = EVENTS[S.event?.id]; if(crowdDay!==S.day){ crowdDay=S.day; crowdN=0; }

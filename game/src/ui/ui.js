@@ -29,7 +29,7 @@ const D={ // key: [id, en]
  eidSum:['Hewan kurban dibagikan dengan penuh syukur.','The sacrifice is shared with gratitude.'], dFam:['Keluarga','Family'], dNeigh:['Tetangga & Kerabat','Neighbors'], dPoor:['Fakir Miskin','The Needy'], packs:['paket daging','meat packs'],
  animals:['Hewan kurban','Animals'], goats:['kambing','goats'], sheeps:['domba','sheep'], cows:['sapi','cows'], jamaah:['Jamaah','Visitors'], again:['Tahun Baru','New Year'], keep:['Lanjut ke Tahun Depan','On to Next Year'],
  h1:['Geser joystick untuk berjalan keliling.','Use the joystick to walk around.'], h2:['Dekati kambing, lalu tekan tombol aksi untuk memberi makan.','Walk up to a goat and press action to feed it.'],
- h3:['Buka menu Bangun untuk membangun masjid!','Open Build to start the masjid!'], h4:['Selesaikan tugas harian sebelum Idul Adha tiba.','Finish daily tasks before Eid arrives.'],
+ h3:['Buka Menu, lalu Bangun untuk mulai membangun masjid!','Open the Menu, then Build to start the masjid!'], h4:['Selesaikan tugas harian sebelum Idul Adha tiba.','Finish daily tasks before Eid arrives.'],
  q_feed:['Beri makan 3 kambing','Feed 3 goats'], q_wash:['Mandikan sapi','Wash a cow'], q_water:['Beri minum 2 hewan','Water 2 animals'], q_happy:['Buat 2 hewan senang','Make 2 animals happy'], q_build:['Bangun 1 bagian masjid','Build 1 masjid part'], q_vis:['Sambut 2 jamaah','Welcome 2 visitors'],
  build_ok:['Masjid bertambah indah!','The masjid grows!'], q_done:['Tugas selesai!','Task complete!'], newday:['Hari baru dimulai','A new day begins'], eidSoon:['Idul Adha sebentar lagi!','Eid is almost here!'], masjidDone:['Masjid selesai dibangun!','Masjid complete!'],
  allDone:['Semua tugas beres!','All tasks done!'], special:['Permintaan Tamu','Guest request'], streak:['Rajin {n} hari berturut-turut!','{n}-day streak!'], streak0:['Besok semangat lagi, ya!','Fresh start tomorrow!'], streakHint:['Selesaikan hampir semua tugas untuk bonus rajin','Finish (almost) all tasks for a streak bonus'],
@@ -45,6 +45,8 @@ const D={ // key: [id, en]
  hewan:['Hewanku','My Animals'], design:['Desain','Design'], sapu:['Sapu','Broom'], pel:['Pel','Mop'], more:['Lainnya','More'], tabPlaza:['Plaza','Plaza'], tabMasjid:['Masjid','Masjid'],
  placeHintM:['Ketuk lingkaran di dalam masjid untuk memasang {k}','Tap a circle inside the masjid to place {k}'], placeHintP:['Ketuk lingkaran di serambi atau plaza untuk memasang {k}','Tap a circle on the porch or plaza to place {k}'],
  clean:['Kebersihan','Cleanliness'], adzanN:['Adzan dikumandangkan','Adzan called'], imamN:['Memimpin salat','Prayers led'],
+ menu:['Menu','Menu'], tugasTile:['Tugas','Tasks'], toko:['Toko','Shop'], bangun:['Bangun','Build'], desainTile:['Desain Masjid','Masjid Design'], stikerTile:['Buku Stiker','Sticker Book'],
+ newFeat:['Fitur baru: {f}!','New: {f}!'], newTag:['Baru','New'], okGo:['Oke, ayo!','Okay, let\'s go!'], goalClaim:['Ambil hadiah','Collect reward'], restNow:['Semua tugas beres. Santai dulu, ya!','All done. Time to relax!'], menuSub:['Mau ke mana?','Where to?'],
  lvName:['Level {l}','Level {l}'], bword:['berkah','blessings'], adult:['Dewasa','Adult'], lvTotal:['{n} berkah terkumpul','{n} blessings collected'],
 };
 const PARTS=[ // fallback list if masjid module has none
@@ -78,22 +80,15 @@ export async function init(ctx){
   const hud=el('div'); hud.id='hud';
   hud.innerHTML=`
   <div id="topbar">
-    <div class="tb-left"><div class="pill clay daypill" id="daypill"><div class="dico" id="dico"></div><div class="dtxt"><b id="dayN"></b><small id="clock"></small></div><span class="evb" id="evb"></span></div></div>
-    <div class="eid clay gold" id="eidpill"><div class="moon">${ic('calendar')}</div><div class="h" id="eidH"></div></div>
-    <div class="tb-wallet">
-      <div class="pill clay wallet"><button class="wc" id="coinpill" aria-label="Coins">${ic('coin')}<b id="coinN">0</b></button><span class="sep"></span><button class="wp" id="pahpill" aria-label="Level"><span class="lvstar">${ic('pahala')}<b id="lvb"></b></span><span class="lvmini" aria-hidden="true"><i id="lvbar"></i></span></button></div>
+    <div class="tb-left"><button class="pill clay daypill" id="daypill"><div class="dico" id="dico"></div><div class="dtxt"><b id="dayN"></b><small id="clock"></small></div><span class="evb" id="evb"></span></button></div>
+    <div class="tb-right">
+      <div class="pill clay wallet"><button class="wc" id="coinpill" aria-label="Coins">${ic('coin')}<b id="coinN">0</b></button><span class="sep"></span><button class="wp" id="pahpill" aria-label="Level"><span class="lvstar">${ic('pahala')}<b id="lvb"></b></span></button></div>
+      <button class="iconbtn clay" id="setBtn" aria-label="Settings">${ic('gear')}</button>
     </div>
-    <button class="iconbtn clay" id="setBtn" aria-label="Settings">${ic('gear')}</button>
   </div>
-  <div id="tracker" class="clay"><div id="qchip"></div><div id="qlist"></div></div>
+  <button id="tracker" class="clay"><span id="qchip"></span></button>
   <div id="ptr"></div>
-  <div id="dock">
-    <button class="dbtn clay" id="dQ" style="position:relative">${ic('scroll')}<span data-t="quests"></span><span class="badge" id="qBadge"></span></button>
-    <button class="dbtn clay" id="dS">${ic('bag')}<span data-t="shop"></span></button>
-    <button class="dbtn clay teal" id="dB">${ic('dome')}<span data-t="build"></span></button>
-    <button class="dbtn clay" id="dK" style="position:relative">${ic('book')}<span data-t="book"></span><span class="badge" id="kBadge"></span></button>
-    <button class="dbtn clay" id="dH" style="position:relative">${ic('paw')}<span data-t="hewan"></span><span class="badge" id="hBadge"></span></button>
-  </div>
+  <button id="menuBtn" class="clay" aria-label="Menu">${ic('menu')}<span class="ml" data-t="menu"></span><i class="mdot" id="menuDot"></i></button>
   <div id="toasts"></div><div id="ach"></div>
   <div id="placebar" class="clay hidden"></div>
   <div id="hint" class="clay hidden"><div class="av">${ic('marbot')}</div><div class="tx" id="hintTx"></div><button class="x" id="hintX" aria-label="Close">${ic('close')}</button></div>
@@ -155,10 +150,7 @@ export async function init(ctx){
     tween.coins+=(S.coins-tween.coins)*Math.min(1,dt*10); tween.pahala+=(S.pahala-tween.pahala)*Math.min(1,dt*10);
     if(Math.abs(S.coins-tween.coins)<.5) tween.coins=S.coins; if(Math.abs(S.pahala-tween.pahala)<.5) tween.pahala=S.pahala;
     $('#coinN').textContent=fmt(tween.coins);
-    // the blessing meter is one idea for kids: a star with the level number + a little bar to the next level
-    const li=P()?.levelInfo?.(); const pct=li?Math.round(li.pct*100):0; if(pct!==lastPct){ lastPct=pct; $('#lvbar').style.width=Math.max(6,pct)+'%'; }
   }
-  let lastPct=-1;
   let lastClock='';
   const tbEl=()=>document.getElementById('topbar');
   function measureTop(){ const b=tbEl()?.getBoundingClientRect(); if(b&&b.height) hud.style.setProperty('--tb',Math.ceil(b.bottom)+'px'); }
@@ -166,9 +158,11 @@ export async function init(ctx){
     const h=ctx.hour??8, hh=Math.floor(h)%24, mm=Math.floor((h%1)*60/10)*10; const s=String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
     const night=h<5.5||h>=18.5; const key=s+night+S.day+S.daysToEid+S.lang+S.eidDone+S.pahala+(S.event?.id||''); if(key===lastClock) return; lastClock=key;
     const pr=ctx.modules.progress, wd=pr?.WEEKDAYS?.[pr.weekday(S.day)], ev=pr?.event?.();
-    $('#clock').textContent=(wd?L(wd)+' · ':'')+s; $('#evb').innerHTML=ev&&ev.id!=='cerah'?ic(ev.icon):''; $('#lvb').textContent=pr?pr.level():''; $('#pahpill').setAttribute('aria-label',t('berkah')+' · '+t('lvName',{l:pr?pr.level():1})); $('#coinpill').setAttribute('aria-label',t('coins'));
+    // one compact pill: day, weekday + clock, and one small badge (Eid close by > today's weather/event)
+    const e=S.daysToEid, eidNear=e<=3;
+    $('#clock').textContent=(wd?L(wd)+' · ':'')+s; $('#evb').innerHTML=eidNear?ic('crescent'):ev&&ev.id!=='cerah'?ic(ev.icon):''; $('#evb').classList.toggle('eidb',eidNear); $('#lvb').textContent=pr?pr.level():''; $('#pahpill').setAttribute('aria-label',t('berkah')+' · '+t('lvName',{l:pr?pr.level():1})); $('#coinpill').setAttribute('aria-label',t('coins'));
     $('#dayN').textContent=t('day')+' '+S.day; $('#dico').innerHTML=ic(night?'moon':'sun'); $('#daypill').classList.toggle('night',night);
-    const e=S.daysToEid; $('#eidH').textContent=e<=0?t('eidToday'):e===1?t('eidTmr'):t('eidIn',{n:e}); $('#eidpill').classList.toggle('soon',e<=2);
+    $('#daypill').setAttribute('aria-label',t('day')+' '+S.day+' · '+s+' · '+(e<=0?t('eidToday'):e===1?t('eidTmr'):t('eidIn',{n:e})));
   }
 
   // ---------------- hotbar ----------------
@@ -178,39 +172,51 @@ export async function init(ctx){
   const TOOLS=[{id:'sapu',icon:'broom'},{id:'pel',icon:'mop'}];
   let hotOpenUntil=0, hotMode='pen';
   hotbar.addEventListener('pointerdown',e=>{ if(hotbar.classList.contains('mini')&&!e.target.closest('.fold')){ hotOpenUntil=performance.now()+6000; applyHotMode(); } },true);
-  function updateHotbar(now){ const p=ctx.modules.characters?.pos||ctx.cameraRig?.target; let m=hotMode;
-    if(p&&Number.isFinite(p.x)){ const dPen=Math.hypot(p.x-26,p.z-6), dM=Math.hypot(p.x,p.z+1); m=dPen<14?'pen':dM<18?'masjid':'mini'; }
+  // only the activities the player already has (gradual unlocks); everything is available when the module is absent
+  const UNL=()=>ctx.modules.unlocks, isOn=id=>{ try{ const u=UNL(); return u?.isUnlocked?!!u.isUnlocked(id):true; }catch(e){ return true; } };
+  const toolOn=id=>{ try{ const u=UNL(); return u?.tools?u.tools().includes(id):true; }catch(e){ return true; } };
+  function updateHotbar(now){ const p=ctx.modules.characters?.pos||ctx.cameraRig?.target; let m=hotMode; const hasTools=TOOLS.some(x=>toolOn(x.id));
+    if(p&&Number.isFinite(p.x)){ const dPen=Math.hypot(p.x-26,p.z-6), dM=Math.hypot(p.x,p.z+1); m=dPen<14?'pen':dM<18&&hasTools?'masjid':hasTools?'mini':'pen'; }
     if(m!==hotMode){ hotMode=m; } applyHotMode(now); }
   function applyHotMode(now=performance.now()){
     const open=!started||now<hotOpenUntil; const mode=open?'all':hotMode;
     hotbar.classList.toggle('mini',mode==='mini'); hotbar.dataset.mode=mode; }
   function renderHotbar(){
     hotbar.innerHTML='';
-    const isTool=TOOLS.some(x=>x.id===S.tool);
-    const selItem=SHOP.find(x=>x.id===S.tool)||SHOP[0], selTool=TOOLS.find(x=>x.id===S.tool)||TOOLS[0];
+    const tools=TOOLS.filter(x=>toolOn(x.id)), items=SHOP.filter(x=>toolOn(x.id));
+    if(!toolOn(S.tool)&&items.length){ S.tool=items[0].id; ctx.emit('tool:select',S.tool); return; }
+    const isTool=tools.some(x=>x.id===S.tool);
+    const selItem=items.find(x=>x.id===S.tool)||items[0]||SHOP[0], selTool=tools.find(x=>x.id===S.tool)||tools[0]||TOOLS[0];
     const pick=id=>{ if(S.tool!==id){ S.tool=id; ctx.emit('tool:select',id); } hotOpenUntil=Math.max(hotOpenUntil,performance.now()+4000); renderHotbar(); applyHotMode(); };
-    const tg=el('div','hgrp tools'); for(const it of TOOLS){ const b=el('button','hb tool'+(S.tool===it.id?' sel':''),`${ic(it.icon)}<span class="tl">${t(it.id)}</span>`); b.dataset.tool=it.id; b.title=t(it.id); b.setAttribute('aria-label',t(it.id)); b.onclick=()=>pick(it.id); tg.appendChild(b); }
-    const ig=el('div','hgrp items'); for(const it of SHOP){ const n=S.inventory[it.id]||0; const b=el('button','hb'+(S.tool===it.id?' sel':'')+(n<=0?' empty':''),`${ic(it.icon)}<em>${n}</em>`); b.dataset.tool=it.id; b.title=t(it.id); b.setAttribute('aria-label',t(it.id)); b.onclick=()=>pick(it.id); ig.appendChild(b); }
+    const tg=el('div','hgrp tools'); for(const it of tools){ const b=el('button','hb tool'+(S.tool===it.id?' sel':''),`${ic(it.icon)}<span class="tl">${t(it.id)}</span>`); b.dataset.tool=it.id; b.title=t(it.id); b.setAttribute('aria-label',t(it.id)); b.onclick=()=>pick(it.id); tg.appendChild(b); }
+    const ig=el('div','hgrp items'); for(const it of items){ const n=S.inventory[it.id]||0; const b=el('button','hb'+(S.tool===it.id?' sel':'')+(n<=0?' empty':''),`${ic(it.icon)}<em>${n}</em>`); b.dataset.tool=it.id; b.title=t(it.id); b.setAttribute('aria-label',t(it.id)); b.onclick=()=>pick(it.id); ig.appendChild(b); }
     const unfold=()=>{ hotOpenUntil=performance.now()+6000; applyHotMode(); };
     const fi=el('button','hb fold fi'+(!isTool?' sel':''),`${ic(selItem.icon)}<span class="dots"><i></i><i></i><i></i></span>`); fi.setAttribute('aria-label',t('more')); fi.onclick=unfold;
     const ft=el('button','hb fold ft tool'+(isTool?' sel':''),`${ic(selTool.icon)}<span class="dots"><i></i><i></i><i></i></span>`); ft.setAttribute('aria-label',t('more')); ft.onclick=unfold;
-    hotbar.append(ft,tg,el('span','hsep'),ig,fi); applyHotMode();
+    hotbar.classList.toggle('notools',!tools.length);
+    if(tools.length) hotbar.append(ft,tg,el('span','hsep'),ig,fi); else hotbar.append(ig); applyHotMode();
   }
   ctx.on('tool:select',()=>{ renderHotbar(); });
   ctx.on('inventory:change',renderHotbar);
 
   // ---------------- quests (logic lives in game/progress) ----------------
   const P=()=>ctx.modules.progress;
-  const qlist=$('#qlist'); let qOpen=false, claimN=0, lastChip='', peekT=0;
+  let claimN=0, lastChip='', peekT=0;
   const qTitle=q=>L(q.title).replace('{n}',q.goal);
   const qs=()=>P()?.quests?.()||[];
+  // ONE current goal on the HUD: a reward waiting > the task already under way > the next open one. Full list in Tugas.
+  function currentGoal(list=qs()){
+    const cl=list.filter(q=>q.done&&!q.claimed); if(cl.length) return { q:cl[0], claim:true };
+    const open=list.filter(q=>!q.done); if(!open.length) return null;
+    const started=open.filter(q=>q.prog>0).sort((a,b)=>b.prog/b.goal-a.prog/a.goal);
+    return { q:started[0]||open[0], claim:false };
+  }
   function renderTracker(){
-    const list=qs(); qlist.innerHTML='';
-    for(const q of list) qlist.appendChild(el('div','q'+(q.done?' done':'')+(q.special?' sp':''),`<div class="chk">${ic(q.done?'check':q.icon)}</div><div class="qt">${q.special?ic('star','spi'):''}${qTitle(q)}<div class="bar"><i style="width:${q.prog/q.goal*100}%"></i></div></div><div class="cnt">${q.prog}/${q.goal}</div>`));
-    const cl=list.filter(q=>q.done&&!q.claimed), cur=cl[0]||list.find(q=>!q.done);
-    const tr=$('#tracker'); tr.classList.toggle('claim',!!cl.length); tr.classList.toggle('open',qOpen); tr.style.display=list.length?'':'none';
-    const chip=cur?`${ic(cl.length?'check':'scroll')}<span class="ql">${t('quests')}</span><span class="qt">${cl.length?t('claim')+': ':''}${qTitle(cur)}</span><span class="cnt">${cur.prog}/${cur.goal}</span>${ic('chev','chev')}`:`${ic('check')}<span class="ql">${t('quests')}</span><span class="qt">${t('allDone')}</span>${ic('chev','chev')}`;
-    if(chip!==lastChip){ if(lastChip){ tr.classList.add('peek'); clearTimeout(peekT); peekT=setTimeout(()=>tr.classList.remove('peek'),4000); } lastChip=chip; $('#qchip').innerHTML=chip; }
+    const list=qs(), g=currentGoal(list), cl=list.filter(q=>q.done&&!q.claimed);
+    const tr=$('#tracker'); tr.classList.toggle('claim',!!g?.claim); tr.classList.toggle('rest',!g); tr.style.display=list.length?'':'none';
+    const chip=g?`<span class="gi">${ic(g.claim?'check':g.q.icon)}</span><span class="qt">${g.claim?`<small>${t('goalClaim')}</small>`:''}${qTitle(g.q)}</span>${g.claim?ic('coin','gc'):`<span class="cnt">${g.q.prog}/${g.q.goal}</span>`}`
+      :`<span class="gi">${ic('check')}</span><span class="qt">${t('restNow')}</span>`;
+    if(chip!==lastChip){ if(lastChip){ tr.classList.add('peek'); clearTimeout(peekT); peekT=setTimeout(()=>tr.classList.remove('peek'),4000); } lastChip=chip; $('#qchip').innerHTML=chip; tr.setAttribute('aria-label',t('quests')+': '+tr.textContent); }
     claimN=cl.length; renderBookBadge();
   }
   function claim(id){ const q=P()?.claim(id); if(q){ renderTracker(); if(panel==='quest') renderPanel(); } }
@@ -222,18 +228,22 @@ export async function init(ctx){
   ctx.on('build:placed',()=>{ S.stats.built++; if(panel==='build') renderPanel(); });
   ctx.on('build:complete',()=>{ ach(t('mosque'),t('masjidDone'),'dome'); sfx('bedug'); sfx('chime'); });
   ctx.on('coins:change',()=>{ syncLedger(); if(panel==='shop'||panel==='build') renderPanel(); });
-  ctx.on('sticker:new',s=>{ ach(t('stickerNew'),L(s.name),s.icon,s.rim); if(panel!=='book') bookNew++; renderBookBadge(); const c=camTarget(); fx()?.burst('sparkle',{x:c.x,y:c.y+2,z:c.z},16); if(panel==='book') renderPanel(); });
+  ctx.on('sticker:new',s=>{ if(!isOn('book')) return;   // stickers are still collected quietly; the Book arrives later
+    ach(t('stickerNew'),L(s.name),s.icon,s.rim); if(panel!=='book') bookNew++; renderBookBadge(); const c=camTarget(); fx()?.burst('sparkle',{x:c.x,y:c.y+2,z:c.z},16); if(panel==='book') renderPanel(); });
   ctx.on('berkah:level',d=>{ if(panel!=='book') bookNew++; renderBookBadge(); lastClock=''; const f=()=>showLevelUp(d); f.soft=true; queueCard(f); });
   ctx.on('decor:change',()=>{ if(panel==='shop') renderPanel(); });
   ctx.on('year:new',()=>{ lastClock=''; renderAll(); });
-  let bookNew=0; function renderBookBadge(){ const q=quiet(); $('#kBadge').textContent=bookNew&&!q&&panel!=='book'?'!':''; $('#qBadge').textContent=claimN&&!q?claimN:''; let nS=(ctx.modules.animals?.list||[]).filter(x=>x.sick).length;
-    // phones: the animal alert chip folds into this badge (how many animals need something)
-    if(portrait.matches){ try{ const A=ctx.modules.animals; const ro=A?.roster?A.roster():[]; nS=Math.max(nS,ro.filter(r=>r.need||r.sick).length); }catch(e){} }
-    const hb=$('#hBadge'); hb.textContent=nS&&!q&&panel!=='hewan'?nS:''; hb.classList.toggle('soft',portrait.matches&&!!nS); }
+  // one small dot on the Menu button when something inside waits (a reward, a sick animal, a new sticker or feature)
+  let bookNew=0; const newTiles=new Set();
+  const sickN=()=>(ctx.modules.animals?.list||[]).filter(x=>x.sick).length;
+  const tileBadge=id=>id==='quest'?(claimN||''):id==='hewan'?(sickN()||''):id==='book'&&bookNew&&isOn('book')?'!':'';
+  function renderBookBadge(){ const q=quiet();
+    const any=!q&&panel!=='menu'&&(claimN>0||sickN()>0||(bookNew>0&&isOn('book'))||newTiles.size>0);
+    $('#menuDot').classList.toggle('on',!!any); }
 
   // ---------------- panels ----------------
   let panel=null, shopTab='supply', bookTab='berkah';
-  const ribbons={shop:['bag','shopTitle'],build:['dome','buildTitle'],quest:['scroll','questTitle'],settings:['gear','setTitle'],book:['book','bookTitle'],hewan:['paw','hewan'],design:['palette','designT']};
+  const ribbons={menu:['menu','menu'],shop:['bag','shopTitle'],build:['dome','buildTitle'],quest:['scroll','questTitle'],settings:['gear','setTitle'],book:['book','bookTitle'],hewan:['paw','hewan'],design:['palette','designT']};
   // shared helpers for the care HUD, Hewanku and Desain Masjid sub-modules
   const U={ ctx, S, L, t, ic, el, hud, root, sfx, toast:(m,i,k,o)=>toast(m,i,k,o), render:(f)=>renderPanel(f), closePanel:()=>closePanel(), openHewan:(id)=>openHewan(id),
     started:()=>started, panel:()=>panel, cardOpen:()=>cardOpen(), showGo:(...a)=>care.showGo(...a), walkGuide:(f)=>care.walkGuide(f) };
@@ -247,7 +257,7 @@ export async function init(ctx){
     const wasDesign=panel==='design';
     panel=name; modal.classList.add('on'); modal.classList.toggle('clear',name==='design'); document.body.classList.toggle('design-on',name==='design');
     if(name==='design'&&!wasDesign) design.open(arg||undefined);
-    renderPanel(true); if(name==='build') tutDone('build'); if(name==='book'){ bookNew=0; renderBookBadge(); }
+    newTiles.delete(name); renderPanel(true); if(name==='build') tutDone('build'); if(name==='book'){ bookNew=0; } renderBookBadge();
   }
   function closePanel(){ const was=panel; panel=null; modal.classList.remove('on','clear'); document.body.classList.remove('design-on'); modal.innerHTML=''; if(was==='design') design.close(); }
   function openHewan(id){ openPanel('hewan',id==null?undefined:id); }
@@ -255,19 +265,26 @@ export async function init(ctx){
   modal.addEventListener('pointerdown',e=>{ if(e.target===modal&&panel!=='design') closePanel(); });
   function renderPanel(fresh){
     if(!panel) return; const [icon,tk]=ribbons[panel]; const scroll=$('.body',modal)?.scrollTop||0, oscroll=$('.dopts',modal)?.scrollLeft||0, tscroll=$('.dtabs',modal)?.scrollLeft||0;
-    const body={shop:shopHTML,build:buildHTML,quest:questHTML,settings:settingsHTML,book:bookHTML,hewan:hewan.html,design:design.html}[panel]();
+    const body={menu:menuHTML,shop:shopHTML,build:buildHTML,quest:questHTML,settings:settingsHTML,book:bookHTML,hewan:hewan.html,design:design.html}[panel]();
     const money=panel==='shop'||panel==='build'||panel==='design';
-    modal.innerHTML=`<div class="sheet clay ${money?'money':''} ${panel==='design'?'dsheet':''} ${panel==='hewan'?'hsheet':''}" style="${fresh?'':'animation:none'}"><div class="ribbon clay teal">${ic(icon)}<span>${t(tk)}</span></div>${money?`<div class="hcoin">${ic('coin')}<b>${fmt(S.coins)}</b></div>`:''}<button class="x clay gold" id="pX" aria-label="${t('close')}">${ic('close')}</button><div class="body">${body}</div></div>`;
+    modal.innerHTML=`<div class="sheet clay ${money?'money':''} ${panel==='design'?'dsheet':''} ${panel==='hewan'?'hsheet':''} ${panel==='menu'?'msheet':''}" style="${fresh?'':'animation:none'}"><div class="ribbon clay teal">${ic(icon)}<span>${t(tk)}</span></div>${money?`<div class="hcoin">${ic('coin')}<b>${fmt(S.coins)}</b></div>`:''}<button class="x clay gold" id="pX" aria-label="${t('close')}">${ic('close')}</button><div class="body">${body}</div></div>`;
     if(!fresh){ $('.body',modal).scrollTop=scroll; const o=$('.dopts',modal); if(o) o.scrollLeft=oscroll; }
     const tb=$('.dtabs',modal); if(tb){ tb.scrollLeft=tscroll; if(fresh){ const on=tb.querySelector('.on'); if(on) tb.scrollLeft=Math.max(0,on.offsetLeft-tb.clientWidth/2+on.offsetWidth/2); } }
     $('#pX',modal).onclick=closePanel; bindPanel();
+  }
+  // ---- Menu: big friendly tiles, only for what the player already has (locked features are simply absent) ----
+  const TILES=[['quest','scroll','tugasTile','tugas'],['hewan','paw','hewan','hewan'],['build','dome','bangun','build'],['shop','bag','toko','shop'],['design','palette','desainTile','design'],['book','book','stikerTile','book']];
+  const tileOn=([id,,,need])=>isOn(need)&&(id!=='design'||!!ctx.modules.custom);
+  function menuHTML(){
+    return `<div class="mgrid">${TILES.filter(tileOn).map(([id,icon,k],i)=>{ const b=tileBadge(id);
+      return `<button class="mtile clay ${id==='build'?'teal':''}" id="mt-${id}" data-open="${id}" style="animation-delay:${i*.04}s">${ic(icon)}<b>${t(k)}</b>${b?`<span class="badge">${b}</span>`:''}${newTiles.has(id)?`<em class="newtag">${t('newTag')}</em>`:''}</button>`; }).join('')}</div>`;
   }
   const coinChip=()=>`<span class="pill clay" style="padding:.25em .8em .25em .4em">${ic('coin')}<b>${fmt(S.coins)}</b></span>`;
   const tabs=(cur,list,attr)=>`<div class="tabs" style="--n:${list.length}">${list.map(([id,k,i])=>`<button data-${attr}="${id}" class="${cur===id?'on':''}">${ic(i)}<span>${t(k)}</span></button>`).join('')}</div>`;
   const price=(n,old)=>`<span class="price">${ic('coin')}${old&&old!==n?`<s>${old}</s>`:''}${n}</span>`;
   function shopHTML(){
     const an=ctx.modules.animals, pr=P(), mul=pr?.priceMul?.('supply')??1;
-    let body='';
+    let body=''; if(shopTab==='decor'&&!isOn('decor')) shopTab='supply';
     if(shopTab==='supply') body=(mul<1?`<div class="sale">${ic('bag')}${t('sale')}</div>`:'')+'<div class="grid">'+SHOP.map(it=>{ const p=Math.round(it.price*mul); return `<div class="card"><div class="big">${ic(it.icon)}</div><h5>${t(it.id)} ×${it.qty}</h5><p>${t(it.id+'D')}</p><span class="own">${t('owned')} ${S.inventory[it.id]||0}</span><button class="btn gold ${S.coins>=p?'':'off'}" data-buy="${it.id}">${t('buy')} ${price(p,it.price)}</button></div>`; }).join('')+'</div>';
     else if(shopTab==='animal'&&an?.price) body='<div class="grid">'+['goat','sheep','cow'].map(k=>{ const p=an.price(k), ok=an.canAdd?an.canAdd(k):true, bp=Math.round(p*.5);
       return `<div class="card"><div class="big">${ic(k==='cow'?'cow':'goat')}</div><h5>${t(k==='goat'?'goats':k==='sheep'?'sheeps':'cows')}</h5><p>${t(k+'D')}</p><div class="duo"><button class="btn gold ${ok&&S.coins>=p?'':'off'}" data-animal="${k}">${t('buy')} ${price(p)}</button><button class="btn teal ${ok&&S.coins>=bp?'':'off'}" data-animal="${k}:baby">${t('baby')} ${price(bp)}</button></div>${ok?'':`<span class="own lk">${t('penFull')}</span>`}</div>`; }).join('')+'</div>';
@@ -280,7 +297,7 @@ export async function init(ctx){
       const mk=ks.filter(isM), pk=ks.filter(k=>!isM(k));
       const sec=(icon,key,list)=>list.length?`<h4 class="dsec">${ic(icon)}<span>${t(key)}</span></h4><div class="grid">${list.map(card).join('')}</div>`:'';
       body=mk.length?sec('dome','tabMasjid',mk)+sec('pot','tabPlaza',pk):'<div class="grid">'+ks.map(card).join('')+'</div>'; }
-    return tabs(shopTab,[['supply','tabSupply','hay'],...(an?.price?[['animal','tabAnimal','goat']]:[]),...(pr?[['decor','tabDecor','lantern']]:[])],'stab')+body;
+    return tabs(shopTab,[['supply','tabSupply','hay'],...(an?.price?[['animal','tabAnimal','goat']]:[]),...(pr&&isOn('decor')?[['decor','tabDecor','lantern']]:[])],'stab')+body;
   }
   function parts(){
     const m=ctx.modules.masjid; const st=m?.stages;
@@ -290,7 +307,7 @@ export async function init(ctx){
   const mStage=()=>{ const m=ctx.modules.masjid; return m&&typeof m.stage==='number'?m.stage:(S.masjid.stage|0); };
   function buildHTML(){
     const ps=parts(), st=Math.min(mStage(),ps.length);
-    return (ctx.modules.custom?design.entryHTML():'')+`<div class="sub"><div style="display:flex;gap:.6em;align-items:center;flex:1"><span>${t('mosque')} ${st}/${ps.length}</span><div class="prog"><i style="width:${st/ps.length*100}%"></i></div></div></div><div class="grid">`+
+    return (ctx.modules.custom&&isOn('design')?design.entryHTML():'')+`<div class="sub"><div style="display:flex;gap:.6em;align-items:center;flex:1"><span>${t('mosque')} ${st}/${ps.length}</span><div class="prog"><i style="width:${st/ps.length*100}%"></i></div></div></div><div class="grid">`+
       ps.map((p,i)=>{ const dn=i<st, lk=i>st, can=!lk&&S.coins>=p.cost;
         return `<div class="card ${dn?'done':''}"><div class="big">${ic(dn?'check':lk?'lock':i%3==0?'dome':i%3==1?'flag':'hammer')}</div><h5>${p.name}</h5><p>${p.desc||''}</p>${dn?`<span class="own">${t('built')}</span>`:lk?`<span class="own lk">${t('locked')}</span>`:`<button class="btn cl ${can?'teal':''} ${can?'':'off'}" data-place="${p.id}">${price(p.cost)} ${t('place')}</button>`}</div>`; }).join('')+'</div>';
   }
@@ -303,7 +320,7 @@ export async function init(ctx){
   }
   function bookHTML(){
     const pr=P(); if(!pr) return '';
-    const li=pr.levelInfo(); let body='';
+    const li=pr.levelInfo(); let body=''; if(bookTab==='stickers'&&!isOn('book')) bookTab='berkah';
     if(bookTab==='berkah'){
       body=`<div class="lvhead"><div class="lvbig">${ic('pahala')}<b>${li.lv}</b></div><div style="flex:1;min-width:0"><b>${t('lvName',{l:li.lv})}</b><div class="prog"><i style="width:${li.pct*100}%"></i></div><small>${li.next?t('nextLv',{n:li.next-li.pahala,l:li.lv+1}):t('maxLv')}</small><small class="tot">${ic('pahala')}${t('lvTotal',{n:fmt(li.pahala)})}</small></div></div><div class="lvlist">`+
         pr.LEVELS.map((_,i)=>{ const l=i+1, u=pr.unlocksAt(l); if(!u.length) return ''; const got=li.lv>=l;
@@ -315,7 +332,7 @@ export async function init(ctx){
       body='<div class="grid outfits">'+pr.outfits().map(o=>{ const hx=n=>'#'+n.toString(16).padStart(6,'0');
         return `<div class="card ${o.worn?'done':''} ${o.unlocked?'':'lockd'}"><div class="big swatch"><svg viewBox="0 0 48 48" class="ic"><path d="M16 5l-11 7 4 9 5-3v25h20V18l5 3 4-9-11-7c-1 4-4 6-8 6s-7-2-8-6z" fill="${hx(o.look.koko)}" stroke="#7a4a22" stroke-width="2.4"/><rect x="14" y="32" width="20" height="11" fill="${hx(o.look.sarong)}" stroke="#7a4a22" stroke-width="2"/><path d="M17 4h14v4H17z" fill="${hx(o.look.peci)}"/></svg></div><h5>${L(o.name)}</h5>${o.worn?`<span class="own">${t('wearing')}</span>`:o.unlocked?`<button class="btn teal" data-outfit="${o.id}">${t('wear')}</button>`:`<span class="own lk">${ic('lock')}${t('unlockAt',{l:o.lv})}</span>`}</div>`; }).join('')+'</div>';
     }
-    return tabs(bookTab,[['berkah','tabBerkah','pahala'],['stickers','tabStickers','star'],['outfit','tabOutfit','shirt']],'btab')+body;
+    return tabs(bookTab,[['berkah','tabBerkah','pahala'],...(isOn('book')?[['stickers','tabStickers','star']]:[]),['outfit','tabOutfit','shirt']],'btab')+body;
   }
   function settingsHTML(){
     const m=audio()?.muted??S.settings.mute;
@@ -328,6 +345,7 @@ export async function init(ctx){
   const noCoins=b=>{ toast(t('noCoins'),'coin','bad'); b.classList.add('shake'); setTimeout(()=>b.classList.remove('shake'),400); };
   function bindPanel(){
     const on=(sel,fn)=>modal.querySelectorAll(sel).forEach(b=>b.onclick=()=>fn(b));
+    on('[data-open]',b=>openPanel(b.dataset.open));
     on('[data-stab]',b=>{ shopTab=b.dataset.stab; renderPanel(); });
     on('[data-btab]',b=>{ bookTab=b.dataset.btab; renderPanel(); });
     on('[data-animal]',b=>{ const [k,bb]=b.dataset.animal.split(':'); const an=ctx.modules.animals; if(!an) return; if(an.canAdd&&!an.canAdd(k)){ toast(t('penFull'),'goat','bad'); return; }
@@ -365,10 +383,11 @@ export async function init(ctx){
     placebar.innerHTML=`${ic(k?.icon||'pot')}<span class="tx">${t(pk,{k:k?L(k.name):''})}</span><button class="btn teal" id="plAuto">${t('auto')}</button><button class="x" id="plX" aria-label="${t('cancel')}">${ic('close')}</button>`;
     placebar.classList.remove('hidden'); $('#plAuto').onclick=()=>{ if(!P().placeAuto()) toast(t('noSlot'),'pot','bad'); }; $('#plX').onclick=()=>P().stopPlace();
   });
-  $('#dQ').onclick=()=>openPanel('quest'); $('#tracker').onclick=()=>{ const q=qs().find(q=>q.done&&!q.claimed); if(q){ claim(q.id); return; } qOpen=!qOpen; renderTracker(); };
-  $('#dH').onclick=()=>openPanel('hewan'); $('#dS').onclick=()=>openPanel('shop'); $('#dB').onclick=()=>openPanel('build'); $('#dK').onclick=()=>openPanel('book'); $('#setBtn').onclick=()=>openPanel('settings'); $('#pahpill').onclick=()=>{ bookTab='berkah'; openPanel('book'); };
-  $('#daypill').onclick=()=>{ const ev=P()?.event?.(); if(ev) toast(`${L(ev.name)} · ${L(ev.desc)}`,ev.icon); };
-  addEventListener('keydown',e=>{ if(e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return; if(e.key==='Escape'){ closePanel(); P()?.stopPlace?.(); } const k={t:'quest',b:'build',p:'shop',k:'book',h:'hewan',g:'design'}[e.key.toLowerCase()]; if(k&&!e.repeat&&started&&!cardOpen()) (panel===k?closePanel():openPanel(k)); });
+  // goal chip: a waiting reward is collected right here, otherwise it opens the full task list
+  $('#tracker').onclick=()=>{ const g=currentGoal(); if(g?.claim){ claim(g.q.id); return; } openPanel('quest'); };
+  $('#menuBtn').onclick=()=>panel==='menu'?closePanel():openPanel('menu'); $('#setBtn').onclick=()=>openPanel('settings'); $('#pahpill').onclick=()=>{ bookTab='berkah'; openPanel('book'); };
+  $('#daypill').onclick=()=>{ const ev=P()?.event?.(), e=S.daysToEid; toast(`${ev?L(ev.name)+' · ':''}${e<=0?t('eidToday'):e===1?t('eidTmr'):t('eidIn',{n:e})}`,ev&&ev.id!=='cerah'?ev.icon:'crescent'); };
+  addEventListener('keydown',e=>{ if(e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return; if(e.key==='Escape'){ closePanel(); P()?.stopPlace?.(); } const k={t:'quest',b:'build',p:'shop',k:'book',h:'hewan',g:'design',m:'menu'}[e.key.toLowerCase()]; const need={shop:'shop',design:'design'}[k]; if(k&&!e.repeat&&started&&!cardOpen()&&(!need||isOn(need))) (panel===k?closePanel():openPanel(k)); });
 
   // ---------------- tutorial hints ----------------
   const hint=$('#hint'), ptr=$('#ptr'); const hintSteps=[['h1','move'],['h2','fed'],['h3','build'],['h4','end']]; let hStep=0, hTimer=0, moveT=0;
@@ -378,7 +397,7 @@ export async function init(ctx){
   function showHint(){ if(S.tutDone||!started){ hint.classList.add('hidden'); hud.classList.remove('hint-on'); ptr.style.display='none'; return; } const s=hintSteps[hStep]; if(!s){ S.tutDone=true; hint.classList.add('hidden'); hud.classList.remove('hint-on'); ptr.style.display='none'; return; }
     $('#hintTx').textContent=t(s[0]==='h1'&&!joyOn()?'h1k':s[0]); hint.classList.remove('hidden'); hud.classList.add('hint-on'); hint.style.animation='none'; void hint.offsetWidth; hint.style.animation=''; hTimer=0; moveT=0; }
   function tutDone(ev){ if(hintSteps[hStep]?.[1]===ev){ hStep++; renderBookBadge(); ptr.style.display='none'; setTimeout(showHint,ev==='end'?0:900); } }
-  function placePtr(){ const s=hintSteps[hStep]?.[1]; const tgt=s==='move'?joyOn():s==='fed'?document.getElementById('mb-act'):s==='build'?document.getElementById('dB'):null;
+  function placePtr(){ const s=hintSteps[hStep]?.[1]; const tgt=s==='move'?joyOn():s==='fed'?document.getElementById('mb-act'):s==='build'?document.getElementById(panel==='menu'?'mt-build':'menuBtn'):null;
     if(!tgt||hint.classList.contains('hidden')){ ptr.style.display='none'; return; } const r=tgt.getBoundingClientRect(); if(!r.width){ ptr.style.display='none'; return; } ptr.style.display='block'; ptr.style.left=(r.left+r.width/2)+'px'; ptr.style.top=(r.top+r.height/2)+'px'; }
   $('#hintX').onclick=()=>{ S.tutDone=true; renderBookBadge(); hint.classList.add('hidden'); hud.classList.remove('hint-on'); ptr.style.display='none'; };
   ctx.on('animal:fed',()=>tutDone('fed'));
@@ -386,7 +405,10 @@ export async function init(ctx){
   // ---------------- cards: day summary, level-up, Eid (queued so they never stack) ----------------
   const cardQ=[];
   const cardOpen=()=>summary.classList.contains('on')||eidOv.classList.contains('on');
-  function nextCard(){ if(!started||cardOpen()||!cardQ.length) return; const i=cardQ.findIndex(f=>!(f.soft&&quiet())); if(i>=0) cardQ.splice(i,1)[0](); }
+  // feature cards are extra gentle: never in the tutorial's first steps, never over an open panel, and spaced apart
+  const UNLOCK_GAP=25000; let lastUnlockT=-1e9;
+  const cardWaits=f=>(f.soft&&quiet())||(f.unlock&&(!!panel||performance.now()-lastUnlockT<UNLOCK_GAP));
+  function nextCard(){ if(!started||cardOpen()||!cardQ.length) return; const i=cardQ.findIndex(f=>!cardWaits(f)); if(i>=0) cardQ.splice(i,1)[0](); }
   function queueCard(fn){ cardQ.push(fn); nextCard(); }
   function closeCard(o){ o.classList.remove('on'); if(o===eidOv) document.body.classList.remove('eid-on'); sfx('pop'); setTimeout(nextCard,250); }
   function statHTML(icon,val,label,i){ return `<div class="stat" style="animation-delay:${.12*i+.2}s">${ic(icon)}<div><b>${val}</b><small>${label}</small></div></div>`; }
@@ -410,6 +432,18 @@ export async function init(ctx){
       <button class="btn gold" id="lvGo" style="font-size:1.1em">${t('yay')}</button></div>`;
     summary.classList.add('on'); sfx('chime'); const c=camTarget(); fx()?.burst('sparkle',{x:c.x,y:c.y+2.2,z:c.z},30);
     $('#lvGo').onclick=()=>closeCard(summary);
+  }
+  // ---------------- gradual features: one cozy card per new activity ----------------
+  const TILE_OF={shop:'shop',book:'book',design:'design'};
+  ctx.on('unlock:new',f=>{ if(!f?.id) return; if(TILE_OF[f.id]) newTiles.add(TILE_OF[f.id]);
+    renderAll(); renderBookBadge(); if(panel) renderPanel();
+    // queued after whatever the same moment announces (e.g. the day summary), so the order reads naturally
+    setTimeout(()=>{ const c=()=>showUnlock(f); c.soft=true; c.unlock=true; queueCard(c); },0); });
+  function showUnlock(f){
+    summary.innerHTML=`<div class="sumcard clay unlockc"><div class="moonbig">${ic(f.icon||'star')}</div><h2>${t('newFeat',{f:L(f.name)})}</h2><div class="sm how">${L(f.how)}</div>
+      <button class="btn teal" id="ulGo" style="font-size:1.1em">${t('okGo')}</button></div>`;
+    summary.classList.add('on'); sfx('chime'); const c=camTarget(); fx()?.burst('sparkle',{x:c.x,y:c.y+2,z:c.z},20);
+    $('#ulGo').onclick=()=>{ lastUnlockT=performance.now(); closeCard(summary); };
   }
   const KG={goat:30,sheep:35,cow:280};
   let eidTimer=0;
@@ -560,6 +594,7 @@ export async function init(ctx){
     if(show==='eid') setTimeout(showEid,300);
     if(show==='summary') setTimeout(()=>showSummary({day:S.day,stats:{fed:5,washed:2,happy:4,visitors:6,placed:1,coins:140,pahala:23},doneN:3,total:4,streak:2,streakBonus:10,autoCoins:25,weekday:P()?.weekday?.(S.day)}),300);
     if(show==='level') setTimeout(()=>showLevelUp({lv:3,unlocks:P()?.unlocksAt?.(3)||[]}),300);
+    if(show==='unlock') setTimeout(()=>{ const f=ctx.modules.unlocks?.feature?.(Q.get('feat')||'sapu'); if(f) showUnlock(f); },300);
     if(show==='sticker'){ hStep=2; setTimeout(()=>{ const s0=P()?.STICKERS?.[0]; if(s0) ctx.emit('sticker:new',s0); },400); } }
   if(Q.has('demo')){ S.coins=340; S.pahala=Math.max(S.pahala,128); S.daily={...S.daily,fed:2,washed:1,happy:2}; renderAll(); tween.coins=S.coins; tween.pahala=S.pahala; lastPah=S.pahala; lastCoins=S.coins; }
   // an Eid that was due before a reload still gets celebrated once the player is in
@@ -567,7 +602,7 @@ export async function init(ctx){
 
   let acc=0, measureT=0, hewT=0, vpT=0;
   return {
-    toast, openPanel, closePanel, overlayOpen, addCoins, addPahala, spend, showSummary, showEid, showLevelUp, startGame, t, get started(){ return started; },
+    toast, openPanel, closePanel, overlayOpen, addCoins, addPahala, spend, showSummary, showEid, showLevelUp, showUnlock, startGame, t, get started(){ return started; },
     caption:(text,o)=>care.caption(text,o||{}), tip:(key,text,icon)=>care.tip(key,text,icon), openHewan, openDesign, get panel(){ return panel; }, viewInset:()=>design.inset, closeTip:(k)=>care.closeTip(k),
     update(dt){
       if(started&&performance.now()-lastInput>6000&&!hud.classList.contains('idle')) hud.classList.add('idle');

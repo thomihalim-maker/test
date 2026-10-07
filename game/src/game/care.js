@@ -34,6 +34,9 @@ export async function init(ctx){
   const stageNow = () => { const m = ctx.modules.masjid; return typeof m?.stage === 'number' ? m.stage : (S.masjid?.stage|0); };
   const ui = () => ctx.modules.ui;
   const playerPos = () => ctx.modules.characters?.pos || ctx.cameraRig?.target || null;
+  // gradual unlocks: no dirt gathers before sweeping arrives, no mud / footprints before mopping (game/unlocks)
+  const on = id => { try{ const u = ctx.modules.unlocks; return u?.isUnlocked ? !!u.isUnlocked(id) : true; }catch(e){ return true; } };
+  const typeOn = type => on(TYPES[type]?.tool);
 
   // ---------- zones (masjid.zones() when available, otherwise a built-in approximation of the same areas) ----------
   let stage = stageNow(), zones = [], byId = {};
@@ -174,8 +177,8 @@ export async function init(ctx){
     } else lastClean = c;
     // daily milestones (checked on every tick so a steady value still counts)
     const h = ctx.hour ?? 12, D = S.daily, st = S.stats; let q = false;
-    if(D && !D.cleanDusk && h >= 17 && h < 20.5 && stage >= 1 && c >= 80){ D.cleanDusk = 1; q = true; }
-    if(st && c === 100 && (S.care.c100|0) !== S.day){ S.care.c100 = S.day; st.clean100 = (st.clean100|0) + 1; q = true; }
+    if(D && !D.cleanDusk && on('sapu') && h >= 17 && h < 20.5 && stage >= 1 && c >= 80){ D.cleanDusk = 1; q = true; }
+    if(st && c === 100 && on('sapu') && (S.care.c100|0) !== S.day){ S.care.c100 = S.day; st.clean100 = (st.clean100|0) + 1; q = true; }
     if(q){ try{ ctx.modules.progress?.checkQuests?.(); ctx.modules.progress?.checkStickers?.(); }catch(e){} }
     return c;
   }
@@ -233,10 +236,10 @@ export async function init(ctx){
     if(!pos) return null;
     const tool = S.tool;
     let best = null, bs = 1e9, bd = 0;
-    for(const s of spots){ const d = Math.hypot(s.x - pos.x, s.z - pos.z); if(d > r) continue;
+    for(const s of spots){ if(!typeOn(s.type)) continue; const d = Math.hypot(s.x - pos.x, s.z - pos.z); if(d > r) continue;
       const sc = d - (TYPES[s.type].tool === tool ? 1.0 : 0); if(sc < bs){ bs = sc; best = s; bd = d; } }
     let pile = null;
-    for(const p of piles){ if(p.n < 3) continue; const d = Math.hypot(p.x - pos.x, p.z - pos.z); if(d > r) continue; const sc = d - .4; if(sc < bs){ bs = sc; pile = p; bd = d; } }
+    if(on('sapu')) for(const p of piles){ if(p.n < 3) continue; const d = Math.hypot(p.x - pos.x, p.z - pos.z); if(d > r) continue; const sc = d - .4; if(sc < bs){ bs = sc; pile = p; bd = d; } }
     if(pile) return { kind:'gather', tool:null, pos:{ x:pile.x, y:pile.y, z:pile.z }, d:bd, label:LABEL.gather, icon:ICON.gather, anim:ANIM.gather, hold:true, count:pile.n, pile:pile.id };
     if(!best) return null;
     const tl = TYPES[best.type].tool, kind = tl === 'sapu' ? 'sweep' : 'mop';
@@ -273,6 +276,7 @@ export async function init(ctx){
     if(!(dh > 0)) return;
     for(const zn of zones){
       for(const type of zn.types){
+        if(!typeOn(type)) continue;
         const r = rateOf(zn.id, type); if(!r) continue;
         const k = zn.id + ':' + type; acc[k] = (acc[k] || 0) + r * dh;
         if(acc[k] >= 1){
@@ -284,11 +288,13 @@ export async function init(ctx){
     }
   }
   function overnight(){
+    if(!on('sapu')) return;
     const pz = byId.plaza; if(pz) spawnIn(pz, 'leaf', 6);
     const hz = byId.hall; if(hz) spawnIn(hz, 'dust', 2);
   }
   const printChance = () => event === 'hujan' ? .8 : .3;
   function footprintAt(zid, pos, rot){
+    if(!typeOn('print')) return 0;
     const zn = byId[zid] || (pos && zoneAt(pos.x, pos.z)); if(!zn || !pos) return 0;
     if(zoneCount(zn.id) >= cap(zn.id) || !roomFor(zn.id)) return 0;
     const x = pos.x + R(-.3,.3), z = pos.z + R(-.3,.3);
@@ -317,7 +323,8 @@ export async function init(ctx){
 
   // ---------- boot ----------
   refreshZones(); restore();
-  if(!S.care.seeded){
+  // the first little mess appears the moment sweeping is unlocked (not on day 1)
+  function seed(){
     const pz = byId.plaza;
     if(pz){ // a first little cluster just in front of the spawn point so the first sweep is easy to find, then a scatter
       const pp = playerPos(), sx = pp?.x ?? 6, sz = pp?.z ?? 10, d = Math.hypot(sx, sz) || 1;
@@ -331,6 +338,8 @@ export async function init(ctx){
     const hz = byId.hall; if(hz) spawnIn(hz, 'dust', 3, { instant:true });
     S.care.seeded = true; persist(true); save(S);
   }
+  if(!S.care.seeded && on('sapu')) seed();
+  ctx.on('unlock:new', d => { if(d?.id === 'sapu' && !S.care.seeded){ seed(); evaluate(); } });
   if(Q.has('dirt')){ // debug: seed N spots spread over the zones (may exceed the zone caps, never 160)
     const N = Math.min(MAX_SPOTS, Math.max(0, parseInt(Q.get('dirt')) || 0)); let left = N - spots.length, guard = 0;
     while(left > 0 && guard++ < 400){ for(const zn of zones){ if(left <= 0) break; const ty = zn.types[guard % zn.types.length]; left -= spawnIn(zn, ty, ty === 'leaf' ? Math.min(3,left) : 1, { ignoreCap:true, instant:true }); } }

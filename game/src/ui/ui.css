@@ -907,3 +907,68 @@ body.design-on #topbar .tb-left,body.design-on .eid,body.design-on #setBtn{opaci
 .dscr.l .ic{transform:rotate(90deg)}.dscr.r .ic{transform:rotate(-90deg)}
 /* Full-screen cards (day summary, level-up, Eid) must take input; '#ui>*' disables it for every direct child. */
 #ui>#summary.on,#ui>#eid.on{pointer-events:auto}
+
+/* ===================== calm, layered HUD (gradual features) =====================
+   top-left: one day/clock pill + ONE current-goal chip; top-right: wallet (coins | level star) + gear;
+   right: ONE round Menu button (tiles inside); contextual chips (prayer / kebersihan / animal) only when relevant. */
+#topbar,#topbar[class]{display:flex;align-items:flex-start;justify-content:space-between;gap:.5em}
+#topbar .tb-right{display:flex;align-items:center;gap:.45em;margin-left:auto}
+#topbar .daypill{min-height:44px;padding:.25em .9em .25em .3em;gap:.5em;text-align:left}
+#topbar .daypill .dico{width:2.2em;height:2.2em}
+#topbar .daypill .dico .ic{width:1.7em;height:1.7em}
+#topbar .daypill .dtxt b{font-size:1.02em;line-height:1.05}
+#topbar .daypill .dtxt small,#topbar .dtxt small{display:block;font-size:.8em;line-height:1.05;font-variant-numeric:tabular-nums}
+.evb{left:1.55em;top:-.4em}
+.evb.eidb{background:radial-gradient(circle at 35% 30%,#fff7c9,#ffd45a);box-shadow:0 .12em 0 #c47a0c}
+.wallet>.wp{padding-right:.45em}
+
+/* the one current goal */
+#tracker,#tracker[class]{top:calc(var(--tb) + .55em);left:calc(.8em + var(--sal));width:auto;min-width:0;max-width:min(20em,calc(100vw - 1.6em - 84px - var(--sal) - var(--sar)));padding:0;border-radius:99em;text-align:left;display:block}
+#tracker #qchip{display:flex;align-items:center;gap:.5em;min-height:46px;padding:.25em .95em .25em .3em;font-size:.95em}
+#tracker .gi{width:2.2em;height:2.2em;flex:none;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 38% 30%,#fff,#d9f6f0);box-shadow:inset 0 -.15em .25em rgba(31,143,132,.3)}
+#tracker .gi .ic{width:1.65em;height:1.65em}
+#tracker .qt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+#tracker .qt small{display:block;font-size:.78em;color:#8a5a10;line-height:1}
+#tracker .cnt{flex:none;color:var(--ink2);font-variant-numeric:tabular-nums;font-size:.92em;background:rgba(150,100,30,.12);border-radius:99em;padding:.1em .5em}
+#tracker .gc{width:1.5em;height:1.5em;flex:none}
+#tracker.claim #qchip{background:linear-gradient(#ffe58a,var(--gold));border-radius:99em;color:#6b3d08;animation:cglow 1.8s ease-in-out infinite}
+#tracker.claim .gi{background:radial-gradient(circle at 38% 30%,#fff,#fff3cf)}
+#tracker.rest{opacity:.9}
+#tracker.rest .gi{background:radial-gradient(circle at 38% 30%,#fff,#e4f8d8)}
+#tracker.peek{animation:bump .5s cubic-bezier(.34,2,.5,1)}
+#tracker:active{transform:scale(.96)}
+/* the goal stays readable when idle (it is the only guide on screen) */
+.idle #tracker:not(.claim):not(.open):not(.peek) #qchip .qt{display:block}
+#qlist{display:none!important}
+
+/* ONE round Menu button */
+#menuBtn{position:absolute;right:calc(.8em + var(--sar));top:50%;transform:translateY(-50%);width:64px;height:64px;border-radius:50%;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;pointer-events:auto;transition:transform .2s cubic-bezier(.34,1.8,.5,1)}
+#menuBtn .ic{width:30px;height:30px}
+#menuBtn .ml{font-size:11px;font-weight:900;line-height:1;margin-top:2px;color:var(--ink2)}
+#menuBtn:active{transform:translateY(-50%) scale(.92)}
+#menuBtn .mdot{position:absolute;top:3px;right:3px;width:15px;height:15px;border-radius:50%;background:linear-gradient(#ff9a9a,#e8483f);box-shadow:0 0 0 2.5px #fff,0 .1em .2em rgba(0,0,0,.25);transform:scale(0);transition:transform .3s cubic-bezier(.34,1.8,.5,1)}
+#menuBtn .mdot.on{transform:scale(1)}
+@media (max-width:640px) and (orientation:portrait){ #menuBtn{top:calc(var(--tb) + .55em);transform:none} #menuBtn:active{transform:scale(.92)} }
+@media (max-height:520px) and (orientation:landscape){ #menuBtn{top:calc(var(--tb) + .6em);transform:none;width:58px;height:58px} #menuBtn:active{transform:scale(.92)} }
+body.design-on #menuBtn{opacity:0!important;pointer-events:none!important}
+#dock{display:none!important}
+
+/* Menu sheet: big friendly tiles (locked features are absent, not greyed) */
+.sheet.msheet{width:min(27em,100%)}
+.sheet.msheet .body{padding-top:2.4em}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(7.2em,1fr));gap:.85em;padding:.2em .1em .4em}
+.mtile{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.35em;min-height:7.4em;padding:.8em .4em .7em;border-radius:1.6em;text-align:center;animation:pop .45s cubic-bezier(.34,1.6,.5,1) both;transition:transform .2s cubic-bezier(.34,1.8,.5,1)}
+.mtile .ic{width:3.2em;height:3.2em}
+.mtile b{font-size:1em;font-weight:900;line-height:1.1}
+.mtile:active{transform:scale(.94) translateY(.15em)}
+.mtile .badge{top:.35em;right:.45em}
+.mtile .newtag{position:absolute;left:.5em;top:.5em;font-style:normal;font-size:.72em;font-weight:900;padding:.1em .55em;border-radius:99em;background:linear-gradient(#ffe58a,var(--gold));color:#6b3d08;box-shadow:0 .1em 0 #c47a0c}
+
+/* new-feature card */
+.sumcard.unlockc{width:min(24em,100%)}
+.sumcard.unlockc h2{font-size:1.4em;line-height:1.2;margin:.2em 0 .4em}
+.sumcard.unlockc .how{font-size:1.02em;line-height:1.35;color:var(--ink);margin:0 auto 1.2em;max-width:20em}
+.sumcard.unlockc .moonbig{background:radial-gradient(circle at 35% 30%,#fff,#c9f5ec);box-shadow:inset 0 -.3em .5em rgba(31,143,132,.3),0 .3em 0 var(--teal2),0 .8em 1em rgba(0,0,0,.3)}
+
+/* hotbar before the cleaning tools arrive: just the items */
+#hotbar.notools .fold,#hotbar.notools .tools,#hotbar.notools .hsep{display:none!important}

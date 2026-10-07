@@ -172,6 +172,9 @@ ${sym('baby',`<path d="M20 9a4 4 0 0 1 8 0v3h-8z" fill="url(#gp)" stroke="${O}" 
 ${sym('wind',`<path d="M4 17h24a6 6 0 1 0-6-6" stroke="#fff" stroke-width="6.4" fill="none"/><path d="M4 17h24a6 6 0 1 0-6-6" stroke="#4aa8ee" stroke-width="3.4" fill="none"/>
 <path d="M4 27h32a6 6 0 1 1-6 6" stroke="#fff" stroke-width="6.4" fill="none"/><path d="M4 27h32a6 6 0 1 1-6 6" stroke="#6cc4ff" stroke-width="3.4" fill="none"/>
 <path d="M36 6q6-3 9 2q-6 4-9-2z" fill="#7fcf5a" stroke="${O}" stroke-width="1.6"/><path d="M11 38q5-2 7 2q-5 3-7-2z" fill="#ffc83d" stroke="${O}" stroke-width="1.6"/>`)}
+${sym('menu',`<rect x="5" y="5" width="17" height="17" rx="5.5" fill="url(#gt)" stroke="${O}" stroke-width="2.4"/><rect x="26" y="5" width="17" height="17" rx="5.5" fill="url(#gg)" stroke="${O}" stroke-width="2.4"/>
+<rect x="5" y="26" width="17" height="17" rx="5.5" fill="url(#gp)" stroke="${O}" stroke-width="2.4"/><rect x="26" y="26" width="17" height="17" rx="5.5" fill="url(#gc)" stroke="${O}" stroke-width="2.4"/>
+<path d="M9 10h6M30 10h6M9 31h6M30 31h6" stroke="#fff" stroke-width="2.4" opacity=".75"/>`)}
 ${sym('paw',`<path d="M24 23c-7 0-13 8-13 13.5 0 4 3 6 6.5 6 2.6 0 4-1.4 6.5-1.4s3.9 1.4 6.5 1.4c3.5 0 6.5-2 6.5-6C37 31 31 23 24 23z" fill="url(#gp)" stroke="${O}" stroke-width="2.4"/>
 <ellipse cx="9.5" cy="20" rx="4.4" ry="5.6" transform="rotate(-20 9.5 20)" fill="url(#gp)" stroke="${O}" stroke-width="2.2"/><ellipse cx="18" cy="11" rx="4.6" ry="6" transform="rotate(-8 18 11)" fill="url(#gp)" stroke="${O}" stroke-width="2.2"/>
 <ellipse cx="30" cy="11" rx="4.6" ry="6" transform="rotate(8 30 11)" fill="url(#gp)" stroke="${O}" stroke-width="2.2"/><ellipse cx="38.5" cy="20" rx="4.4" ry="5.6" transform="rotate(20 38.5 20)" fill="url(#gp)" stroke="${O}" stroke-width="2.2"/>

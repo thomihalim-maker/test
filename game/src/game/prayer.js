@@ -33,6 +33,8 @@ export async function init(ctx){
   const addPahala = (n, src) => { try{ const u = ctx.modules.ui; if(u?.addPahala) u.addPahala(n, src); else { S.pahala = (S.pahala || 0) + n; ctx.emit('coins:change', { coins:S.coins, pahala:S.pahala }); } }catch(e){} };
   const caption = (text, o={}) => ctx.emit('caption', { text, icon:o.icon ?? 'adzan', dur:o.dur ?? 4, kind:o.kind ?? 'prayer' });
   const safe = (f, d=null) => { try{ return f(); }catch(e){ console.warn('prayer:', e); return d; } };
+  // gradual unlocks: prayer times (and their reminders) start with the 'adzan' feature, leading with 'imam'
+  const on = id => { try{ const u = ctx.modules.unlocks; return u?.isUnlocked ? !!u.isUnlocked(id) : true; }catch(e){ return true; } };
 
   // ---------- state ----------
   if(!S.prayer || S.prayer.day !== S.day) S.prayer = { day:S.day, log:{}, lima:false };
@@ -94,7 +96,7 @@ export async function init(ctx){
     marker('adzan', ph === 'open');
     marker('kentongan', (ph === 'open' || ph === 'soon') && !cur?.tanda && st >= 2);
     marker('bedug', (ph === 'open' || ph === 'soon') && !cur?.tanda && st >= 6);
-    marker('imam', ph === 'ready' || (ph === 'called' && gathered() >= 1));
+    marker('imam', on('imam') && (ph === 'ready' || (ph === 'called' && gathered() >= 1)));
   }
   const cutaway = on => safe(() => Mj()?.setCutaway?.('prayer', !!on));
 
@@ -116,7 +118,7 @@ export async function init(ctx){
     ctx.emit('prayer:close', { id, log:logOf(id) });
   }
   function canAdzan(){ return !!cur && cur.phase === 'open'; }
-  function canLead(){ return !!cur && (cur.phase === 'ready' || (cur.phase === 'called' && gathered() >= 1)); }
+  function canLead(){ return !!cur && on('imam') && (cur.phase === 'ready' || (cur.phase === 'called' && gathered() >= 1)); }
   function startAdzan(pos, yaw){
     if(!canAdzan()) return false;
     const p = cur.p, nm = nameOf(p), sp = spot('adzan');
@@ -228,6 +230,7 @@ export async function init(ctx){
     }
     // clock: 25% speed during the adzan and while the player leads (never across midnight or big jumps)
     let h = ctx.hour ?? 8; const dh = h - lastH;
+    if(!cur && !on('adzan')){ lastH = h; return; }   // not unlocked yet: no prayer windows, no reminders
     if(!freeze && slowPhase(cur) && dh > 0 && dh < .5){ h = h - SLOW * dh; ctx.hour = h; }
     lastH = h;
     if(!cur){ const p = activeAt(h); if(p && !(logOf(p.id) & 7)) begin(p, h); else if(p) closed.add(p.id); }

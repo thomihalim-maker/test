@@ -61,6 +61,13 @@ export function createInput(ctx){
   // show joystick after first touch anywhere
   addEventListener('touchstart',()=>{ joy.classList.add('on'); input.touch=true; },{once:true,passive:true});
 
+  // Q/Tab cycle only through the hotbar entries the player already has (gradual unlocks, ctx.modules.unlocks)
+  function cycleUnlocked(){
+    let list=null; try{ list=ctx.modules?.unlocks?.tools?.(); }catch(e){}
+    if(!Array.isArray(list)||!list.length) return input.cycleTool?.();
+    const id=list[(list.indexOf(ctx.state?.tool)+1)%list.length]; if(ctx.state) ctx.state.tool=id;
+    ctx.emit('tool:select', id); ctx.emit('inventory:change', ctx.state?.inventory); ctx.modules.audio?.play?.('ui_tap',{vol:.4});
+  }
   // keyboard
   const keys = new Set();
   const norm = k=>k.length===1?k.toLowerCase():k;
@@ -69,7 +76,7 @@ export function createInput(ctx){
     if(input.isBlocked?.()){ keys.clear(); return; }
     const k=norm(e.key); keys.add(k);
     if((k===' '||k==='e'||k==='Enter') && !e.repeat){ press(); e.preventDefault(); }
-    if(k==='Tab'||k==='q'){ if(!e.repeat){ input.cycleTool?.(); e.preventDefault(); } }
+    if(k==='Tab'||k==='q'){ if(!e.repeat){ cycleUnlocked(); e.preventDefault(); } }
     if(k.startsWith('Arrow')) e.preventDefault();
   });
   addEventListener('keyup',e=>{ const k=norm(e.key); keys.delete(k); if(k===' '||k==='e'||k==='Enter') release(); });
