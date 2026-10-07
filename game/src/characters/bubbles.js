@@ -18,13 +18,18 @@ function icon(type){
     case 'note': g.fillStyle='#7a5ad8'; g.strokeStyle='#7a5ad8'; g.lineWidth=8; g.beginPath(); g.moveTo(8,18); g.lineTo(8,-30); g.lineTo(30,-20); g.stroke(); g.beginPath(); g.ellipse(-3,20,14,10,-.4,0,7); g.fill(); break;
     case 'coin': g.fillStyle='#ffcf3a'; g.beginPath(); g.arc(0,0,32,0,7); g.fill(); g.stroke(); g.fillStyle='#d89a12'; g.beginPath(); g.arc(0,0,20,0,7); g.fill(); g.fillStyle='#ffe58a'; g.font='bold 34px sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('$',0,2); break;
     case 'star': g.fillStyle='#ffd23f'; g.beginPath(); for(let i=0;i<10;i++){ const a=-Math.PI/2+i*Math.PI/5, r=i%2?15:34; g.lineTo(Math.cos(a)*r,Math.sin(a)*r+2); } g.closePath(); g.fill(); g.stroke(); break;
+    case 'dome': // listening to the adzan: a little masjid dome with a crescent
+      g.fillStyle='#3fbfa8'; g.beginPath(); g.moveTo(-28,22); g.lineTo(-28,6); g.bezierCurveTo(-28,-22,28,-22,28,6); g.lineTo(28,22); g.closePath(); g.fill(); g.stroke();
+      g.fillStyle='#fff3c4'; g.beginPath(); g.roundRect(-8,6,16,16,[8,8,0,0]); g.fill(); g.stroke();
+      g.strokeStyle='#e8a91a'; g.lineWidth=4; g.beginPath(); g.moveTo(0,-14); g.lineTo(0,-24); g.stroke();
+      g.fillStyle='#ffd23f'; g.beginPath(); g.arc(0,-31,7,0,7); g.fill(); g.fillStyle='#fffdf6'; g.beginPath(); g.arc(3,-33,6,0,7); g.fill(); break;
     default: g.fillStyle='#4a3326'; for(const x of[-22,0,22]){ g.beginPath(); g.arc(x,6,7,0,7); g.fill(); }
   }
   const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t;
 }
 
 export function createBubbles(scene, n=14){
-  const tex={}; const types=['heart','smile','!','?','note','coin','star','dots'];
+  const tex={}; const types=['heart','smile','!','?','note','coin','star','dots','dome'];
   for(const k of types) tex[k]=icon(k);
   const pool=[], active=[];
   for(let i=0;i<n;i++){ const m=new THREE.SpriteMaterial({map:tex.smile,transparent:true,depthWrite:false}); const s=new THREE.Sprite(m); s.visible=false; s.renderOrder=20; scene.add(s); pool.push(s); }

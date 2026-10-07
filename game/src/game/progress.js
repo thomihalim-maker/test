@@ -37,19 +37,22 @@ export const EVENTS = {
 
 // ---- quest pool (25 types). goal(c) and can(c) read a context snapshot; title uses {n}. cat 'masjid' = the main job
 const clampI = (v,a,b) => Math.max(a, Math.min(b, Math.round(v)));
+// animal-count goals scale with the (small) herd: a share of it, at least 1, never more than the herd or `max`
+const herd = (c, k, max) => { const n = Math.max(1, c.nA|0); return clampI(n*k, 1, Math.min(max, n)); };
 export const QUESTS = [
-  { id:'feed',    cat:'care',  icon:'hay',    stat:'fed',        title:['Beri makan {n} hewan','Feed {n} animals'],            goal:c=>clampI(c.nA*.6,2,6), can:c=>c.nA>0, coins:n=>15+n*4, pahala:5 },
-  { id:'water',   cat:'care',  icon:'water',  stat:'watered',    title:['Beri minum {n} hewan','Give water to {n} animals'],    goal:c=>clampI(c.nA*.5,2,5), can:c=>c.nA>0, coins:n=>12+n*4, pahala:4 },
-  { id:'wash',    cat:'care',  icon:'soap',   stat:'washed',     title:['Mandikan {n} hewan','Wash {n} animals'],               goal:c=>clampI(c.nA*.3,1,3), can:c=>c.nA>0, coins:n=>15+n*6, pahala:5 },
+  { id:'feed',    cat:'care',  icon:'hay',    stat:'fed',        title:['Beri makan {n} hewan','Feed {n} animals'],            goal:c=>herd(c,.75,4), can:c=>c.nA>0, coins:n=>15+n*5, pahala:5 },
+  { id:'water',   cat:'care',  icon:'water',  stat:'watered',    title:['Beri minum {n} hewan','Give water to {n} animals'],    goal:c=>herd(c,.6,4), can:c=>c.nA>0, coins:n=>12+n*5, pahala:4 },
+  { id:'wash',    cat:'care',  icon:'soap',   stat:'washed',     title:['Mandikan {n} hewan','Wash {n} animals'],               goal:c=>herd(c,.4,2), can:c=>c.nA>0, coins:n=>15+n*7, pahala:5 },
   { id:'washcow', cat:'care',  icon:'cow',    stat:'washedCow',  title:['Mandikan sapi','Wash a cow'],                          goal:()=>1, can:c=>c.nCow>0, coins:()=>25, pahala:5 },
-  { id:'treat',   cat:'care',  icon:'treat',  stat:'treats',     title:['Beri camilan ke {n} hewan','Give {n} treats'],         goal:c=>clampI(c.nA*.3,1,3), can:c=>c.nA>0, coins:n=>10+n*5, pahala:4 },
-  { id:'pet',     cat:'care',  icon:'heart',  stat:'petted',     title:['Elus {n} hewan dengan sayang','Give {n} animals a gentle pat'],    goal:c=>clampI(c.nA,1,12), can:c=>c.nA>0, coins:n=>12+n*3, pahala:6 },
-  { id:'happy',   cat:'care',  icon:'heart',  stat:'happy',      title:['Buat {n} hewan senang','Make {n} animals happy'],      goal:c=>clampI(c.nA*.4,2,5), can:c=>c.nA>0, coins:n=>12+n*4, pahala:5 },
+  { id:'treat',   cat:'care',  icon:'treat',  stat:'treats',     title:['Beri camilan ke {n} hewan','Give {n} treats'],         goal:c=>herd(c,.4,2), can:c=>c.nA>0, coins:n=>10+n*6, pahala:4 },
+  { id:'pet',     cat:'care',  icon:'heart',  stat:'petted',     title:['Elus {n} hewan dengan sayang','Give {n} animals a gentle pat'],    goal:c=>herd(c,1,4), can:c=>c.nA>0, coins:n=>12+n*4, pahala:6 },
+  { id:'happy',   cat:'care',  icon:'heart',  stat:'happy',      title:['Buat {n} hewan senang','Make {n} animals happy'],      goal:c=>herd(c,.5,3), can:c=>c.nA>0, coins:n=>12+n*5, pahala:5 },
   { id:'healthy', cat:'care',  icon:'pahala', stat:'healthy',    title:['Jaga semua hewan sehat sampai sore','Keep every animal healthy till evening'], goal:()=>1, can:c=>c.nA>0, coins:()=>30, pahala:8 },
   { id:'build',   cat:'build', icon:'dome',   stat:'placed',     title:['Bangun tahap masjid berikutnya','Build the next masjid stage'], goal:()=>1, can:c=>c.stage<c.stages, coins:()=>30, pahala:8 },
   { id:'decor',   cat:'build', icon:'lantern',stat:'decorPlaced',title:['Pasang {n} hiasan','Place {n} decoration(s)'],         goal:c=>c.lv>=4?2:1, can:()=>true, coins:n=>10+n*8, pahala:4 },
   { id:'buy',     cat:'build', icon:'goat',   stat:'bought',     title:['Rawat hewan baru dari toko','Adopt a new animal from the shop'], goal:()=>1, can:c=>c.canBuy&&c.day>1, coins:()=>20, pahala:5 },
-  { id:'vis',     cat:'social',icon:'people', stat:'visitors',   title:['Sambut {n} jamaah','Welcome {n} visitors'],            goal:c=>clampI(2+c.stage*.8,2,8), can:()=>true, coins:n=>10+n*3, pahala:5 },
+  { id:'vis',     cat:'social',icon:'people', stat:'visitors',   title:['Sapa {n} warga','Greet {n} villagers'],                goal:c=>clampI(2+c.stage*.4,2,5), can:()=>true, coins:n=>10+n*3, pahala:5 },
+  { id:'ajak',    cat:'social',icon:'ajak',   stat:'invited',    title:['Ajak {n} jamaah salat berjamaah','Invite {n} villagers to pray together'], goal:c=>clampI(1+(c.stage>=2?1:0)+(c.imam?1:0)+(c.stage>=6?1:0),1,4), can:()=>true, coins:n=>12+n*5, pahala:8 },
   { id:'donate',  cat:'social',icon:'coin',   stat:'donations',  title:['Terima {n} sedekah jamaah','Receive {n} donations'],    goal:c=>clampI(1+c.stage*.5,2,5), can:c=>c.stage>=1, coins:n=>8+n*3, pahala:4 },
   { id:'pray',    cat:'social',icon:'flag',   stat:'prayers',    title:['Saksikan salat berjamaah','See the jamaah pray together'], goal:()=>1, can:c=>c.stage>=2, coins:()=>20, pahala:8 },
   { id:'bedug',   cat:'social',icon:'drum',   stat:'bedugDusk',  title:['Tabuh bedug saat senja (17–19)','Beat the bedug at dusk (5–7pm)'], goal:()=>1, can:c=>c.bedug, coins:()=>20, pahala:6 },
@@ -66,10 +69,10 @@ export const QUESTS = [
   { id:'design',  cat:'masjid',icon:'palette',stat:'designed',   title:['Ubah desain masjid','Change the masjid design'],       goal:()=>1, can:c=>c.lv>=2&&c.stage>=1, coins:()=>15, pahala:4 },
 ];
 const GUEST = [ // special requests on 'tamu' days (double rewards)
-  { stat:'happy',  icon:'heart',   title:['Tamu ingin melihat {n} hewan senang','The guest wants to see {n} happy animals'], goal:c=>clampI(c.nA*.5,2,5), can:c=>c.nA>0 },
-  { stat:'treats', icon:'treat',   title:['Tamu membawa camilan: beri {n} hewan','The guest brought treats: give {n}'], goal:c=>clampI(c.nA*.4,2,4), can:c=>c.nA>0 },
+  { stat:'happy',  icon:'heart',   title:['Tamu ingin melihat {n} hewan senang','The guest wants to see {n} happy animals'], goal:c=>herd(c,.5,3), can:c=>c.nA>0 },
+  { stat:'treats', icon:'treat',   title:['Tamu membawa camilan: beri {n} hewan','The guest brought treats: give {n}'], goal:c=>herd(c,.5,3), can:c=>c.nA>0 },
   { stat:'decorPlaced', icon:'pot',title:['Tamu ingin plaza lebih indah: pasang hiasan','The guest wants a prettier plaza: place a decoration'], goal:()=>1, can:()=>true },
-  { stat:'petted', icon:'heart',   title:['Tamu ingin berkenalan: elus {n} hewan','The guest wants to meet {n} animals: pet them'], goal:c=>clampI(c.nA*.6,2,8), can:c=>c.nA>0 },
+  { stat:'petted', icon:'heart',   title:['Tamu ingin berkenalan: elus {n} hewan','The guest wants to meet {n} animals: pet them'], goal:c=>herd(c,.75,4), can:c=>c.nA>0 },
   { stat:'swept',  icon:'broom',   title:['Tamu ingin plaza bersih: sapu {n} kotoran','The guest wants a tidy plaza: sweep {n} messes'], goal:()=>6, can:()=>true },
 ];
 
@@ -84,7 +87,7 @@ export const STICKERS = [
   { id:'vis10',      icon:'people',  rim:'#35b5a5', name:['Tuan Rumah','Kind Host'],           how:['Sambut 10 jamaah','Welcome 10 visitors'], test:(S)=>S.stats.visitors>=10 },
   { id:'vis50',      icon:'people',  rim:'#ffc83d', name:['Masjid Ramai','Busy Masjid'],       how:['Sambut 50 jamaah','Welcome 50 visitors'], test:(S)=>S.stats.visitors>=50 },
   { id:'cow300',     icon:'cow',     rim:'#c9a468', name:['Sapi Jumbo','Jumbo Cow'],           how:['Rawat sapi sampai 300 kg','Grow a cow to 300 kg'], test:(S,c)=>c.maxCow>=300 },
-  { id:'herd8',      icon:'goat',    rim:'#7fcf5a', name:['Kandang Penuh Cinta','Full Pen'],   how:['Adopsi hewan sampai 8 ekor','Adopt animals until 8 live in the pen'], on:'adopt', test:(S,c)=>c.nA>=8 },
+  { id:'herd8',      icon:'goat',    rim:'#7fcf5a', name:['Kandang Penuh Cinta','Full Pen'],   how:['Adopsi hewan sampai 5 ekor','Adopt animals until 5 live in the pen'], on:'adopt', test:(S,c)=>c.nA>=5 },
   { id:'bedug',      icon:'drum',    rim:'#f0701c', name:['Dum Dum!','Boom Boom!'],            how:['Tabuh bedug','Beat the bedug'], test:(S)=>S.stats.bedug>=1 },
   { id:'maghrib',    icon:'moon',    rim:'#7d8cf0', name:['Penanda Senja','Dusk Drummer'],     how:['Tabuh bedug saat senja','Beat the bedug at dusk'], test:(S)=>S.stats.bedugDusk>=1 },
   { id:'streak3',    icon:'star',    rim:'#ffc83d', name:['Rajin 3 Hari','3-Day Streak'],      how:['Rajin 3 hari berturut-turut','3-day streak'], test:(S)=>S.bestStreak>=3 },
@@ -149,7 +152,7 @@ export async function init(ctx){
     const list = A()?.list || [], m = Mj();
     return { nA:list.length, nCow:list.filter(a=>a.kind==='cow').length, maxCow:Math.max(0,...list.filter(a=>a.kind==='cow').map(a=>a.weight||0)),
       stage: m && typeof m.stage==='number' ? m.stage : (S.masjid?.stage|0), stages: m?.stages?.length ?? 8,
-      bedug: !!(m?.bedugPos || m?.playBedug) && (m?.stage|0) >= 6, canBuy: A()?.canAdd ? A().canAdd() : false, lv:level(), day:S.day,
+      bedug: !!(m?.bedugPos || m?.playBedug) && (m?.stage|0) >= 6, imam: on('imam'), canBuy: A()?.canAdd ? A().canAdd() : false, lv:level(), day:S.day,
       clean: (()=>{ try{ return ctx.modules.care?.clean?.() ?? S.daily?.clean ?? 100; }catch(e){ return 100; } })(),
       kentongan: (m && typeof m.stage==='number' ? m.stage : (S.masjid?.stage|0)) >= 2 || (m?.stage|0) >= 6 };
   }
@@ -216,7 +219,10 @@ export async function init(ctx){
   ctx.on('animal:sick', ()=>{ S.daily.sick=(S.daily.sick||0)+1; });
   ctx.on('animal:added', ()=>{ if(!loadingBatch){ bump('bought'); setTimeout(()=>checkStickers('adopt'),300); } });
   ctx.on('build:placed', ()=>{ bump('placed'); setTimeout(checkStickers,500); });
-  ctx.on('visitor:arrive', ()=>bump('visitors'));
+  // 'visitors' = villagers greeted / chatted with (once each per day) and jamaah arriving at the masjid
+  ctx.on('visitor:arrive', d=>{ if(!d?.resident) bump('visitors'); });
+  ctx.on('visitor:chat', d=>{ if(d?.first) bump('visitors'); });
+  ctx.on('visitor:invite', ()=>bump('invited'));
   ctx.on('visitor:donate', ()=>bump('donations'));
   ctx.on('prayer:done', d=>{ bump('prayers'); const imam = d?.imam ?? (ctx.modules.prayer?.phase==='leading' ? 'player' : null); if(imam==='player') bump('imam'); });
   ctx.on('care:clean', d=>{ if(!d?.removed) return; if(d.tool==='sapu') bump('swept'); else if(d.tool==='pel') bump('mopped'); });
@@ -327,9 +333,9 @@ export async function init(ctx){
     const K = a.K || A()?.KIND?.[a.kind] || { wMax: a.kind==='cow'?520:a.kind==='sheep'?55:42 };
     const s = a.stats||{}, care = ((s.happy??.7)*2+(s.hunger??.7)+(s.thirst??.7)+(s.clean??.7))/5;
     const grow = Math.min(1, (a.weight||0) / (K.wMax*.7));
-    const q = .6*care + .4*grow - (a.sick?.15:0), w = a.weight || K.wMax*.5;
+    const q = .6*care + .4*grow - (a.sick?.1:0), w = a.weight || K.wMax*.5;
     if(a.baby) return { kind:a.kind, name:a.name||'', w, stars:0, baby:true, packs:0, q };
-    const stars = q>.78?3:q>.55?2:1;
+    const stars = q>.74?3:q>.5?2:1;
     return { kind:a.kind, name:a.name||'', w, stars, packs:Math.max(1,Math.round(w*.45/.5)), q };
   }
   const eidForecast = () => (A()?.list||[]).map(a=>{ const g=gradeAnimal(a); return { id:a.id??a.seed??a.name, name:a.name||'', stars:g.stars, baby:!!g.baby, q:g.q }; });
@@ -405,7 +411,7 @@ export async function init(ctx){
       if(E?.crowd && crowdN<E.crowd && h>7 && h<19){ crowdT-=dt; if(crowdT<=0){ crowdT=18+Math.random()*14; const v=ctx.modules.characters?.visitors; try{ if(v?.spawn){ v.spawn(); crowdN++; } }catch(e){} } }
       // weather nudges on animals (gentle)
       if(E && (S.event.id==='panas'||S.event.id==='hujan')) for(const a of A()?.list||[]){ const s=a.stats; if(!s) continue;
-        if(S.event.id==='panas') s.thirst=Math.max(0,s.thirst-.0012*dt); else s.clean=Math.min(1,s.clean+.0008*dt); }
+        if(S.event.id==='panas') s.thirst=Math.max(0,s.thirst-.0005*dt); else s.clean=Math.min(1,s.clean+.0008*dt); }
       for(let i=0;i<subs.length;i++){ try{ subs[i].update?.(dt,t); }catch(e){ if(!subs[i].__warned){ subs[i].__warned=true; console.error('game subsystem update failed', e); } } }
     },
   };

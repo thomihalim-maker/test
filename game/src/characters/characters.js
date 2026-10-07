@@ -23,8 +23,8 @@ const CLEAN_TOOL = { sapu:'sweep', pel:'mop' };
 const KIND_ITEM = { feed:'hay', water:'water', wash:'soap', treat:'treat' };
 const TOOL_CYCLE = ['sapu','pel','hay','water','soap','treat'];
 const L10N = {
-  id:{ feed:'Beri Makan', water:'Beri Minum', wash:'Mandikan', treat:'Beri Camilan', pet:'Elus', fillFeed:'Isi Jerami', fillWater:'Isi Air', fillWash:'Isi Bak Cuci', bedug:'Tabuh Bedug', greet:'Sapa', act:'Aksi', sweep:'Sapu', mop:'Pel', gather:'Angkut Daun' },
-  en:{ feed:'Feed', water:'Give Water', wash:'Wash', treat:'Give Treat', pet:'Pet', fillFeed:'Fill Hay', fillWater:'Fill Water', fillWash:'Fill Wash Tub', bedug:'Beat Bedug', greet:'Greet', act:'Action', sweep:'Sweep', mop:'Mop', gather:'Bag Leaves' }
+  id:{ feed:'Beri Makan', water:'Beri Minum', wash:'Mandikan', treat:'Beri Camilan', pet:'Elus', fillFeed:'Isi Jerami', fillWater:'Isi Air', fillWash:'Isi Bak Cuci', bedug:'Tabuh Bedug', greet:'Sapa', invite:'Ajak Salat', chat:'Ngobrol', act:'Aksi', sweep:'Sapu', mop:'Pel', gather:'Angkut Daun' },
+  en:{ feed:'Feed', water:'Give Water', wash:'Wash', treat:'Give Treat', pet:'Pet', fillFeed:'Fill Hay', fillWater:'Fill Water', fillWash:'Fill Wash Tub', bedug:'Beat Bedug', greet:'Greet', invite:'Invite to Pray', chat:'Chat', act:'Action', sweep:'Sweep', mop:'Mop', gather:'Bag Leaves' }
 };
 // short labels for the round action button (the long interactable label stays for captions / tooltips)
 const SHORT = { adzan:['Adzan','Adzan'] };
@@ -135,6 +135,7 @@ export async function init(ctx){
   function fireInteract(a){
     const c = a.data||{}; const payload = { kind:a.kind, animal:c.animal||null, target:c.target||c.animal||null, station:c.station||null, stationType:c.stationType||null, pos:player.pos.clone(), tool:a.kind,
       yaw:player.yaw, data:c.data??null, item:ctx.state?.tool ?? null };
+    if(a.kind==='invite' || a.kind==='chat'){ const v = c.visitor; if(v){ const ok = a.kind==='invite' ? visitors.invite(v) : visitors.chat(v); if(ok) emote(player, a.kind==='invite' ? 'heart' : 'smile', 1.6); } }
     if(a.kind==='greet'){ if(c.visitor){ c.visitor.person.play('wave',1.4); bubbles.emote(c.visitor.person,'heart'); ctx.emit('visitor:greet',{id:c.visitor.id}); } }
     const A = ctx.modules.animals; let handled = false;
     try{
@@ -191,8 +192,13 @@ export async function init(ctx){
         if(k!=='treat' && k!=='pet' && (statOf(animal,k)??0)>.92) k='pet';
         const d=Math.hypot(ap.x-pos.x,ap.z-pos.z); consider({kind:k,label:tr(k),icon:TOOLS[k].icon,pos:ap,animal,target:animal},d-1.5); }
     }
+    // villagers (warga): during a prayer window "Ajak Salat" (invite), otherwise a friendly chat
+    { const inv = safe(()=>visitors.canInvite(), false);
+      for(const v of visitors.list){ if(!v.home || v.role || v.invited || (v.state!=='home' && v.state!=='goHome')) continue;
+        const d=Math.hypot(v.person.pos.x-pos.x,v.person.pos.z-pos.z); if(d>2.7) continue;
+        consider(inv ? {kind:'invite',label:tr('invite'),icon:'ajak',pos:v.person.pos,visitor:v,anim:'greet'} : {kind:'chat',label:tr('chat'),icon:'chat',pos:v.person.pos,visitor:v,anim:'wave'}, d-(inv?1.6:.3)); } }
     if(!best || best.kind==='greet'){
-      for(const v of visitors.list){ if(v.state==='pray'||v.role) continue; const d=Math.hypot(v.person.pos.x-pos.x,v.person.pos.z-pos.z); if(d<2.4) consider({kind:'greet',label:tr('greet'),icon:'👋',pos:v.person.pos,visitor:v,anim:'wave'},d+.8); }
+      for(const v of visitors.list){ if(v.state==='pray'||v.role||v.home) continue; const d=Math.hypot(v.person.pos.x-pos.x,v.person.pos.z-pos.z); if(d<2.4) consider({kind:'greet',label:tr('greet'),icon:'👋',pos:v.person.pos,visitor:v,anim:'wave'},d+.8); }
     }
     return best;
   }

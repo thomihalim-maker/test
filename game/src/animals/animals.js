@@ -17,11 +17,13 @@ const KIND = {
   sheep:{ speed:.9,   rad:.40, reach:.6,  gain:.0105, w0:[20,30], wMax:55,  price:75,  bleat:'bleat_sheep' },
   cow  :{ speed:.75,  rad:.58, reach:.85, gain:.1,    w0:[190,260], wMax:520, price:220, bleat:'moo' },
 };
-const MAX_BASE=16, MAX_PER_LEVEL=6;
+const MAX_BASE=4, MAX_PER_LEVEL=1; // a small, lovable herd: 4 animals (5 / 6 after the pen upgrades)
 const penLvlOf=(v)=>{ v=+v||0; return v>=8?2:v>=4?1:Math.max(0,Math.min(2,v|0)); }; // accepts pen level (0..2) or berkah level (4/8)
-const GROW_HOURS=72; // babies grow up over ~3 in-game days
-const TXT={ id:{hay:'Hay habis!',water:'Air habis!',soap:'Sabun habis!',treat:'Camilan habis!',happy:'senang!',full:'sudah kenyang',fullw:'sudah puas minum',clean:'sudah bersih',full2:'Hewan sudah penuh',troughHay:'Palung diisi jerami',troughWater:'Bak air diisi',tubFill:'Bak mandi diisi',grown:'sudah dewasa!',penUp:'Kandang diperluas!',cared:'terawat baik!',weightB:'Bonus bobot hewan',sick:'lesu, butuh perawatan',recovered:'sehat kembali!',petDone:'senang dielus'},
-            en:{hay:'Out of hay!',water:'Out of water!',soap:'Out of soap!',treat:'Out of treats!',happy:'is happy!',full:'is full',fullw:'is not thirsty',clean:'is already clean',full2:'Pen is full',troughHay:'Trough filled with hay',troughWater:'Water trough filled',tubFill:'Wash tub filled',grown:'is all grown up!',penUp:'The pen got bigger!',cared:'is well cared for!',weightB:'Animal weight bonus',sick:'feels unwell, needs care',recovered:'feels better!',petDone:'loves the pets'} };
+const GROW_HOURS=72;
+const DECAY={ hunger:.001, thirst:.0012, clean:.0004 };   // per second (was .0026/.0032/.001)
+const SICK_AT=270;                                       // seconds of continuous neglect (was 90) // babies grow up over ~3 in-game days
+const TXT={ id:{hay:'Hay habis!',water:'Air habis!',soap:'Sabun habis!',treat:'Camilan habis!',happy:'senang!',full:'sudah kenyang',fullw:'sudah puas minum',clean:'sudah bersih',full2:'Hewan sudah penuh',troughHay:'Palung diisi jerami',troughWater:'Bak air diisi',tubFill:'Bak mandi diisi',grown:'sudah dewasa!',penUp:'Kandang diperluas!',cared:'terawat baik!',weightB:'Bonus bobot hewan',sick:'lesu, butuh perawatan',recovered:'sehat kembali!',petDone:'senang dielus',retired:'pulang ke peternak sahabat. Terima kasih sudah merawatnya!'},
+            en:{hay:'Out of hay!',water:'Out of water!',soap:'Out of soap!',treat:'Out of treats!',happy:'is happy!',full:'is full',fullw:'is not thirsty',clean:'is already clean',full2:'Pen is full',troughHay:'Trough filled with hay',troughWater:'Water trough filled',tubFill:'Wash tub filled',grown:'is all grown up!',penUp:'The pen got bigger!',cared:'is well cared for!',weightB:'Animal weight bonus',sick:'feels unwell, needs care',recovered:'feels better!',petDone:'loves the pets',retired:'went back to the friendly farmer. Thank you for caring for them!'} };
 
 export async function init(ctx){
   const scene=ctx.scene, S=ctx.state; S.inventory??={hay:10,water:10,soap:3,treat:5};
@@ -135,11 +137,21 @@ export async function init(ctx){
   function spawnPoint(rng){ for(let i=0;i<40;i++){ const x=B.x0+1.5+rng()*(B.x1-B.x0-3), z=B.z0+1.5+rng()*(B.z1-B.z0-3); if(pen.obstacles.every(o=>Math.hypot(o.x-x,o.z-z)>o.r+.9) && list.every(l=>Math.hypot(l.pos.x-x,l.pos.z-z)>1.6)) return [x,0,z]; } return [B.x0+2,0,B.z0+6]; }
   const rs=mulberry32(1234);
   if(Array.isArray(S.animals)&&S.animals.length&&S.animals[0]?.seed!==undefined){
+    // a herd bigger than the pen allows (older saves had up to 16+): keep the best-cared-for ones (ties: the earliest),
+    // the rest go home to the friendly farmer (one soft toast, no sad words)
+    const capN=MAX_BASE+MAX_PER_LEVEL*penLvlOf(S.penLevel), rows=S.animals.filter(d=>d&&KIND[d.kind]);
+    if(rows.length>capN){ const sc=d=>{ const s=d.stats||{}; return (s.happy??.7)*2+(s.hunger??.7)+(s.thirst??.7)+(s.clean??.7)-(d.sick?1:0)+(d.baby?0:.15); };
+      const keep=new Set(rows.map((d,i)=>[d,i]).sort((a,b)=>(sc(b[0])-sc(a[0]))||(a[1]-b[1])).slice(0,capN).map(x=>x[0]));
+      const gone=rows.filter(d=>!keep.has(d)).map(d=>d.name).filter(Boolean); S.animals=rows.filter(d=>keep.has(d));
+      S.retiredAnimals=[...(S.retiredAnimals||[]),...gone].slice(-40);
+      // announced once the HUD is up (the ui module boots after us)
+      if(gone.length){ const nm=gone.length>3?gone.slice(0,3).join(', ')+' …':gone.join(', '); let tries=0;
+        const say=()=>{ if(ctx.modules.ui||++tries>120) setTimeout(()=>toast({msg:`${nm} ${T('retired')}`,icon:'heart',kind:'good'}),3000); else setTimeout(say,500); }; setTimeout(say,500); } }
     for(const d of S.animals){ if(!KIND[d.kind]) continue; Object.assign(create(d.kind,{seed:d.seed,name:d.name,breed:d.breed,stats:d.stats,weight:d.weight,baby:d.baby,growth:d.growth,at:spawnPoint(rs)}),{dayW:d.dayW??d.weight,petDay:d.petDay??-1,neglect:d.neglect||0,sick:!!d.sick,needy:!!d.needy}); }
   }
-  // hand-picked starting flock (8): golden/pied/boer goats, caramel/lavender sheep, holstein cow + cream lamb & golden kid
-  if(!list.length) [['goat','golden'],['goat','pied'],['sheep','caramel'],['sheep','lavender'],['cow','holstein'],['goat','boer'],['sheep','cream',1],['goat','golden',1]]
-    .forEach(([k,b,baby],i)=>create(k,{seed:[101,205,309,412,517,623,842,731][i],breed:b,baby:!!baby,at:spawnPoint(rs)}));
+  // hand-picked starting herd (4): a golden goat, a caramel sheep, a holstein cow and a cream baby lamb
+  if(!list.length) [['goat','golden'],['sheep','caramel'],['cow','holstein'],['sheep','cream',1]]
+    .forEach(([k,b,baby],i)=>create(k,{seed:[101,309,517,842][i],breed:b,baby:!!baby,at:spawnPoint(rs)}));
   const persist=()=>{ S.animals=list.map(a=>({kind:a.kind,seed:a.seed,name:a.name,breed:a.breed,stats:{...a.stats},weight:a.weight,baby:a.baby,growth:a.growth,dayW:a.dayW,petDay:a.petDay,neglect:a.neglect,sick:a.sick,needy:a.needy})); };
   persist();
 
@@ -201,6 +213,7 @@ export async function init(ctx){
     if(tot>0){ giveCoins(tot,'animal:weight'); toast({msg:`${T('weightB')} +${tot}`,icon:'coin',kind:'good'}); } persist(); });
   function evPos(a){ return a.pos.clone().setY(a.pos.y+.6); }
   const useItem=(it)=>{ if((S.inventory[it]||0)<=0){ toast(T(it)); return false; } S.inventory[it]--; ctx.emit('inventory:change',S.inventory); return true; };
+  function careHeal(a){ if(a.sick) a.neglect=Math.min(a.neglect,20); else a.neglect=Math.max(0,a.neglect-60); } // any care helps a lot
   function wakeUp(a){ if(a.state==='sleep'){ a.bed=false; release(a); a.state='idle'; a.stT=2; a.wake=3; } }
   const api={
     list, KIND, get pen(){ return pen; }, get stations(){ return st; }, get penLevel(){ return pen.level; },
@@ -210,26 +223,26 @@ export async function init(ctx){
     feed(a,item='hay'){ if(!a) return false; const treat=item==='treat';
       if(a.stats.hunger>.97&&!treat){ toast(`${a.name} ${T('full')}`); a.reactT=.6; return false; }
       if(!useItem(treat?'treat':'hay')) return false;
-      a.stats.hunger=clamp(a.stats.hunger+(treat?.12:.5)); a.stats.happy=clamp(a.stats.happy+(treat?.4:.08)); a.eatT=treat?1.6:2.2; a.wake=2; wakeUp(a);
-      if(treat){ a.hopT=0; a.neglect=Math.max(0,a.neglect-30); sparkles(evPos(a),6); hearts(a.pos.clone().setY(a.pos.y+a.model.dims.bubbleY*.7),6); a.petT=Math.max(a.petT,1.2); }
+      a.stats.hunger=clamp(a.stats.hunger+(treat?.2:.65)); a.stats.happy=clamp(a.stats.happy+(treat?.4:.08)); a.eatT=treat?1.6:2.2; a.wake=2; wakeUp(a);
+      careHeal(a); if(treat){ a.hopT=0; sparkles(evPos(a),6); hearts(a.pos.clone().setY(a.pos.y+a.model.dims.bubbleY*.7),6); a.petT=Math.max(a.petT,1.2); }
       audio('munch',{pos:a.pos}); ctx.emit('animal:fed',{animal:a,pos:evPos(a),item}); checkOutcome(a); return true; },
     treat(a){ return api.feed(a,'treat'); },
     water(a){ if(!a) return false; if(a.stats.thirst>.97){ toast(`${a.name} ${T('fullw')}`); return false; } if(!useItem('water')) return false;
-      a.stats.thirst=clamp(a.stats.thirst+.55); a.stats.happy=clamp(a.stats.happy+.06); a.drinkT=2; a.eatT=2; wakeUp(a); audio('splash',{pos:a.pos,vol:.5}); ctx.emit('animal:watered',{animal:a,pos:evPos(a)}); checkOutcome(a); return true; },
+      a.stats.thirst=clamp(a.stats.thirst+.7); a.stats.happy=clamp(a.stats.happy+.06); careHeal(a); a.drinkT=2; a.eatT=2; wakeUp(a); audio('splash',{pos:a.pos,vol:.5}); ctx.emit('animal:watered',{animal:a,pos:evPos(a)}); checkOutcome(a); return true; },
     wash(a){ if(!a) return false; if(a.stats.clean>.96){ toast(`${a.name} ${T('clean')}`); a.reactT=.6; return false; } if(!useItem('soap')) return false;
-      a.stats.clean=1; a.stats.happy=clamp(a.stats.happy+.18); a.shakeT=2.2; wakeUp(a); bubbles(evPos(a).setY(a.pos.y+.5),16); audio('splash',{pos:a.pos}); ctx.emit('animal:washed',{animal:a,pos:evPos(a)}); checkOutcome(a); return true; },
-    pet(a){ if(!a) return false; const first=a.petDay!==dayNo(); a.stats.happy=clamp(a.stats.happy+(first?.12:.03)); a.petT=1.6; a.wake=4; wakeUp(a); if(a.state==='walk'||a.state==='graze'||a.state==='wait'){ release(a); a.state='idle'; a.stT=2; }
+      a.stats.clean=1; a.stats.happy=clamp(a.stats.happy+.18); careHeal(a); a.shakeT=2.2; wakeUp(a); bubbles(evPos(a).setY(a.pos.y+.5),16); audio('splash',{pos:a.pos}); ctx.emit('animal:washed',{animal:a,pos:evPos(a)}); checkOutcome(a); return true; },
+    pet(a){ if(!a) return false; const first=a.petDay!==dayNo(); a.stats.happy=clamp(a.stats.happy+(first?.12:.03)); if(a.sick) a.neglect=Math.min(a.neglect,30); a.petT=1.6; a.wake=4; wakeUp(a); if(a.state==='walk'||a.state==='graze'||a.state==='wait'){ release(a); a.state='idle'; a.stT=2; }
       hearts(a.pos.clone().setY(a.pos.y+a.model.dims.bubbleY*.7),first?4:2); audio('pop',{pos:a.pos,vol:.4}); if(Math.random()<.35) bleat(a);
       if(first){ a.petDay=dayNo(); giveCoins(1,'animal:pet'); happyEvent(a,'pet'); } ctx.emit('animal:petted',{animal:a,pos:evPos(a),first}); return true; },
     interact(a,tool){ switch(tool){ case 'hay': return api.feed(a,'hay'); case 'treat': return api.feed(a,'treat'); case 'water': return api.water(a); case 'soap': return api.wash(a); default: return api.pet(a); } },
-    fillStation(type='feed'){ if(type==='wash'||type==='tub'){ const w=st.wash; if(w.fill>.9) return false; if(!useItem('water')) return false; w.fill=Math.min(1,w.fill+.6); toast(T('tubFill')); bubbles(w.pos.clone().setY(.7),10); audio('splash',{pos:w.pos,vol:.6}); return true; }
-      if(type==='water'){ if(st.water.fill>.9){ return false; } if(!useItem('water')) return false; st.water.fill=Math.min(1,st.water.fill+.55); toast(T('troughWater')); audio('splash',{pos:st.water.pos,vol:.5}); return true; }
-      const f=st.feed.slice().sort((p,q)=>p.fill-q.fill)[0]; if(f.fill>.9) return false; if(!useItem('hay')) return false; f.fill=Math.min(1,f.fill+.55); toast(T('troughHay')); audio('munch',{pos:f.pos,vol:.5}); return true; },
+    fillStation(type='feed'){ if(type==='wash'||type==='tub'){ const w=st.wash; if(w.fill>.9) return false; if(!useItem('water')) return false; w.fill=Math.min(1,w.fill+.8); toast(T('tubFill')); bubbles(w.pos.clone().setY(.7),10); audio('splash',{pos:w.pos,vol:.6}); return true; }
+      if(type==='water'){ if(st.water.fill>.9){ return false; } if(!useItem('water')) return false; st.water.fill=Math.min(1,st.water.fill+.8); toast(T('troughWater')); audio('splash',{pos:st.water.pos,vol:.5}); return true; }
+      const f=st.feed.slice().sort((p,q)=>p.fill-q.fill)[0]; if(f.fill>.9) return false; if(!useItem('hay')) return false; f.fill=Math.min(1,f.fill+.8); toast(T('troughHay')); audio('munch',{pos:f.pos,vol:.5}); return true; },
     canAdd:()=>list.length<maxAnimals(), get count(){ return list.length; }, get maxAnimals(){ return maxAnimals(); },
     add(kind,o={}){ if(!KIND[kind]||list.length>=maxAnimals()){ if(list.length>=maxAnimals()) toast(T('full2')); return null; }
       const a=create(kind,{at:[B.x0+1.6,0,PEN.cz+(Math.random()-.5)*1.5],heading:Math.PI/2,baby:!!o.baby,stats:{hunger:.7,thirst:.7,clean:1,happy:.8}}); persist(); sparkles(a.pos.clone().setY(.6),10); audio('pop',{pos:a.pos}); ctx.emit('animal:added',{animal:a}); return a; },
     remove(a){ const i=list.indexOf(a); if(i<0) return; release(a); a.dead=true; scene.remove(a.mesh); scene.remove(a.bubble.sp); a.bubble.tex.dispose(); a.mesh.traverse(o=>o.geometry?.dispose?.()); list.splice(i,1); persist(); },
-    price:(k)=>KIND[k]?.price??0,
+    price:(k)=>KIND[k]?.price??0, DECAY, SICK_AT,
     totalWeight:()=>list.reduce((s,a)=>s+a.weight,0),
     update:null,
   };
@@ -248,8 +261,9 @@ export async function init(ctx){
     const S2=a.stats; const night=isNight();
     // needs
     const sl=a.state==='sleep'?.45:1;
-    S2.hunger=clamp(S2.hunger-.0026*dt*sl); S2.thirst=clamp(S2.thirst-.0032*dt*sl); S2.clean=clamp(S2.clean-.001*dt*(a.state==='walk'?1.4:1));
-    if(a.state==='graze') S2.hunger=clamp(S2.hunger+.0030*dt);
+    // gentle needs (about 2.5x slower than before): a full animal stays content for most of an in-game day
+    S2.hunger=clamp(S2.hunger-DECAY.hunger*dt*sl); S2.thirst=clamp(S2.thirst-DECAY.thirst*dt*sl); S2.clean=clamp(S2.clean-DECAY.clean*dt*(a.state==='walk'?1.4:1));
+    if(a.state==='graze') S2.hunger=clamp(S2.hunger+.0016*dt);
     const tgt=(S2.hunger*.4+S2.thirst*.3+S2.clean*.3);
     S2.happy=clamp(S2.happy+(tgt*.95-S2.happy)*dt*.035 - (Math.min(S2.hunger,S2.thirst)<.2?.01*dt:0));
     // weight (gameplay)
@@ -257,15 +271,17 @@ export async function init(ctx){
     a.rewardCd=Math.max(0,a.rewardCd-dt); a.wake=Math.max(0,a.wake-dt); a.shakeT=Math.max(0,a.shakeT-dt); a.petT=Math.max(0,a.petT-dt); a.eatT=Math.max(0,a.eatT-dt); a.reactT=Math.max(0,a.reactT-dt);
     if(S2.happy>.82&&!a.happyEdge){ a.happyEdge=true; } else if(S2.happy<.7) a.happyEdge=false;
     // neglect -> soft 'sick/sad' state (recoverable)
+    // only a long, continuous stretch with a need at (almost) zero makes an animal unwell; never on the first two days
     const worst=Math.min(S2.hunger,S2.thirst,S2.clean*1.6);
-    if(worst<.12) a.neglect=Math.min(150,a.neglect+dt); else if(Math.min(S2.hunger,S2.thirst,S2.clean)>.5) a.neglect=Math.max(0,a.neglect-dt*5); else a.neglect=Math.max(0,a.neglect-dt*.3);
-    if(!a.sick&&a.neglect>90){ a.sick=true; ctx.emit('animal:sick',{animal:a,pos:evPos(a)}); toast({msg:`${a.name} ${T('sick')}`,icon:'chat',kind:'warn'}); }
-    else if(a.sick&&a.neglect<25){ a.sick=false; ctx.emit('animal:recovered',{animal:a,pos:evPos(a)}); toast({msg:`${a.name} ${T('recovered')}`,icon:'heart',kind:'good'}); sparkles(evPos(a),8); }
+    if(worst<.06) a.neglect=Math.min(SICK_AT+60,a.neglect+dt); else if(Math.min(S2.hunger,S2.thirst,S2.clean)>.5) a.neglect=Math.max(0,a.neglect-dt*8); else a.neglect=Math.max(0,a.neglect-dt*2);
+    if((S.day|0)<=2) a.neglect=Math.min(a.neglect,SICK_AT*.5);
+    if(!a.sick&&a.neglect>SICK_AT){ a.sick=true; ctx.emit('animal:sick',{animal:a,pos:evPos(a)}); toast({msg:`${a.name} ${T('sick')}`,icon:'chat',kind:'warn'}); }
+    else if(a.sick&&a.neglect<35){ a.sick=false; ctx.emit('animal:recovered',{animal:a,pos:evPos(a)}); toast({msg:`${a.name} ${T('recovered')}`,icon:'heart',kind:'good'}); sparkles(evPos(a),8); }
     if(a.sick) S2.happy=Math.min(S2.happy,.45);
     if(Math.min(S2.hunger,S2.thirst,S2.clean)<.35) a.needy=true; else checkOutcome(a);
     // bathing at the wash tub (slow, uses up the tub)
     if((a.state==='wait'||a.state==='bath')&&a.slot?.st===st.wash){ const w=st.wash; const inTub=a.state==='bath';
-      if(w.fill>.01&&S2.clean<1){ const r=(inTub?.06:.035)*dt; S2.clean=clamp(S2.clean+r); w.fill=Math.max(0,w.fill-r*.45); if(Math.random()<dt*(inTub?4:2.5)) bubbles(evPos(a),1); if(inTub&&Math.random()<dt*.6) splash();
+      if(w.fill>.01&&S2.clean<1){ const r=(inTub?.06:.035)*dt; S2.clean=clamp(S2.clean+r); w.fill=Math.max(0,w.fill-r*.28); if(Math.random()<dt*(inTub?4:2.5)) bubbles(evPos(a),1); if(inTub&&Math.random()<dt*.6) splash();
         if(S2.clean>.97){ ctx.emit('animal:bathed',{animal:a,pos:evPos(a)}); if(inTub){ startState(a,'bathOut',3); a.hopT=0; splash(); } else { a.shakeT=1.4; release(a); startState(a,'idle',1.5); } } else a.stT=Math.max(a.stT,1); }
       else if(inTub&&a.stT<=0){ startState(a,'bathOut',3); a.hopT=0; } }
     if(a.state==='bath') a.stT-=dt;
@@ -278,9 +294,9 @@ export async function init(ctx){
       case 'idle': case 'wait': case 'graze': case 'rest': a.stT-=dt; if(a.stT<=0&&!reacting){ if(a.state==='wait') release(a); chooseNext(a); } break;
       case 'hop': a.stT-=dt; if(a.stT<=0){ a.state='idle'; a.stT=.6; } break;
       case 'eat': { const f=a.slot?.st; a.stT-=dt; if(!f||f.fill<=.005||S2.hunger>=.92||a.stT<=0){ release(a); startState(a,'idle',1+Math.random()*2); if(S2.hunger>.8) a.stats.happy=clamp(S2.happy+.05); break; }
-        f.fill=Math.max(0,f.fill-.02*dt); S2.hunger=clamp(S2.hunger+.045*dt); S2.happy=clamp(S2.happy+.004*dt); break; }
+        f.fill=Math.max(0,f.fill-.011*dt); S2.hunger=clamp(S2.hunger+.045*dt); S2.happy=clamp(S2.happy+.004*dt); break; }
       case 'drink': { const f=a.slot?.st; a.stT-=dt; if(!f||f.fill<=.005||S2.thirst>=.92||a.stT<=0){ release(a); startState(a,'idle',1+Math.random()*2); break; }
-        f.fill=Math.max(0,f.fill-.03*dt); S2.thirst=clamp(S2.thirst+.07*dt); break; }
+        f.fill=Math.max(0,f.fill-.016*dt); S2.thirst=clamp(S2.thirst+.07*dt); break; }
       case 'sleep': if(!night){ a.bed=false; release(a); startState(a,'idle',1+Math.random()*3); a.wake=0; } else if(a.wake>0){ /* petted: stays asleep, smiling */ } break;
     }
     if(night&&!a.bed&&a.state!=='sleep'&&!reacting){ chooseNext(a); }

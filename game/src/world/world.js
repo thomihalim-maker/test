@@ -126,7 +126,7 @@ export async function init(ctx){
 
   return {
     terrain, water, atmosphere: atm, vegetation: veg, blobs, lamps, camera: cam,
-    heightAt, waterY: WATER_Y, pond: POND, pen: PEN,
+    heightAt, waterY: WATER_Y, pond: POND, pen: PEN, villageSpots: decor.spots,
     get night() { return atm.state.night; },
     get sunDir() { return atm.state.sunDir; },
     addBlobShadow: blobs.add, setBlobShadow: blobs.set,

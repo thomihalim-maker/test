@@ -16,6 +16,8 @@ const TX = {
   tipPile:['Tumpukan daun! Tekan Aksi untuk mengangkutnya','A leaf pile! Press Action to bag it'],
   tipOpen:['Datang ke menara untuk adzan','Go to the minaret to call the adzan'],
   tipReady:['Jamaah sudah menunggu. Berdiri di mihrab untuk memimpin salat','The jamaah are waiting. Stand at the mihrab to lead the prayer'],
+  invite:['Ajak warga untuk salat','Invite villagers to pray'], jamaahN:['{n} jamaah','{n} jamaah'], goInvite:['Ayo ajak warga terdekat untuk salat!','Let\'s invite the nearest villager to pray!'],
+  tipInvite:['Warga tinggal di sekitar desa. Datangi mereka lalu tekan Ajak Salat!','Villagers live all around the village. Walk up to them and press Invite to Pray!'],
 };
 export const hhmm = h => { h = ((+h || 0) % 24 + 24) % 24; const H = Math.floor(h), M = Math.round((h - H) * 60); return String(M === 60 ? H + 1 : H).padStart(2,'0') + ':' + String(M === 60 ? 0 : M).padStart(2,'0'); };
 
@@ -49,14 +51,14 @@ export function createCare(U){
     const P = M('prayer'); const cur = P && safe(() => P.current(), null);
     // calm HUD: the chip only appears from the "soon" reminder through the adzan (and, once the player may lead,
     // while the jamaah gather). Idle hours, a prayer in progress or a finished one show nothing.
-    const ph0 = cur?.phase, show = !!cur && on('adzan') && (ph0 === 'soon' || ph0 === 'open' || ph0 === 'adzan' || (on('imam') && (ph0 === 'called' || ph0 === 'ready')));
+    const ph0 = cur?.phase, show = !!cur && on('adzan') && (ph0 === 'soon' || ph0 === 'open' || ph0 === 'adzan' || ph0 === 'called' || ph0 === 'ready');
     if(!show){ prChip.style.display = 'none'; return; }
     prChip.style.display = '';
     const nm = cur.name ? L(cur.name) : cur.id, ph = cur.phase;
     let a, b, cls = '', icon = 'clock';
     if(ph === 'open'){ a = T('adzanNow'); b = nm; cls = 'gold glow'; icon = 'adzan'; }
     else if(ph === 'adzan'){ a = T('adzanOn', { p:nm }); b = ''; cls = 'gold'; icon = 'adzan'; }
-    else if(ph === 'called' || ph === 'ready'){ a = T('gather'); b = (cur.jamaah ? cur.jamaah + ' · ' : '') + nm; cls = ph === 'ready' ? 'teal glow' : 'teal'; icon = 'imam'; }
+    else if(ph === 'called' || ph === 'ready'){ a = T('invite'); b = T('jamaahN', { n:cur.jamaah | 0 }) + ' · ' + nm; cls = ph === 'ready' ? 'teal glow' : 'teal'; icon = 'ajak'; }
     else if(ph === 'leading' || ph === 'npc'){ a = T('praying'); b = nm; cls = 'teal'; icon = 'imam'; }
     else if(ph === 'done'){ a = T('done'); b = nm; icon = 'check'; }
     else { a = nm; b = hhmm(cur.start); if(ph === 'soon') cls = 'glow'; }
@@ -69,7 +71,11 @@ export function createCare(U){
     const P = M('prayer'); const cur = P && safe(() => P.current(), null); if(!cur) return;
     const ph = cur.phase, st = stage();
     if(ph === 'open' || ph === 'soon'){ walkGuide(() => P.guide('adzan')); U.toast(st >= 4 ? T('goMenara') : T('goMic'), 'adzan'); }
-    else if(ph === 'called' || ph === 'ready'){ walkGuide(() => P.guide('imam')); U.toast(T('goMihrab'), 'imam'); }
+    else if(ph === 'called' || ph === 'ready'){
+      // nobody gathered yet (or the imam is not ours yet): walk to the nearest villager still at home; otherwise the mihrab
+      const Vs = M('characters')?.visitors, p = ppos(), v = (!(cur.jamaah > 0) || !on('imam')) && Vs && p ? safe(() => Vs.nearestVillager(p, 80, { uninvited:true }), null) : null;
+      if(v){ walkGuide(() => M('characters')?.walkTo?.({ x:v.person.pos.x, z:v.person.pos.z }, { r:1.6 })); U.toast(T('goInvite'), 'ajak'); }
+      else if(on('imam')){ walkGuide(() => P.guide('imam')); U.toast(T('goMihrab'), 'imam'); } }
     else { const n = cur.phase === 'idle' ? cur : cur.next; if(n) U.toast(T('nextPr', { p:L(n.name), h:hhmm(n.start) }), 'clock'); }
   };
   const stage = () => { const m = M('masjid'); return m && typeof m.stage === 'number' ? m.stage : (S.masjid?.stage | 0); };
@@ -194,6 +200,9 @@ export function createCare(U){
     tip('prayerOpen', stage() >= 4 ? TX.tipOpen : [TX.goMic[0], TX.goMic[1]], 'adzan'); });
   ctx.on('prayer:ready', () => { prKey = ''; renderPrayer(); if(on('imam')){ pulse(prChip); tip('prayerReady', TX.tipReady, 'imam'); } });
   ctx.on('adzan:start', () => { closeTip('prayerOpen'); });
+  ctx.on('adzan:end', () => { tip('invite', TX.tipInvite, 'ajak', () => { const P = M('prayer'); return !!P && (P.phase === 'called' || P.phase === 'ready') && !(safe(() => P.invited(), 0) > 0); }); });
+  ctx.on('visitor:invite', () => { closeTip('invite'); prKey = ''; renderPrayer(); });
+  ctx.on('visitor:arrive', () => { prKey = ''; renderPrayer(); });
   for(const e of ['prayer:lead','prayer:start']) ctx.on(e, () => { closeTip('prayerOpen'); closeTip('prayerReady'); });
   for(const e of ['prayer:lead','prayer:start','prayer:done','prayer:close','adzan:start','adzan:end']) ctx.on(e, () => { prKey = ''; renderPrayer(); });
   ctx.on('prayer:start', () => { if(!capOn) caption(['Salat berjamaah…','Praying together…'], { kind:'prayer', icon:'imam', dur:4 }); });

@@ -27,7 +27,7 @@ const CSS = `
 const ICO={'✋':'hand','🌾':'hay','💧':'water','🧼':'soap','🤍':'heart','🥁':'drum','🥕':'treat','👋':'people','🍎':'treat',
   '🧹':'broom','🪣':'mop','🍂':'leafpile','📢':'adzan','🕌':'imam','🪘':'kentongan'};
 // masjid-care / prayer sprite ids (drawn by the UI) and the emoji shown until the sprite sheet exists
-const SPRITE_FALLBACK={broom:'🧹',mop:'🪣',leafpile:'🍂',adzan:'📢',imam:'🕌',kentongan:'🪘',sparkle:'✨',drum:'🥁',hand:'✋'};
+const SPRITE_FALLBACK={ajak:'🕌',chat:'💬',broom:'🧹',mop:'🪣',leafpile:'🍂',adzan:'📢',imam:'🕌',kentongan:'🪘',sparkle:'✨',drum:'🥁',hand:'✋'};
 // Accepts a legacy emoji key or a sprite id from the UI's icon set (e.g. 'hammer').
 const hasSprite=id=>!!document.getElementById('i-'+id);
 const icoId=e=>{ const m=ICO[e]; if(m) return hasSprite(m)||!SPRITE_FALLBACK[m]?m:null; return typeof e==='string'&&/^[a-z][a-z0-9-]*$/.test(e)&&hasSprite(e)?e:null; };

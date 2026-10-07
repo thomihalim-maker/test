@@ -10,17 +10,18 @@ export const defaultState = ()=>({
   settings:{ mute:false, music:0.6, sfx:1 },
   daily:{ fed:0, treats:0, watered:0, washed:0, washedCow:0, petted:0, happy:0, placed:0, bought:0, visitors:0, donations:0, prayers:0,
           bedug:0, bedugDusk:0, decorPlaced:0, sick:0, healthy:0, coins:0, pahala:0,
-          swept:0, mopped:0, piles:0, adzan:0, imam:0, tanda:0, masjidDecor:0, designed:0, cleanDusk:0, clean:0 }, // today's counters (quests + summary)
+          swept:0, mopped:0, piles:0, adzan:0, imam:0, tanda:0, masjidDecor:0, designed:0, cleanDusk:0, clean:0, invited:0 }, // today's counters (quests + summary)
   pettedToday:[],                           // names petted today (unique-pet quest)
   quests:{ day:0, list:[], claimed:{} },    // today's rolled quests (game/progress)
   event:{ day:0, id:'cerah' },              // today's daily event
   stats:{ fed:0, watered:0, washed:0, petted:0, happy:0, built:0, visitors:0, donations:0, bedug:0, bedugDusk:0, decorPlaced:0, bought:0, eids:0, eid3:0, jumatDone:0, years:0,
-          swept:0, mopped:0, piles:0, adzan:0, imam:0, tanda:0, masjidDecor:0, designed:0, clean100:0, limaWaktu:0 },
+          swept:0, mopped:0, piles:0, adzan:0, imam:0, tanda:0, masjidDecor:0, designed:0, clean100:0, limaWaktu:0, invited:0 },
   streak:0, bestStreak:0, berkahSeen:0, penLevel:0, outfit:'klasik',
   decor:{ owned:{}, placed:[] },            // placed: [{slot, kind}]
   care:{ v:1, spots:[], piles:[], seeded:false }, // dirt: spots [t,x,z,amt,rot] (t 0 leaf|1 dust|2 mud|3 print), piles [x,z,n]
   prayer:{ day:0, log:{} },                 // today's prayer log, bitmask per id: 1 player adzan, 2 player led, 4 NPC led
   tips:{},                                  // one-time UI tips: key -> day shown
+  villagers:{ day:0, chatted:[] },          // villagers (warga) chatted with today: home-spot ids (a tiny pahala once each per day)
   stickers:{},                              // id -> day unlocked
   unlocks:{},                               // gradual features (game/unlocks): id -> day unlocked; _v marks a migrated/new record
   tutDone:false, eidDone:false, tool:'hay', hour:8,
@@ -35,7 +36,7 @@ const r2=v=>Math.round(v*100)/100;
 function sanitize(s){ const d=defaultState();
   s.day=num(s.day,d.day,1); s.daysToEid=num(s.daysToEid,d.daysToEid,0,99); s.coins=num(s.coins,d.coins,0); s.pahala=num(s.pahala,d.pahala,0); s.hour=num(s.hour,8,0,24);
   s.year=num(s.year,1,1,9999); s.streak=num(s.streak,0,0,9999); s.bestStreak=num(s.bestStreak,0,0,9999); s.berkahSeen=num(s.berkahSeen,0,0,99); s.penLevel=num(s.penLevel,0,0,9);
-  for(const k of ['masjid','settings','daily','quests','stats','inventory','event','decor','stickers','care','prayer','tips','unlocks']) if(!obj(s[k])) s[k]=d[k];
+  for(const k of ['masjid','settings','daily','quests','stats','inventory','event','decor','stickers','care','prayer','tips','unlocks','villagers']) if(!obj(s[k])) s[k]=d[k];
   if(!obj(s.masjid.parts)) s.masjid.parts={}; s.masjid.stage=num(s.masjid.stage,0,0,99);
   // masjid design: only well-formed ids survive (unknown-but-well-formed ids fall back to defaults in custom.js / masjid)
   { const c=obj(s.masjid.custom)?s.masjid.custom:{}, out={};
@@ -62,6 +63,8 @@ function sanitize(s){ const d=defaultState();
     C.seeded=!!C.seeded; C.v=1; C.c100=num(C.c100,0,0); }
   { const P=s.prayer, log=obj(P.log)?P.log:{}, out={};
     P.day=num(P.day,0,0); for(const id of PRAYER_IDS) if(Number.isFinite(log[id])) out[id]=Math.round(num(log[id],0,0,7)); P.log=out; P.lima=!!P.lima; }
+  { const W=s.villagers; W.day=num(W.day,0,0); W.chatted=Array.isArray(W.chatted)?W.chatted.filter(x=>typeof x==='string'&&ID.test(x)).slice(0,64):[]; }
+  s.retiredAnimals=Array.isArray(s.retiredAnimals)?s.retiredAnimals.filter(x=>typeof x==='string').slice(-40):[];
   for(const k in s.tips){ if(!ID.test(k)||!Number.isFinite(s.tips[k])||s.tips[k]<1) delete s.tips[k]; }
   if(!TOOLS.includes(s.tool)) s.tool='hay';
   for(const k in s.unlocks){ if(!ID.test(k)||!Number.isFinite(s.unlocks[k])) delete s.unlocks[k]; else s.unlocks[k]=Math.round(num(s.unlocks[k],1,1,99999)); }

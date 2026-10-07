@@ -450,7 +450,7 @@ export async function init(ctx){
   const starsHTML=n=>'<span class="stars">'+[1,2,3].map(i=>`<svg class="ic" style="width:1.15em;height:1.15em;opacity:${i<=n?1:.25}"><use href="#i-star"/></svg>`).join('')+'</span>';
   function showEid(){
     const pr=P(); let R=pr?.celebrateEid?.();
-    if(!R){ const an=[['goat',3],['sheep',2],['cow',1]].flatMap(([k,n])=>Array.from({length:n},()=>({kind:k,name:'',w:KG[k],stars:2,packs:Math.round(KG[k]*.9)}))); const packs=an.reduce((s,a)=>s+a.packs,0); R={animals:an,packs,third:Math.round(packs/3),coins:0,pahala:0}; }
+    if(!R){ const an=[['goat',1],['sheep',2],['cow',1]].flatMap(([k,n])=>Array.from({length:n},()=>({kind:k,name:'',w:KG[k],stars:2,packs:Math.round(KG[k]*.9)}))); const packs=an.reduce((s,a)=>s+a.packs,0); R={animals:an,packs,third:Math.round(packs/3),coins:0,pahala:0}; }
     const nm={goat:t('goats'),sheep:t('sheeps'),cow:t('cows')}, names=R.animals.map(a=>a.name).filter(Boolean);
     const nameStr=names.length>3?names.slice(0,3).join(', ')+' …':names.join(', ')||t('animals');
     const CC=['#ff5d73','#ffc447','#2fd0b5','#6cc4ff','#c08bff','#ffffff','#9be564'];

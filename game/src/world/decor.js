@@ -21,6 +21,7 @@ export function createDecor(ctx, blobs){
     sc.set(sx,sy,sz); m.compose(p,q,sc); list.push({m:m.clone(),c:color});
   }
   const lampSpots=[];
+  const spots=[];   // resolved vignette anchors (villagers sit on the benches, chat at the well...): {kind,x,z,ry,items}
   // ---- building blocks (local coords; +z faces the plaza) ----
   const B={
     bench(x,z,h,ry){ const w=pick(wood), leg=C('#5a3a22'); const P=(...a)=>part(boxes,x,z,h,ry,...a);
@@ -67,6 +68,7 @@ export function createDecor(ctx, blobs){
       if(!ok){ const d=Math.hypot(x,z); x*=(d+0.8)/d; z*=(d+0.8)/d; } }
     if(!ok) continue;
     const ry=Math.atan2(-x,-z), c=Math.cos(ry), s=Math.sin(ry);
+    spots.push({ kind, x, z, ry, items:V[kind].map(([k,lx,lz])=>({ k, x:x+lx*c+lz*s, z:z-lx*s+lz*c })) });
     for(const [k,lx,lz] of V[kind]){ const px=x+lx*c+lz*s, pz=z-lx*s+lz*c; B[k](px,pz,heightAt(px,pz),ry+(k==='crates'||k==='bucket'?(r()-0.5)*0.8:0)); }
   }
   // ---- flagstones along path + road ----
@@ -83,5 +85,5 @@ export function createDecor(ctx, blobs){
   mk(new THREE.BoxGeometry(1,1,1),boxes,mat);
   mk(new THREE.CylinderGeometry(0.5,0.5,1,10),cyls,mat);
   mk(new THREE.IcosahedronGeometry(0.5,1),rocks,mat);
-  return { group, lampSpots };
+  return { group, lampSpots, spots };
 }

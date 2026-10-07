@@ -1,6 +1,7 @@
 // PRAYER TIMES: the five daily prayers mapped onto the in-game clock. The marbot may strike the kentongan/bedug,
-// then calls the adzan at the menara/porch mic (posture + descriptive caption + chime — never a voice), jamaah come,
-// and the marbot leads them as imam with one calm tap. Prayer is never scored, timed or failed: if nobody leads,
+// then calls the adzan at the menara/porch mic (posture + descriptive caption + chime — never a voice). The villagers
+// hear it, but they come to pray when the marbot walks over and invites them (Ajak Salat); the marbot then leads the
+// invited jamaah as imam with one calm tap (or alone, if nobody could come: that is fine too). Prayer is never scored, timed or failed: if nobody leads,
 // Pak Haji (an NPC elder) leads kindly. While a prayer is near/open the clock runs at 25% so nothing feels rushed.
 export const PRAYERS = [
   { id:'subuh',   name:['Subuh','Fajr'],      start:4.75,  end:6.5 },
@@ -15,8 +16,10 @@ const T = {
   adzanLabel: ['Kumandangkan Adzan','Call the Adzan'],
   imamLabel:  ['Pimpin Salat','Lead the Prayer'],
   adzanCap:   ['Marbot mengumandangkan adzan {p}. Mari salat berjamaah.','The marbot calls the adzan for {p}. Come pray together.'],
-  npcCap:     ['Pak Haji memimpin salat. Kamu bisa memimpin di waktu berikutnya.','Pak Haji leads the prayer. You can lead next time.'],
+  npcCap:     ['Pak Haji memimpin salat bersama jamaah yang kamu ajak.','Pak Haji leads the prayer with the jamaah you invited.'],
+  inviteCap:  ['Warga mendengar adzan. Datangi mereka dan ajak salat berjamaah!','The villagers heard the adzan. Go and invite them to pray together!'],
   doneCap:    ['Alhamdulillah, salat berjamaah selesai.','Alhamdulillah, the congregational prayer is complete.'],
+  soloCap:    ['Alhamdulillah, salat selesai. Nanti ajak warga untuk berjamaah, yuk!','Alhamdulillah, the prayer is complete. Next time, invite the villagers to pray together!'],
   khutbahCap: ['Khatib menyampaikan khutbah Jumat.','The preacher gives the Friday sermon.'],
   tandaCap:   ['Tanda waktu salat dibunyikan. Saatnya adzan.','The prayer-time signal sounds. Time for the adzan.'],
   leadCap:    ['Jamaah merapikan saf di belakang imam.','The jamaah straighten their rows behind the imam.'],
@@ -74,6 +77,9 @@ export async function init(ctx){
     return (v.list || []).filter(x => x.mode === 'pray' && (x.state === 'gather' || x.state === 'arrive')).length;
   }
   const setHold = on => safe(() => V()?.setHold?.(!!on));
+  const walking = () => { const n = safe(() => V()?.walking); return typeof n === 'number' ? n : 0; };   // invited, still on their way
+  const invited = () => { const n = safe(() => V()?.invited); return typeof n === 'number' ? n : 0; };
+  const sinceGather = () => { const t = safe(() => V()?.lastGather); return typeof t === 'number' ? ctx.time - t : 99; };
   function waveSize(){
     const st = stageNow(), capMul = safe(() => ctx.modules.care?.attraction?.().capMul, 1) ?? 1;
     const n = Math.round((3 + st * 1.2) * capMul * (cur?.jumat ? 1.5 : 1) * (cur?.tanda ? 1.25 : 1));
@@ -96,7 +102,7 @@ export async function init(ctx){
     marker('adzan', ph === 'open');
     marker('kentongan', (ph === 'open' || ph === 'soon') && !cur?.tanda && st >= 2);
     marker('bedug', (ph === 'open' || ph === 'soon') && !cur?.tanda && st >= 6);
-    marker('imam', on('imam') && (ph === 'ready' || (ph === 'called' && gathered() >= 1)));
+    marker('imam', on('imam') && (ph === 'ready' || ph === 'called'));
   }
   const cutaway = on => safe(() => Mj()?.setCutaway?.('prayer', !!on));
 
@@ -118,7 +124,8 @@ export async function init(ctx){
     ctx.emit('prayer:close', { id, log:logOf(id) });
   }
   function canAdzan(){ return !!cur && cur.phase === 'open'; }
-  function canLead(){ return !!cur && on('imam') && (cur.phase === 'ready' || (cur.phase === 'called' && gathered() >= 1)); }
+  // after the adzan the marbot may always lead: with the jamaah they invited, or alone (never a failure)
+  function canLead(){ return !!cur && on('imam') && (cur.phase === 'ready' || cur.phase === 'called'); }
   function startAdzan(pos, yaw){
     if(!canAdzan()) return false;
     const p = cur.p, nm = nameOf(p), sp = spot('adzan');
@@ -134,9 +141,10 @@ export async function init(ctx){
   function endAdzan(){
     if(!cur || cur.phase !== 'adzan') return;
     const n = waveSize(); const got = callWave(n);
-    cur.wave = got > 0 ? got : n; cur.phase = 'called'; cur.t = 0;
+    cur.wave = got; cur.phase = 'called'; cur.t = 0;
     setHold(true);
-    ctx.emit('adzan:end', { prayerId:cur.p.id, wave:cur.wave });
+    ctx.emit('adzan:end', { prayerId:cur.p.id, wave:cur.wave, heard:got });
+    if(invited() === 0) caption(T.inviteCap, { kind:'info', icon:'ajak', dur:5 });
     syncMarkers();
   }
   function ready(){
@@ -175,7 +183,7 @@ export async function init(ctx){
   }
   function finish(d){
     const p = cur.p, imam = d?.imam || cur.imam || 'npc', count = d?.count ?? gathered();
-    if(imam === 'player'){ setLog(p.id, 2); addPahala(8 + Math.min(10, count|0), 'imam'); caption(T.doneCap, { kind:'prayer', icon:'imam', dur:5 }); }
+    if(imam === 'player'){ setLog(p.id, 2); addPahala(6 + Math.min(12, Math.round((count|0) * 1.5)), 'imam'); caption((count|0) > 0 ? T.doneCap : T.soloCap, { kind:'prayer', icon:'imam', dur:5 }); }
     else setLog(p.id, 4);
     setHold(false); cutaway(false);
     cur.phase = 'done'; cur.t = 0; syncMarkers();
@@ -222,7 +230,11 @@ export async function init(ctx){
     return true;
   }
   // slow the clock only during the adzan and while the player leads (+ a short grace while jamaah line up)
-  const slowPhase = c => !!c && (c.phase === 'adzan' || c.phase === 'leading' || (c.phase === 'ready' && c.t < 20));
+  // (also while the marbot walks round inviting the villagers after the adzan, so the window never feels rushed)
+  const slowPhase = c => !!c && (c.phase === 'adzan' || c.phase === 'leading' || c.phase === 'called' || c.phase === 'ready');
+  // Pak Haji leads when the player cannot lead yet (imam not unlocked) and the invited jamaah have all arrived,
+  // or when the window ends with jamaah still waiting
+  const npcDue = h => gathered() >= 1 && ((!on('imam') && walking() === 0 && sinceGather() > 8) || h >= cur.p.end);
   function update(dt){
     if(first){ first = false;
       const po = Q.get('prayopen'); if(po) debugOpen(po);
@@ -239,10 +251,10 @@ export async function init(ctx){
     const p = cur.p;
     switch(cur.phase){
       case 'soon': if(h >= p.start){ cur.phase = 'open'; cur.t = 0; ctx.emit('prayer:open', { ...info(p), jumat:cur.jumat }); syncMarkers(); } break;
-      case 'open': if(h >= p.end){ if(gathered() >= 2) npcLead(); else close(); } break;
+      case 'open': if(h >= p.end){ if(gathered() >= 1) npcLead(); else close(); } break;
       case 'adzan': if(cur.t >= 7) endAdzan(); break;
-      case 'called': { const g = gathered(); if(g >= Math.min(3, Math.max(1, cur.wave)) || (cur.t > 12 && g >= 1)) ready(); else if(cur.t > 75 && g === 0) close(); break; }
-      case 'ready': if(cur.t > 45) npcLead(); else if(gathered() === 0 && cur.t > 20) close(); break;
+      case 'called': if(npcDue(h)) npcLead(); else if(gathered() >= 1) ready(); else if(h >= p.end) close(); break;
+      case 'ready': if(npcDue(h)) npcLead(); else if(gathered() === 0 && walking() === 0){ cur.phase = 'called'; cur.t = 0; syncMarkers(); } else if(h >= p.end) close(); break;
       case 'leading': case 'npc': if(cur.t > (cur.sim ? 6 : 300)) finish({ imam:cur.imam, count:gathered() }); break;
       case 'done': if(cur.t > 25 || h >= p.end || h < p.start - 1) close(); break;
     }
@@ -261,7 +273,7 @@ export async function init(ctx){
   function current(){
     const h = ctx.hour ?? 8, p = cur?.p || nextAfter(h), nx = nextAfter(Math.max(h, p.start));
     return { id:p.id, name:nameOf(p), phase:cur?.phase || 'idle', start:p.start, end:p.end, log:logOf(p.id), jumat:p.id === 'dzuhur' && isJumat(),
-      jamaah:cur ? gathered() : 0, wave:cur?.wave || 0, next:{ id:nx.id, name:nameOf(nx), start:nx.start }, canAdzan:canAdzan(), canLead:canLead(), tanda:!!cur?.tanda };
+      jamaah:cur ? gathered() : 0, invited:cur ? invited() : 0, walking:cur ? walking() : 0, wave:cur?.wave || 0, next:{ id:nx.id, name:nameOf(nx), start:nx.start }, canAdzan:canAdzan(), canLead:canLead(), tanda:!!cur?.tanda };
   }
   function schedule(){
     const h = ctx.hour ?? 8;
@@ -275,7 +287,8 @@ export async function init(ctx){
     return safe(() => C.walkTo({ x:s.x, z:s.z }, { r:.6 }));
   }
   return {
-    PRAYERS, current, schedule, canAdzan, canLead, guide, debugOpen, spot, gathered,
+    PRAYERS, current, schedule, canAdzan, canLead, guide, debugOpen, spot, gathered, invited,
+    canInvite(){ return !!cur && ['soon','open','adzan','called','ready'].includes(cur.phase); },
     adzan(){ const C = Ch(); const ok = startAdzan(C?.pos, C?.yaw); if(ok) safe(() => C?.play?.('adzan', { dur:7, emit:false, cancel:false })); return ok; },
     endAdzan, lead(){ return startLead(); }, npcLead,
     get phase(){ return cur?.phase || 'idle'; }, get log(){ return { ...S.prayer.log }; },

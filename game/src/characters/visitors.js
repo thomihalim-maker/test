@@ -1,5 +1,8 @@
-// NPC jamaah visitors: arrive from the road (or in a wave after the adzan), gather, pray in rows behind the imam
-// (player or Pak Haji), greet with salam, chat, donate, leave. Prayer timelines (rakaat per prayer) live here.
+// NPC jamaah: villagers (warga) live around the village at their own spots (benches, the well, the pond, the road,
+// watching the animals, strolling, kids playing). They do not walk to the masjid on their own: during a prayer window
+// the marbot invites them (Ajak Salat) and they walk over (wudhu first when the pavilion exists), sit on the porch, pray
+// in rows behind the imam (player or Pak Haji), greet with salam, give a small pooled sedekah and go back to their spot.
+// Outside the windows the marbot can chat with them. Prayer timelines (rakaat per prayer) live here.
 import * as THREE from 'three';
 import { Person } from './rig.js';
 import { ACTS } from './anims.js';
@@ -132,7 +135,7 @@ export function createVisitors(ctx, opts={}){
   const SIT = [ {x:-9.5,z:14},{x:-10.5,z:15.2},{x:-8.6,z:15.4},{x:9.5,z:14},{x:10.5,z:15.2},{x:8.6,z:15.4} ];
   const prayer = { phase:'idle', t:0, hold:q.get('prayer')||null, restT:0, timer:0, speed:1, imam:null, prayerId:null, layout:null,
     imamReady:true, khutbah:false, count:0, tlId:null };
-  let nextId=1, spawnT=3, lastArrive=-99, held=false, imamV=null, joinT=0;
+  let nextId=1, spawnT=0, lastArrive=-99, held=false, imamV=null, joinT=0, booted=false, lastGather=-99;
   const waveQ = [];
   const api = { list:V, prayer, slotsM, slotsF, PRAY, count:()=>V.length, get stageCap(){return cap();},
     get slots(){ return { men:SM, women:SF }; } };
@@ -155,6 +158,7 @@ export function createVisitors(ctx, opts={}){
     return pick(mood==='happy' ? ['heart','star','smile','note','heart','star'] : mood==='meh' ? ['?','smile','note','?','dots'] : ['smile','note','!','?','heart']);
   }
   function spawn(opts={}){
+    if(!opts || !Object.keys(opts).length) return spawnGuest();       // legacy no-arg call (busy days): a guest villager
     if(V.length>=MAXV) return null;
     const spec = opts.spec || randomSpec(opts.kind);
     const p = new Person(spec);
@@ -163,9 +167,17 @@ export function createVisitors(ctx, opts={}){
     p.yaw = Math.PI; p.onStep = footstep;
     p.accX=p.accZ=0;
     const mode = opts.mode || (Math.random()<.2||spec.stoop?'sit':'pray');
-    if(mode==='pray') dressForSalat(spec);
+    if(mode==='pray' && !opts.home) dressForSalat(spec);
     const v = { id:nextId++, person:p, state:'arrive', path:[], vel:new THREE.Vector3(), timer:0, slot:null, mode, emoteT:R(2,5), delay:0, donated:false, waved:-99, faceYaw:Math.PI,
       speedMax:R(2.4,3.0)*spec.speed*(opts.wave?1.25:1), waitT:0, spot:null, entered:{}, zoneT:R(0,.25), role:opts.role||null, wave:!!opts.wave };
+    if(opts.home){                                                     // a villager living at a home spot
+      const h = opts.home; v.home = h; h.v = v; v.guest = !!opts.guest; v.invited = false; v.speedMax = R(1.9,2.4)*spec.speed;
+      v.ph = R(0,6.28); v.wp = 0; v.wpDir = 1; v.pauseT = 0;
+      if(opts.road){ v.state='goHome'; p.yaw = Math.PI; v.path = routeVia(p.pos, homePos(h)) || []; }
+      else { v.state='home'; const hp = homePos(h); p.pos.set(hp.x, 0, hp.z); p.pos.y = ctx.groundHeight(hp.x,hp.z) + (h.seatY||0); p.yaw = h.yaw ?? 0; }
+      V.push(v); ctx.emit('visitor:spawn',{id:v.id,kind:spec.kind,home:h.id,resident:true});
+      return v;
+    }
     const g = opts.wave ? pick(GATHER_WAVE) : pick(GATHER); v.path=[ {x:g.x+R(-1,1),z:g.z+R(-.8,.8)} ]; v.gx=g;
     if(v.mode==='sit'){ const sp = pick(SIT); v.spot = sp; }
     V.push(v); ctx.emit('visitor:arrive',{id:v.id,kind:spec.kind,pos:p.pos.clone(),count:V.length});
@@ -239,7 +251,8 @@ export function createVisitors(ctx, opts={}){
   function abortPrayer(){
     for(const v of V){
       if(v.role){ v.role=null; leave(v); continue; }
-      if(v.state==='toSlot'||v.state==='pray'){ if(v.slot) v.slot.used=null; v.slot=null; v.state='gather'; v.path=[]; v.waitT=0; }
+      if(v.state==='toSlot'||v.state==='pray'){ if(v.slot) v.slot.used=null; v.slot=null; v.state='gather'; v.path=[]; v.waitT=0;
+        if(v.home){ v.dest = waitSeat(v); v.state = 'toMasjid'; v.seated = false; v.path = routeVia(v.person.pos, v.dest) || []; } }
     }
     imamV=null; prayer.phase='idle'; prayer.imam=null; refreshMats();
   }
@@ -288,7 +301,7 @@ export function createVisitors(ctx, opts={}){
     for(const v of [...men, ...women]){
       const arr = isMale(v) ? SM : SF; const sl = arr.find(s=>!s.used);
       if(!sl){ if(v.state==='toSlot'||v.state==='pray'){ v.state='gather'; v.slot=null; } continue; }
-      sl.used=v; v.slot=sl; v.state='toSlot'; v.delay = .25 + sl.row*.1 + R(0,.3); v.path = pathToSlot(v, sl, layout); v.sat=false; dressForSalat(v.person.spec); n++;
+      sl.used=v; v.slot=sl; v.state='toSlot'; v.seated=false; v.delay = .25 + sl.row*.1 + R(0,.3); v.path = pathToSlot(v, sl, layout); v.sat=false; dressForSalat(v.person.spec); n++;
     }
     // the rest of an adzan wave that has not set off yet stays home; jamaah already on their way join the back rows
     if(imam!=='auto') waveQ.length = 0;
@@ -319,7 +332,7 @@ export function createVisitors(ctx, opts={}){
   function finishPrayer(){
     const imam = prayer.imam||'auto', pid = prayer.prayerId;
     const pr = V.filter(v=>(v.state==='pray'||v.state==='toSlot') && !v.role);
-    if(pool.left<=0 || !pr.some(v=>v.wave)) poolOpen();          // an idle-window (auto / Pak Haji) prayer gets its own small pool
+    if(pool.left<=0 || !pr.some(v=>v.wave)) poolOpen(pr.length);   // every prayer gets its own pool, sized by the jamaah
     for(const v of pr){
       v.prayed = true;
       v.state='post'; v.timer=R(7,13); v.postSit=R(2.5,5); v.path=[];
@@ -344,6 +357,7 @@ export function createVisitors(ctx, opts={}){
   }
   function leave(v){
     if(v.state==='leave') return;
+    if(v.home && !v.role){ goHome(v); return; }
     if(v===imamV) imamV=null;
     v.state='leave'; if(v.slot){ v.slot.used=null; v.slot=null; refreshMats(); }
     if(!v.role) donate(v);
@@ -352,14 +366,16 @@ export function createVisitors(ctx, opts={}){
   // Sedekah. A passing visitor gives a small coin gift. Jamaah who came for a prayer (the adzan wave, or anyone who prayed
   // in the rows) share ONE modest pooled sedekah per prayer instead of each paying a full gift: a led prayer at stage 8 gives
   // a few dozen coins, in line with quest rewards (15-40), never hundreds.
-  const pool = { left:0, id:0 };
-  function poolOpen(){ const st = stageNow(), mul = attraction()?.donateMul ?? 1; pool.id++; pool.left = Math.round((8 + st*3.5) * (Number.isFinite(mul)?mul:1)); }
+  // the pool grows gently with the number of jamaah (each of them hands over an equal share of it)
+  const pool = { left:0, id:0, share:0 };
+  function poolOpen(n){ const st = stageNow(), mul = attraction()?.donateMul ?? 1, k = Number.isFinite(mul)?mul:1;
+    n = Math.max(1, n|0); pool.id++; pool.left = Math.round((3 + st*1.5 + n*(2 + st*.35)) * k); pool.share = Math.max(1, Math.ceil(pool.left/n)); }
   function donate(v){
     if(v.donated) return; v.donated=true;
     const st = stageNow(), mul = attraction()?.donateMul ?? 1;
     let amt = Math.max(1, Math.round((2+Math.random()*4)*(1+st*.15)*(Number.isFinite(mul)?mul:1)));
     if(v.wave || v.prayed){
-      amt = Math.min(pool.left, Math.max(1, Math.round(amt*.3)));
+      amt = Math.min(pool.left, pool.share || Math.max(1, Math.round(amt*.3)));
       pool.left -= amt;
       if(amt<=0){ emote(v, moodPick('post')); return; }          // a thankful smile instead of coins once the pool is shared out
     }
@@ -372,29 +388,267 @@ export function createVisitors(ctx, opts={}){
     emote(v,'coin');
   }
   // scheduled arrivals after the adzan: staggered spawns from the road, ignore the stage cap and the night rule
+  // the adzan no longer sends a crowd down the road: every villager hears it, looks up towards the masjid and is ready
+  // to say yes at once when the marbot comes to invite them (o.legacy keeps the old road wave for tests)
   function wave(n, o={}){
-    poolOpen();
-    n = Math.max(0, Math.min(n|0, LOW ? 8 : 14, MAXV - V.length - waveQ.length));
-    let t = R(.15,.5);
-    for(let i=0;i<n;i++){ waveQ.push({ t, mode:o.mode||'pray', prayerId:o.prayerId||null }); t += R(.6,1.5); }
-    return n;
+    if(o.legacy){
+      poolOpen(n);
+      n = Math.max(0, Math.min(n|0, LOW ? 8 : 14, MAXV - V.length - waveQ.length));
+      let t = R(.15,.5);
+      for(let i=0;i<n;i++){ waveQ.push({ t, mode:o.mode||'pray', prayerId:o.prayerId||null }); t += R(.6,1.5); }
+      return n;
+    }
+    let k = 0;
+    for(const v of V) if(v.home && !v.invited && (v.state==='home'||v.state==='goHome'||v.state==='talk')){ v.heard = true; v.listenT = R(.3,2.6); k++; }
+    return k;
   }
   function setHold(b){ held = !!b; return held; }
 
+
+  // =====================================================================================================
+  // ---------- villagers (warga): homes around the village, idle activities, invitation to pray ----------
+  // =====================================================================================================
+  const S = ctx.state || {};
+  const roadX = z=>2.2*Math.sin(z*.07+.5);
+  const POND = { x:-24, z:14, r:6.2 }, WUDHU = { x:-11, z:6.5 };
+  const LS = (a)=>((S.lang ?? S.settings?.lang)==='en' ? a[1] : a[0]);
+  const homes = []; let homesKey = '';
+  const homePos = h=>h.act==='stroll' ? h.path[0] : h.act==='play' ? { x:h.cx+Math.cos(h.a0||0)*h.r, z:h.cz+Math.sin(h.a0||0)*h.r } : h;
+  function pushOut(x, z, pad=.5){
+    for(let k=0;k<8;k++){ let moved=false;
+      for(const c of ctx.colliders){ const r=(c.r||0)+pad, dx=x-c.x, dz=z-c.z, d=Math.hypot(dx,dz); if(d<r){ if(d<1e-3){ x+=r; } else { x=c.x+dx/d*r; z=c.z+dz/d*r; } moved=true; } }
+      if(!moved) break; }
+    return { x, z };
+  }
+  const dry = (x,z)=>{ const h = safe(()=>ctx.groundHeight(x,z), 0); return Number.isFinite(h) && h > -.12 && Math.hypot(x-POND.x, z-POND.z) > POND.r+.6; };
+  const faceTo = (x,z,tx,tz)=>Math.atan2(tx-x, tz-z);
+  // home spots in priority order: the first N are lived in (N grows with the masjid stage)
+  function buildHomes(){
+    const spots = ctx.modules.world?.villageSpots || [];
+    const key = spots.length + ':' + ctx.colliders.length; if(key===homesKey && homes.length) return; homesKey = key;
+    const keepV = new Map(homes.map(h=>[h.id, h.v]));
+    homes.length = 0;
+    const add = (h)=>{
+      if(h.act!=='bench'){ const q = pushOut(h.x, h.z); h.x = q.x; h.z = q.z; }
+      if(!Number.isFinite(h.x) || !Number.isFinite(h.z) || !dry(h.x,h.z) || Math.hypot(h.x,h.z) > 56) return;
+      if(h.act==='stroll'){ h.path = h.path.map(w=>pushOut(w.x,w.z)).filter(w=>dry(w.x,w.z)); if(h.path.length<2) return; h.x = h.path[0].x; h.z = h.path[0].z; }
+      h.v = keepV.get(h.id) || null; if(h.v) h.v.home = h; homes.push(h);
+    };
+    const loc = (sp, lx, lz)=>{ const c=Math.cos(sp.ry), s=Math.sin(sp.ry); return { x:sp.x+lx*c+lz*s, z:sp.z-lx*s+lz*c }; };
+    const rests = spots.filter(s=>s.kind==='rest'||s.kind==='rest2'), well = spots.find(s=>s.kind==='well'), wood = spots.find(s=>s.kind==='wood');
+    const benchOf = sp=>sp?.items?.find(i=>i.k==='bench');
+    const seat = (sp, side, id, kind)=>{ const b = benchOf(sp); if(!b) return; const q = loc({ x:b.x, z:b.z, ry:sp.ry }, side*.48, .16);
+      add({ id, act:'bench', kind, x:q.x, z:q.z, yaw:sp.ry, seatY:.31 }); };
+    const pondAt = (deg, id, kind)=>{ const a = deg*Math.PI/180; const x = POND.x+Math.cos(a)*(POND.r+1.5), z = POND.z+Math.sin(a)*(POND.r+1.5); add({ id, act:'pond', kind, x, z, yaw:faceTo(x,z,POND.x,POND.z) }); };
+    // 1 elder on the first bench
+    if(rests[0]) seat(rests[0], -1, 'bench1a', 'elder');
+    // 2-3 two neighbours chatting by the well
+    if(well){ const a = loc(well, -.75, 2.15), b = loc(well, .85, 2.25);
+      add({ id:'well1', act:'chat', kind:'woman', x:a.x, z:a.z, yaw:faceTo(a.x,a.z,b.x,b.z) });
+      add({ id:'well2', act:'chat', kind:'elderW', x:b.x, z:b.z, yaw:faceTo(b.x,b.z,a.x,a.z) }); }
+    // 4 a boy watching the animals over the pen fence
+    add({ id:'pen1', act:'watch', kind:'boy', x:22.4, z:-1.45, yaw:0 });
+    // 5 a mother resting by the pond
+    pondAt(-30, 'pond1', 'woman');
+    // 6 a man by the village road (gate)
+    { const z = 27, x = roadX(z)+2.7; add({ id:'road1', act:'chat', kind:'man', x, z, yaw:faceTo(x,z,roadX(z),z-3) }); }
+    // 7 a man strolling along the plaza edge
+    { const path = []; for(const d of [150,125,100,75,50,30]){ const a=d*Math.PI/180; path.push({ x:Math.cos(a)*18.2, z:Math.sin(a)*18.2 }); } add({ id:'walk1', act:'stroll', kind:'man', path, x:0, z:0 }); }
+    // 8-9 kids playing tag on the grass
+    { const cx = -7.5, cz = 24; add({ id:'play1', act:'play', kind:'boy', cx, cz, r:1.7, a0:0, x:cx+1.7, z:cz });
+      add({ id:'play2', act:'play', kind:'girl', cx, cz, r:1.7, a0:Math.PI, x:cx-1.7, z:cz }); }
+    // 10 grandmother on the second bench
+    if(rests[1]) seat(rests[1], 1, 'bench2a', 'elderW');
+    // 11 a farmer at the pen fence
+    add({ id:'pen2', act:'watch', kind:'man', x:27.2, z:-1.45, yaw:0 });
+    // 12 the woodpile
+    if(wood){ const q = loc(wood, 0, 1.9); add({ id:'wood1', act:'chat', kind:'man', x:q.x, z:q.z, yaw:faceTo(q.x,q.z,wood.x,wood.z) }); }
+    // 13 a second seat on the first bench
+    if(rests[0]) seat(rests[0], 1, 'bench1b', 'man');
+    // 14 a girl at the pond
+    pondAt(-62, 'pond2', 'girl');
+    // 15 a woman walking up the road
+    { const z = 31, x = roadX(z)-2.7; add({ id:'road2', act:'chat', kind:'woman', x, z, yaw:faceTo(x,z,roadX(z),z-3) }); }
+    // 16 the third bench (not on low quality)
+    if(rests[2]) seat(rests[2], -1, 'bench3a', 'elder');
+    // guest spots (busy days): the road side and the plaza edge
+    { const z = 22, x = roadX(z)+2.9; add({ id:'guest1', act:'chat', kind:'man', x, z, yaw:faceTo(x,z,0,0), guest:true }); }
+    { const z = 22.6, x = roadX(z)-2.9; add({ id:'guest2', act:'chat', kind:'woman', x, z, yaw:faceTo(x,z,0,0), guest:true }); }
+    { const x = 13.5, z = 20; add({ id:'guest3', act:'chat', kind:'elder', x, z, yaw:faceTo(x,z,0,0), guest:true }); }
+  }
+  const isNight = ()=>{ const h = ctx.hour ?? 8; return h>21.6 || h<4.5; };
+  // a handful early, more as the masjid grows (within the crowd LOD budget)
+  function residentCap(){ if(isNight()) return 0; const st = stageNow(); return Math.min(LOW ? 8 : 13, 4 + Math.round(st*1.1)); }
+  function residents(){
+    buildHomes();
+    if(isNight()){ for(const v of V) if(v.home && !v.invited && v.state==='home') leaveVillage(v); booted = true; return; }
+    const capN = residentCap(); let n = 0;
+    for(const v of V) if(v.home && !v.guest) n++;
+    for(const h of homes){ if(n>=capN) break; if(h.guest || h.v) continue;
+      if(!spawn({ home:h, spec:randomSpec(h.kind), mode:'pray', road:booted, x: booted ? roadX(41)+R(-1.5,1.5) : h.x, z: booted ? 41 : h.z })) break; n++;
+      if(booted) break; }                                  // after boot: one at a time, walking in from the road
+    booted = true;
+  }
+  function spawnGuest(){
+    buildHomes(); if(isNight()) return null;
+    const h = homes.find(h=>h.guest && !h.v); if(!h) return null;
+    return spawn({ home:h, spec:randomSpec(h.kind), mode:'pray', road:true, guest:true, x:roadX(41)+R(-1.5,1.5), z:41 });
+  }
+  function leaveVillage(v){ if(v.home){ v.home.v = null; v.home = null; } v.invited = false; v.state = 'leave'; v.path = [...(routeVia(v.person.pos, {x:roadX(30), z:30})||[]), {x:roadX(30)+R(-1,1), z:30}, {x:roadX(44)+R(-1,1), z:44}]; }
+  function goHome(v){
+    if(v.slot){ v.slot.used=null; v.slot=null; refreshMats(); }
+    if(v.prayed && !v.donated) donate(v);
+    v.invited = false; v.prayed = false; v.seated = false; v.heard = false; v.dest = null;
+    const hp = homePos(v.home); v.state = 'goHome'; v.path = routeVia(v.person.pos, hp) || [];
+  }
+  const P = ()=>ctx.modules.prayer;
+  // invitations are for a prayer window (from the 'soon' reminder until the jamaah line up); otherwise a friendly chat
+  function canInvite(){ const ph = safe(()=>P()?.phase, 'idle'); return ph==='soon' || ph==='open' || ph==='adzan' || ph==='called' || ph==='ready'; }
+  const prayerActive = ()=>{ const ph = safe(()=>P()?.phase, 'idle'); return ph!=='idle' && ph!=='done'; };
+  function nearestVillager(pos, r=2.6, o={}){
+    let best=null, bd=r;
+    for(const v of V){ if(!v.home || v.role) continue; if(o.uninvited && v.invited) continue; if(!o.any && v.state!=='home' && v.state!=='goHome') continue;
+      const d = Math.hypot(v.person.pos.x-pos.x, v.person.pos.z-pos.z); if(d<bd){ bd=d; best=v; } }
+    return best;
+  }
+  const playerP = ()=>ctx.modules.characters?.player;
+  function faceWho(v){ const pl = playerP(); if(pl) v.faceYaw = Math.atan2(pl.pos.x-v.person.pos.x, pl.pos.z-v.person.pos.z); }
+  // porch seats (men on the left, women on the right, along the front edge) or the plaza before the masjid exists
+  function waitSeat(v){
+    const st = stageNow(), male = isMale(v), taken = V.filter(o=>o!==v && o.home && o.dest && o.dest.seat).map(o=>o.dest);
+    const cand = [];
+    if(st>=1){ for(let i=0;i<9;i++){ const x = male ? -1.25 - i*.82 : 1.55 + i*.82; if(Math.abs(x)>7.2) break; cand.push({ x, z:7.55 }); }
+      for(let i=0;i<9;i++){ const x = male ? -1.6 - i*.82 : 1.9 + i*.82; if(Math.abs(x)>7.2) break; cand.push({ x, z:6.75 }); } }
+    else for(let i=0;i<10;i++) cand.push({ x:(male?-1:1)*(1.6+(i%5)*.9), z:11.4+Math.floor(i/5)*1.0 });
+    for(const c of cand){ if(taken.some(o=>Math.hypot(o.x-c.x,o.z-c.z)<.6)) continue;
+      if(ctx.colliders.some(k=>Math.hypot(k.x-c.x,k.z-c.z)<(k.r||0)+.25)) continue; return { x:c.x, z:c.z, seat:true }; }
+    return { x:(male?-1:1)*R(2,5), z:st>=1?7.4:12, seat:true };
+  }
+  function setOff(v){
+    // wudhu first when the pavilion is there, then a seat on the porch
+    v.dest = stageNow()>=5 && !v.wudhu ? { x:WUDHU.x+2.95, z:WUDHU.z+R(-1.3,1.3), wudhu:true } : waitSeat(v);
+    v.state = 'toMasjid'; v.path = routeVia(v.person.pos, v.dest) || [];
+  }
+  function invite(v){
+    if(!v || !v.home || v.invited || v.role) return false;
+    if(!canInvite()) return chat(v);
+    v.invited = true; v.wudhu = false; v.state = 'reply'; v.timer = v.heard ? .9 : 1.5; v.path = [];
+    faceWho(v); v.person.play('nod', 1.4); emote(v, v.heard ? 'star' : 'heart');
+    dressForSalat(v.person.spec);
+    ctx.modules.audio?.play?.('chime', { pos:v.person.pos.clone(), vol:.35 });
+    ctx.emit('visitor:invite', { id:v.id, home:v.home.id, kind:v.person.spec.kind, count:api.invited, pos:v.person.pos.clone() });
+    return true;
+  }
+  function chat(v){
+    if(!v || !v.home || v.role) return false;
+    const W = S.villagers || (S.villagers = { day:0, chatted:[] });
+    if(W.day !== S.day){ W.day = S.day; W.chatted = []; }
+    const first = !W.chatted.includes(v.home.id);
+    if(first){ W.chatted.push(v.home.id); const ui = ctx.modules.ui; try{ if(ui?.addPahala) ui.addPahala(1, 'chat'); else { S.pahala = (S.pahala||0)+1; ctx.emit('coins:change', { coins:S.coins, pahala:S.pahala }); } }catch(e){} }
+    v.prevState = v.state==='talk' ? v.prevState : v.state; v.state = 'talk'; v.timer = 2.4; faceWho(v);
+    if(v.home.act!=='bench' && v.home.act!=='pond') v.person.play('wave', 1.4);
+    emote(v, first ? 'heart' : pick(['smile','note','heart']));
+    ctx.emit('visitor:chat', { id:v.id, home:v.home.id, first, pos:v.person.pos.clone() });
+    return true;
+  }
+  // per-frame behaviour of a villager; returns false to let the shared states (gather/toSlot/pray/post/salam...) run
+  function villagerStep(v, dt, t, p){
+    const h = v.home; v._noSnap = false; v._noColl = false;
+    if(v.listenT>0){ v.listenT -= dt; if(v.listenT<=0 && (v.state==='home'||v.state==='goHome')){ emote(v,'dome'); if(h.act!=='bench' && h.act!=='pond') p.play('nod',1.4); v.faceYaw = Math.atan2(-p.pos.x, -p.pos.z); v.lookT = 3; } }
+    switch(v.state){
+      case 'home': {
+        if(h.act==='bench' || h.act==='pond'){
+          const hp = homePos(h); p.pos.x += (hp.x-p.pos.x)*Math.min(1,dt*6); p.pos.z += (hp.z-p.pos.z)*Math.min(1,dt*6);
+          p.pos.y = ctx.groundHeight(p.pos.x,p.pos.z) + (h.seatY||0); v._noSnap = true; v._noColl = true;
+          stand(v, dt, v.lookT>0 ? v.faceYaw : h.yaw); p.pose(h.act==='bench' ? 'chatSit' : 'sit');
+        } else if(h.act==='stroll'){
+          if(v.pauseT>0){ v.pauseT -= dt; stand(v, dt, v.lookT>0 ? v.faceYaw : p.yaw); p.pose('chat'); }
+          else { const w = h.path[v.wp]; const d = moveTo(v, w.x, w.z, dt, .42); p.pose('loco');
+            if(d<.45){ const nx = v.wp + v.wpDir; if(nx<0 || nx>=h.path.length){ v.wpDir = -v.wpDir; v.pauseT = R(3,6); } v.wp = Math.max(0, Math.min(h.path.length-1, v.wp + v.wpDir)); } }
+        } else if(h.act==='play'){
+          v.ph += dt*1.35; const a = (h.a0||0) + v.ph, tx = h.cx + Math.cos(a)*h.r, tz = h.cz + Math.sin(a)*h.r*.8;
+          moveTo(v, tx, tz, dt, .85); p.pose('loco');
+          if(v.emoteT<=0){ emote(v, pick(['note','heart','smile','star'])); v.emoteT = R(4,8); }
+        } else {
+          const hp = homePos(h), dd = Math.hypot(hp.x-p.pos.x, hp.z-p.pos.z);
+          if(dd>.35){ moveTo(v, hp.x, hp.z, dt, .6); p.pose('loco'); }
+          else { stand(v, dt, v.lookT>0 ? v.faceYaw : h.yaw); p.pose(h.act==='watch' && v.id%2 ? 'loco' : 'chat'); v._noColl = true;
+            if(h.act==='watch' && Math.random()<dt*.06) p.play(v.person.spec.kid ? 'cheer' : 'nod', 1.4); }
+        }
+        if(v.lookT>0) v.lookT -= dt;
+        if(h.act!=='play' && v.emoteT<=0){ emote(v, h.act==='watch' ? pick(['heart','smile','!']) : moodPick('idle')); v.emoteT = R(5,11); }
+        return true; }
+      case 'talk': {
+        v.timer -= dt; stand(v, dt, v.faceYaw);
+        if(h.act==='bench' || h.act==='pond'){ v._noSnap = true; v._noColl = true; p.pos.y = ctx.groundHeight(p.pos.x,p.pos.z) + (h.seatY||0); p.pose(h.act==='bench' ? 'chatSit' : 'sit'); }
+        else p.pose('chat');
+        if(v.timer<=0) v.state = v.prevState==='goHome' ? 'goHome' : 'home';
+        return true; }
+      case 'goHome': {
+        const hp = homePos(h); p.pose('loco');
+        const d = followPath(v, hp.x, hp.z, dt, .9), sitR = h.act==='bench' ? 1.2 : .3;
+        if(h.act==='bench' && d<1.4) v._noColl = true;
+        if(d<sitR){ v.state = 'home'; v.donated = false; v.wudhu = false; v.emoteT = R(1,4); }
+        return true; }
+      case 'reply': {
+        v.timer -= dt; stand(v, dt, v.faceYaw);
+        if(h.act==='bench'){ v._noSnap = true; v._noColl = true; p.pose('chatSit'); } else p.pose('chat');
+        if(v.timer<=0){ if(h.act==='bench'){ const q = pushOut(p.pos.x, p.pos.z, .35); p.pos.x = q.x; p.pos.z = q.z; } setOff(v); }
+        return true; }
+      case 'toMasjid': {
+        p.pose('loco'); const d = followPath(v, v.dest.x, v.dest.z, dt, 1.1);
+        if(v.dest.seat){ if(d<.3){ p.pos.x += (v.dest.x-p.pos.x)*.5; p.pos.z += (v.dest.z-p.pos.z)*.5; arriveMasjid(v); } }
+        else if(d<.35){ v.state = 'wudhu'; v.timer = 3.2; v.wudhu = true; }
+        return true; }
+      case 'wudhu': {
+        v.timer -= dt; stand(v, dt, -Math.PI/2); p.pose('loco');
+        if(Math.random()<dt*3) ctx.modules.fx?.burst?.('water', _p.set(p.pos.x-.4, p.pos.y+.7, p.pos.z).clone(), 1);
+        if(v.timer>2.9 && !v._wn){ v._wn = 1; p.play('nod', 2.6); }
+        if(v.timer<=0){ v._wn = 0; v.dest = waitSeat(v); v.state = 'toMasjid'; v.path = routeVia(p.pos, v.dest) || []; }
+        return true; }
+      case 'gather': {
+        // invited jamaah wait seated on the porch, facing the qibla, until the prayer starts (or the window closes)
+        v.waitT += dt;
+        if(v.seated){ const s = v.dest; if(s){ p.pos.x += (s.x-p.pos.x)*Math.min(1,dt*5); p.pos.z += (s.z-p.pos.z)*Math.min(1,dt*5); }
+          stand(v, dt, Math.PI); p.pose('duduk'); v._noColl = true; }
+        else { stand(v, dt, Math.PI); p.pose('chat'); }
+        if(!prayerActive() && v.waitT>12 && !held){ emote(v,'smile'); goHome(v); }
+        return true; }
+    }
+    return false;
+  }
+  function arriveMasjid(v){
+    v.state = 'gather'; v.seated = true; v.waitT = 0; v.path = []; lastGather = ctx.time;
+    emote(v, 'smile');
+    ctx.emit('visitor:arrive', { id:v.id, kind:v.person.spec.kind, pos:v.person.pos.clone(), count:api.gathered, invited:true });
+  }
+  // gold/green check bubbles over invited villagers (one Points draw call)
+  const MK = 24, mkPos = new Float32Array(MK*3);
+  const mkGeo = new THREE.BufferGeometry(); mkGeo.setAttribute('position', new THREE.BufferAttribute(mkPos,3).setUsage(THREE.DynamicDrawUsage));
+  const mkTex = (()=>{ const c=document.createElement('canvas'); c.width=c.height=64; const g=c.getContext('2d');
+    g.fillStyle='#ffd23f'; g.strokeStyle='#7a4a22'; g.lineWidth=4; g.beginPath(); g.arc(32,32,26,0,7); g.fill(); g.stroke();
+    g.strokeStyle='#ffffff'; g.lineWidth=11; g.lineCap='round'; g.lineJoin='round'; g.beginPath(); g.moveTo(19,33); g.lineTo(28,42); g.lineTo(45,23); g.stroke();
+    g.strokeStyle='#2f9e44'; g.lineWidth=6; g.beginPath(); g.moveTo(19,33); g.lineTo(28,42); g.lineTo(45,23); g.stroke();
+    const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; })();
+  const mkPts = new THREE.Points(mkGeo, new THREE.PointsMaterial({ map:mkTex, size:.42, sizeAttenuation:true, transparent:true, depthWrite:false, alphaTest:.05, fog:false }));
+  mkPts.frustumCulled = false; mkPts.renderOrder = 21; mkPts.visible = false; mkPts.name = 'invitedMarks'; scene.add(mkPts);
+  function updateMarks(){
+    let n = 0;
+    for(const v of V){ if(n>=MK) break; if(!v.home || !v.invited || v.state==='pray' || v.state==='toSlot') continue; const p = v.person, hd = p.head;
+      const bob = Math.sin(ctx.time*3 + v.id)*.04;
+      mkPos[n*3] = hd ? hd.x : p.pos.x; mkPos[n*3+1] = (hd ? hd.y : p.pos.y+1.2) + .42*(p.size||1) + bob; mkPos[n*3+2] = hd ? hd.z : p.pos.z; n++; }
+    mkGeo.setDrawRange(0, n); mkPts.visible = n>0; if(n) mkGeo.attributes.position.needsUpdate = true;
+  }
   const _pz = {x:0,z:0};
   function update(dt,t){
     const sp = prayer.speed>0 ? prayer.speed : 1;
     // spawn
     const c = cap();
     spawnT -= dt;
-    if(spawnT<=0){
-      const active = V.filter(v=>v.state!=='leave').length;
-      if(active<c) spawn();
-      const st = stageNow(); spawnT = R(4,9)/(1+st*.2);
-    }
+    if(spawnT<=0){ spawnT = booted ? R(2.5,5) : 0; residents(); }
     for(let i=waveQ.length-1;i>=0;i--){ const w=waveQ[i]; w.t-=dt; if(w.t<=0){ waveQ.splice(i,1); spawn({ mode:w.mode, wave:true }); } }
     // night / over-capacity: send home (never while the jamaah are held for a prayer)
-    if(c===0 && !held) for(const v of V) if(v.state==='gather'||v.state==='sitIdle') leave(v);
+    if(c===0 && !held) for(const v of V) if(!v.home && (v.state==='gather'||v.state==='sitIdle')) leave(v);
     // legacy idle scheduler (only without the game prayer module, which now decides when salat happens)
     if(prayer.phase==='idle'){
       prayer.restT += dt;
@@ -435,7 +689,7 @@ export function createVisitors(ctx, opts={}){
         if(!late) for(const v of V){
           if(v.mode!=='pray' || v.role || v.state!=='gather' || v.slot) continue;
           const sl = (isMale(v) ? SM : SF).find(s=>!s.used); if(!sl) continue;
-          sl.used=v; v.slot=sl; v.state='toSlot'; v.delay = .25 + sl.row*.1 + R(0,.3); v.path = pathToSlot(v, sl, prayer.layout); v.sat=false;
+          sl.used=v; v.slot=sl; v.state='toSlot'; v.seated=false; v.delay = .25 + sl.row*.1 + R(0,.3); v.path = pathToSlot(v, sl, prayer.layout); v.sat=false;
           dressForSalat(v.person.spec); prayer.count++; refreshMats();
         }
       }
@@ -447,7 +701,8 @@ export function createVisitors(ctx, opts={}){
       if(v.state==='pray'||v.state==='post'||v.state==='sitIdle'||v.state==='static'||v.state==='khatib'||v.state==='imam'){ p.accX=p.accZ=0; }
       v.emoteT-=dt;
       let snap = true, coll = true;
-      switch(v.state){
+      if(v.home && villagerStep(v, dt, t, p)){ snap = !v._noSnap; coll = !v._noColl; }
+      else switch(v.state){
         case 'arrive': case 'gather': {
           v.waitT += v.state==='gather'?dt:0;
           if(v.path.length){ const w=v.path[0]; const d=moveTo(v,w.x,w.z,dt); if(d<.35){ v.path.shift(); if(!v.path.length){ v.state = v.mode==='sit'?'toSit':'gather'; v.waitT=0; } } p.pose('loco'); }
@@ -521,10 +776,10 @@ export function createVisitors(ctx, opts={}){
           break; }
       }
       // chat emotes while gathering / sitting
-      if((v.state==='gather'||v.state==='sitIdle')&&v.emoteT<=0){ emote(v,moodPick('idle')); v.emoteT=R(3,7); }
+      if(!v.home && (v.state==='gather'||v.state==='sitIdle')&&v.emoteT<=0){ emote(v,moodPick('idle')); v.emoteT=R(3,7); }
       // greet player
       const pl = ctx.modules.characters?.player;
-      if(pl && (v.state==='arrive'||v.state==='leave'||v.state==='gather'||v.state==='sitIdle') && t-v.waved>25){
+      if(pl && !v.home && (v.state==='arrive'||v.state==='leave'||v.state==='gather'||v.state==='sitIdle') && t-v.waved>25){
         const dx=pl.pos.x-p.pos.x, dz=pl.pos.z-p.pos.z; if(dx*dx+dz*dz<12){ v.waved=t; p.play('wave',1.5); emote(v,'heart'); }
       }
       // footprints: once per visitor per zone (porch / hall)
@@ -533,6 +788,7 @@ export function createVisitors(ctx, opts={}){
       if(snap) groundSnap(p,dt);
       p.step(dt);
     }
+    updateMarks();
   }
   // instant crowd for screenshots
   function crowd(n){
@@ -555,13 +811,18 @@ export function createVisitors(ctx, opts={}){
     kinds.forEach((k,i)=>{ const v=spawn({kind:k,x:(i-2.5)*1.5,z:10}); v.state='static'; v.faceYaw=0; v.person.yaw=0; v.person.pos.y=ctx.groundHeight(v.person.pos.x,10); const pn=q.get('pose'); if(pn) v.person.pose(pn); else v.person.pose(i%2?'chat':'loco'); });
     spawnT=999;
   }
-  Object.assign(api, { lineup, update, spawn, crowd, wave, setHold, startPrayer, abortPrayer, poseAt, FULL_T, timeline });
+  Object.assign(api, { lineup, update, spawn, crowd, wave, setHold, startPrayer, abortPrayer, poseAt, FULL_T, timeline,
+    canInvite, invite, chat, nearestVillager, villagers:()=>V.filter(v=>v.home), homes:()=>homes.slice(), residents, goHome });
   // live getters (Object.assign would copy their values once)
   Object.defineProperties(api, {
     held:{ get(){ return held; }, enumerable:true },
     gathered:{ get(){ let n=0; for(const v of V) if(v.mode==='pray' && !v.role && v.state==='gather') n++; return n; }, enumerable:true },
     npcImam:{ get(){ return imamV ? imamV.person : null; }, enumerable:true },
     waiting:{ get(){ return waveQ.length; }, enumerable:true },
+    invited:{ get(){ let n=0; for(const v of V) if(v.home && v.invited) n++; return n; }, enumerable:true },
+    walking:{ get(){ let n=0; for(const v of V) if(v.home && v.invited && (v.state==='reply'||v.state==='toMasjid'||v.state==='wudhu')) n++; return n; }, enumerable:true },
+    residentCount:{ get(){ let n=0; for(const v of V) if(v.home) n++; return n; }, enumerable:true },
+    lastGather:{ get(){ return lastGather; }, enumerable:true },
   });
   return api;
 }

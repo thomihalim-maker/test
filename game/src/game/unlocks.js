@@ -33,7 +33,7 @@ const BY_ID = Object.fromEntries(FEATURES.map(f => [f.id, f]));
 export const TOOL_NEED = { hay:'pen', water:'pen', soap:'wash', treat:'wash', sapu:'sapu', pel:'pel' };
 // quest id -> feature it needs (quests not listed only need the base loop)
 export const QUEST_NEED = { wash:'wash', washcow:'wash', treat:'wash', buy:'shop', decor:'decor', pray:'adzan', bedug:'adzan',
-  sweep:'sapu', pile:'sapu', clean:'sapu', mop:'pel', adzan:'adzan', tanda:'adzan', imam:'imam', mdecor:'decor', design:'design' };
+  sweep:'sapu', pile:'sapu', clean:'sapu', mop:'pel', adzan:'adzan', ajak:'adzan', tanda:'adzan', imam:'imam', mdecor:'decor', design:'design' };
 // stat (guest requests) -> feature
 export const STAT_NEED = { treats:'wash', decorPlaced:'decor', swept:'sapu' };
 // a feature's "try it" quest, offered on the first day(s) after it arrives
