@@ -905,3 +905,5 @@ body.design-on #topbar .tb-left,body.design-on .eid,body.design-on #setBtn{opaci
 @media (max-height:520px) and (orientation:landscape){ .dopt{flex-basis:calc((100% - 1.65em) / 4)} }
 .dscr .ic{width:1.3em;height:1.3em}
 .dscr.l .ic{transform:rotate(90deg)}.dscr.r .ic{transform:rotate(-90deg)}
+/* Full-screen cards (day summary, level-up, Eid) must take input; '#ui>*' disables it for every direct child. */
+#ui>#summary.on,#ui>#eid.on{pointer-events:auto}

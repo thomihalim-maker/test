@@ -4,6 +4,7 @@
 //   viewFor(cat), setCutaway(key,on), cutaway, setMarker(name,on,{color}), ...
 // Draw-call budget note: baseline BEFORE the masjid-care work = 178 calls at ?nt&stage=8&hour=10&cam=22,12,30,0,4,-3
 // (42 masjid meshes). Style variants are merged into the shared per-material baked meshes, so they add no calls.
+import { createSeeThrough } from './seethrough.js';
 import * as THREE from 'three';
 import { createAnimator } from './anim.js';
 import { makeMaterials, BUILDERS, BEDUG, PL, HALL_Z } from './stages.js';
@@ -47,6 +48,7 @@ export async function init(ctx) {
   let completeSent = !!st.complete, building = 0;
   const group = new THREE.Group(); group.name = 'masjid'; scene.add(group);
   const anim = createAnimator(ctx);
+  const see = createSeeThrough(ctx, group);
   const night = []; // {m, day, night}
   const M = makeMaterials(ctx, night);
   const built = []; // per-stage S objects
@@ -304,6 +306,7 @@ export async function init(ctx) {
     sanitizeCustom,
     update(dt, t) {
       anim.update(dt);
+      see.update(dt);
       site.update(dt, t);
       markers.update(dt, t);
       custom.update(dt);
