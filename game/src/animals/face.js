@@ -186,10 +186,19 @@ export function drawPortrait(m,size=128,mood='normal'){
   // ---- face (shared atlas cells) ----
   const atlas=faceAtlas().image;
   let eye=m.eyes?.open??(baby?FACE.eyeBaby:FACE.eyeOpen);
-  if(mood==='happy') eye=FACE.eyeHappy; else if(mood==='sleep') eye=FACE.eyeSleep; else if(mood==='sick') eye=FACE.eyeLid;
+  if(mood==='happy') eye=FACE.eyeHappy; else if(mood==='sleep'||mood==='sick') eye=FACE.eyeSleep; // sick: soft closed eyes (the lid cell reads grumpy at badge size)
   const mouthIdx=kind==='cow'?FACE.mCow:FACE.mGoat;
   drawFaceCells(g,atlas,eye,mouthIdx,cx,cy,rx,ry,mdy,eyeS);
-  if(mood==='sick'){ g.fillStyle='rgba(120,170,255,.28)'; for(const s of[-1,1]){ g.beginPath(); g.ellipse(cx+s*rx*.48,cy+ry*.05,14,7,0,0,7); g.fill(); } }
+  if(mood==='sick'){ // pale-blue cheeks, a sweat drop and a little plaster: 'unwell, needs care' (gentle, not scary)
+    g.fillStyle='rgba(120,170,255,.30)'; for(const s of[-1,1]){ g.beginPath(); g.ellipse(cx+s*rx*.48,cy+ry*.05,14,7,0,0,7); g.fill(); }
+    const dx=cx+rx*.78, dy=cy-ry*.42; g.beginPath(); g.moveTo(dx,dy-13); g.quadraticCurveTo(dx+9,dy+1,dx,dy+6); g.quadraticCurveTo(dx-9,dy+1,dx,dy-13);
+    g.fillStyle='#bfe6ff'; g.fill(); g.lineWidth=3; g.strokeStyle='#4a7fb0'; g.stroke(); g.fillStyle='#fff'; g.beginPath(); g.arc(dx-2,dy-1,2.2,0,7); g.fill();
+    g.save(); g.translate(cx-rx*.42,cy-ry*.62); g.rotate(-.55);
+    for(const r of[0,Math.PI/2]){ g.save(); g.rotate(r); g.beginPath(); g.roundRect(-17,-6.5,34,13,6); g.fillStyle='#ffe2c2'; g.fill(); g.lineWidth=3; g.strokeStyle=OUT; g.stroke();
+      g.fillStyle='#f3c79c'; for(const k of[-4,0,4]){ g.beginPath(); g.arc(k,0,1.3,0,7); g.fill(); } g.restore(); }
+    g.restore(); }
+  if(mood==='sleep'){ g.save(); g.font='bold 26px sans-serif'; g.lineWidth=5; g.strokeStyle=OUT; g.fillStyle='#e9f2ff';
+    for(const [x,y,s] of [[cx+rx*.72,cy-ry*.78,1],[cx+rx*.98,cy-ry*1.12,.75]]){ g.save(); g.translate(x,y); g.scale(s,s); g.strokeText('z',0,0); g.fillText('z',0,0); g.restore(); } g.restore(); }
   g.restore();
   // gold tag + bell on the collar
   g.fillStyle='#ffd24a'; g.strokeStyle=OUT; g.lineWidth=4; g.beginPath(); g.arc(128,226,12,0,7); g.fill(); g.stroke();
