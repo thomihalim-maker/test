@@ -447,7 +447,7 @@ export function createVisitors(ctx, opts={}){
       add({ id:'well1', act:'chat', kind:'woman', x:a.x, z:a.z, yaw:faceTo(a.x,a.z,b.x,b.z) });
       add({ id:'well2', act:'chat', kind:'elderW', x:b.x, z:b.z, yaw:faceTo(b.x,b.z,a.x,a.z) }); }
     // 4 a boy watching the animals over the pen fence
-    add({ id:'pen1', act:'watch', kind:'boy', x:22.4, z:-1.45, yaw:0 });
+    add({ id:'pen1', act:'watch', kind:'boy', x:16.75, z:3.3, yaw:Math.PI/2 });
     // 5 a mother resting by the pond
     pondAt(-30, 'pond1', 'woman');
     // 6 a man by the village road (gate)
@@ -455,12 +455,12 @@ export function createVisitors(ctx, opts={}){
     // 7 a man strolling along the plaza edge
     { const path = []; for(const d of [150,125,100,75,50,30]){ const a=d*Math.PI/180; path.push({ x:Math.cos(a)*18.2, z:Math.sin(a)*18.2 }); } add({ id:'walk1', act:'stroll', kind:'man', path, x:0, z:0 }); }
     // 8-9 kids playing tag on the grass
-    { const cx = -7.5, cz = 24; add({ id:'play1', act:'play', kind:'boy', cx, cz, r:1.7, a0:0, x:cx+1.7, z:cz });
+    { const cx = -9, cz = 21; add({ id:'play1', act:'play', kind:'boy', cx, cz, r:1.7, a0:0, x:cx+1.7, z:cz });
       add({ id:'play2', act:'play', kind:'girl', cx, cz, r:1.7, a0:Math.PI, x:cx-1.7, z:cz }); }
     // 10 grandmother on the second bench
     if(rests[1]) seat(rests[1], 1, 'bench2a', 'elderW');
     // 11 a farmer at the pen fence
-    add({ id:'pen2', act:'watch', kind:'man', x:27.2, z:-1.45, yaw:0 });
+    add({ id:'pen2', act:'watch', kind:'man', x:16.75, z:9.7, yaw:Math.PI/2 });
     // 12 the woodpile
     if(wood){ const q = loc(wood, 0, 1.9); add({ id:'wood1', act:'chat', kind:'man', x:q.x, z:q.z, yaw:faceTo(q.x,q.z,wood.x,wood.z) }); }
     // 13 a second seat on the first bench
@@ -630,13 +630,13 @@ export function createVisitors(ctx, opts={}){
     g.strokeStyle='#ffffff'; g.lineWidth=11; g.lineCap='round'; g.lineJoin='round'; g.beginPath(); g.moveTo(19,33); g.lineTo(28,42); g.lineTo(45,23); g.stroke();
     g.strokeStyle='#2f9e44'; g.lineWidth=6; g.beginPath(); g.moveTo(19,33); g.lineTo(28,42); g.lineTo(45,23); g.stroke();
     const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; })();
-  const mkPts = new THREE.Points(mkGeo, new THREE.PointsMaterial({ map:mkTex, size:.42, sizeAttenuation:true, transparent:true, depthWrite:false, alphaTest:.05, fog:false }));
+  const mkPts = new THREE.Points(mkGeo, new THREE.PointsMaterial({ map:mkTex, size:.75, sizeAttenuation:true, transparent:true, depthWrite:false, alphaTest:.05, fog:false }));
   mkPts.frustumCulled = false; mkPts.renderOrder = 21; mkPts.visible = false; mkPts.name = 'invitedMarks'; scene.add(mkPts);
   function updateMarks(){
     let n = 0;
     for(const v of V){ if(n>=MK) break; if(!v.home || !v.invited || v.state==='pray' || v.state==='toSlot') continue; const p = v.person, hd = p.head;
       const bob = Math.sin(ctx.time*3 + v.id)*.04;
-      mkPos[n*3] = hd ? hd.x : p.pos.x; mkPos[n*3+1] = (hd ? hd.y : p.pos.y+1.2) + .42*(p.size||1) + bob; mkPos[n*3+2] = hd ? hd.z : p.pos.z; n++; }
+      mkPos[n*3] = hd ? hd.x : p.pos.x; mkPos[n*3+1] = (hd ? hd.y : p.pos.y+1.2) + .5*(p.size||1) + bob; mkPos[n*3+2] = hd ? hd.z : p.pos.z; n++; }
     mkGeo.setDrawRange(0, n); mkPts.visible = n>0; if(n) mkGeo.attributes.position.needsUpdate = true;
   }
   const _pz = {x:0,z:0};
