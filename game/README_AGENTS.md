@@ -21,3 +21,10 @@ Game: cozy stylized 3D sim. You are the *marbot* (mosque caretaker) at a village
 - ctx.modules.fx.burst(kind,pos) kinds: sparkle,hearts,dust,leaf,water,coin,confetti
 - ctx.modules.animals.list (array of {mesh,pos,stats:{hunger,thirst,clean,happy},kind}), ctx.modules.animals.nearest(pos,r)
 - ctx.modules.masjid.stage / .api.place(partId)
+
+## Villagers (warga) & invitations (characters/visitors.js, game/prayer.js)
+- Villagers live at home spots (`visitors.homes()`; benches/well/woodpile from `world.villageSpots`, pond rim, pen fence, road, plaza stroll, kids playing). Count = 4 + 1.1×stage (max 13, 8 on low quality); they walk home along the road at night and come back in the morning. `spawn()` with no args adds a guest villager (busy days).
+- They never walk to the masjid by themselves. During a prayer window (`prayer.canInvite()`: soon/open/adzan/called/ready) the Action button near a villager is "Ajak Salat" (`kind:'invite'`, icon `ajak`) → `visitors.invite(v)`: reply nod, wudhu at stage ≥5, then sits on the porch (men left, women right) in state `gather` with a gold check mark. Outside windows it is "Ngobrol" (`visitors.chat(v)`, +1 pahala once per villager per day, `S.villagers`).
+- The adzan only makes villagers listen (`wave()` returns how many heard; `{legacy:true}` restores the old road wave). After the adzan the player may lead with whoever came, or alone. Pak Haji leads when imam is not unlocked (all invited arrived) or at the end of the window. After the prayer villagers donate an equal share of a pool sized by the jamaah count and walk home.
+- Events: `visitor:invite` {id,home,count}, `visitor:chat` {id,home,first}, `visitor:arrive` {invited:true} when an invited villager reaches the masjid, `visitor:spawn` {resident:true}. Getters: `visitors.invited`, `.walking`, `.gathered`, `.residentCount`.
+- Animals: herd capped at 4 (+1 per pen upgrade); needs decay ~2.5× slower (`animals.DECAY`), sickness needs `SICK_AT`=270 s of continuous neglect and never happens on days 1–2; any care heals at once.
