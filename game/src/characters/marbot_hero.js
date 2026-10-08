@@ -440,6 +440,10 @@ function heroMaterial(U){
       .replace('#include <roughnessmap_fragment>', `float roughnessFactor = roughness;
         roughnessFactor = gSlot==7.0 ? 0.36 : gSlot==1.0 ? 0.55 : gSlot==4.0 ? 0.82 : gSlot==5.0 ? 0.7 : gSlot==6.0 ? 0.45 : 0.9;
         roughnessFactor = mix(roughnessFactor, 0.14, gEye);`)
+      .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+        { // studio-bounce: neutralise the sky-blue hemisphere tint on the figure and lift the shadow side a little (soft vinyl look)
+          vec3 ind = reflectedLight.indirectDiffuse; float l = dot(ind, vec3(0.299,0.587,0.114));
+          reflectedLight.indirectDiffuse = mix(ind, l*vec3(1.06,1.0,0.92), 0.65) * 1.12; }`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         { float fr = 1.0 - saturate(dot(normalize(vNormal), normalize(vViewPosition)));
           totalEmissiveRadiance += pow(fr,3.0) * 0.10 * vec3(1.0,0.9,0.8) * diffuseColor.rgb;                 // soft studio rim
@@ -447,7 +451,7 @@ function heroMaterial(U){
           if(gSlot==4.0) totalEmissiveRadiance += pow(fr,2.2) * vec3(0.11,0.11,0.13);                           // velvet sheen
         }`);
   };
-  m.customProgramCacheKey = ()=>'marbotHeroStd2';
+  m.customProgramCacheKey = ()=>'marbotHeroStd3';
   return m;
 }
 function heroOutline(U, thick=.011, maxPx=2.0, minPx=.7){
