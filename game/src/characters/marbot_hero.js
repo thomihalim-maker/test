@@ -443,7 +443,7 @@ function heroMaterial(U){
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
         { // studio-bounce: neutralise the sky-blue hemisphere tint on the figure and lift the shadow side a little (soft vinyl look)
           vec3 ind = reflectedLight.indirectDiffuse; float l = dot(ind, vec3(0.299,0.587,0.114));
-          reflectedLight.indirectDiffuse = mix(ind, l*vec3(1.06,1.0,0.92), 0.65) * 1.02; }`)
+          reflectedLight.indirectDiffuse = mix(ind, l*vec3(1.06,1.0,0.92), 0.65) * 1.1; }`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         { float fr = 1.0 - saturate(dot(normalize(vNormal), normalize(vViewPosition)));
           totalEmissiveRadiance += pow(fr,3.0) * 0.10 * vec3(1.0,0.9,0.8) * diffuseColor.rgb;                 // soft studio rim
