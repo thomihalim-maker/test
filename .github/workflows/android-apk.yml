@@ -8,6 +8,11 @@ on:
     branches: ['claude/**', main]
     paths: ['game/**', '.github/workflows/android-apk.yml']
   workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Commit or branch to build (empty = this commit)'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -25,6 +30,14 @@ jobs:
         working-directory: game
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      # Android-only overrides live on this branch's workflow commit, so building an older ref still gets them.
+      - uses: actions/checkout@v5
+        with:
+          path: _overrides
+          sparse-checkout: game/android-overrides
 
       - uses: actions/setup-node@v5
         with:
@@ -45,6 +58,15 @@ jobs:
         run: |
           [ -d android ] || npx cap add android
           npx cap sync android
+
+      - name: Landscape + full-screen (immersive) activity
+        run: |
+          M=android/app/src/main/AndroidManifest.xml
+          grep -q 'screenOrientation' $M || sed -i 's#android:name=".MainActivity"#android:name=".MainActivity"\n            android:screenOrientation="sensorLandscape"\n            android:resizeableActivity="false"#' $M
+          F=$(find android/app/src/main/java -name MainActivity.java | head -1)
+          cp ../_overrides/game/android-overrides/MainActivity.java "$F"
+          grep -n 'screenOrientation' $M
+          head -3 "$F"
 
       - name: App icon and splash from the game icon
         continue-on-error: true

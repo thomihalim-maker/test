@@ -35,7 +35,7 @@ const SL = { FIX:0, SKIN:1, KOKO:2, SARONG:3, PECI:4, SHOE:5, TRIM:6, HAIR:7 };
 const MODE = { PLAIN:0, TARTAN:1, EMB:2, FACE:3 };
 
 // reference look (sampled from the reference, de-lit by eye)
-export const HERO_LOOK = { skin:0xf5c8a6, koko:0xf0ebe3, sarong:0x57a33a, peci:0x151518, shoe:0x6b4a38, trim:0xf3eee4, hair:0x221812 };
+export const HERO_LOOK = { skin:0xf2c09c, koko:0xf0ebe3, sarong:0x57a33a, peci:0x151518, shoe:0x6b4a38, trim:0xf3eee4, hair:0x221812 };
 const REF_SARONGS = new Set([0x57a33a, 0x1f7a63, 0x2f7d6c]);    // default/klasik look -> the reference tartan
 
 // face decal rect (bind space) and embroidery rect
@@ -94,7 +94,7 @@ function contactAO(x,y,z,sl,md){
   const ax = Math.abs(x); let a = 1;
   if(sl===SL.HAIR) a *= 1 - .4*sstep(1.1,1.17,y);                                                  // hair under the peci rim
   if(sl===SL.SKIN && md===MODE.FACE){
-    a *= 1 - .3*(1-sstep(.815,.9,y));                                                              // under the chin / jaw
+    a *= 1 - .16*(1-sstep(.82,.87,y));                                                             // under the chin / jaw
     a *= 1 - .14*sstep(1.1,1.15,y)*sstep(0,.1,z);                                                  // forehead under the fringe
     a *= 1 - .1*sstep(.15,.2,ax)*sstep(.9,1.0,y)*(1-sstep(1.0,1.06,y));                            // cheek next to the ear
   }
@@ -161,7 +161,7 @@ function buildGeometry(D=1){
   // ---- head: one continuous deformed ellipsoid (half-w .198, half-h .216, depth .19), cheeks fuller below centre
   const HC = 1.035;
   const headDeform = (x,y,z)=>{ const ch = Math.exp(-(((y+.45)/.5)**2));
-      let X = x*.186*(1+.085*ch), Y = y*.216*(y<-.45 ? 1-.05*((-y-.45)/.55)**1.5 : 1), Z = z*.19*(1+.05*ch);
+      let X = x*.2*(1+.03*ch)*(y<-.45 ? 1+.16*((-y-.45)/.55) : 1), Y = y*.216*(y<-.45 ? 1-.05*((-y-.45)/.55)**1.5 : 1), Z = z*.19*(1+.05*ch);
       if(z<0) Z *= 1.06;                                 // fuller back of the skull
       if(z>0) Z *= 1 - .07*Math.max(0, z)*(1-Math.abs(y)); // slightly flattened face plane (decal reads cleaner)
       return [X, HC+Y, Z]; };
@@ -177,11 +177,11 @@ function buildGeometry(D=1){
   }
   // ---- hair: shell over the skull below/inside the peci + fringe tufts
   { const cols=S(48), rows=S(10), pos=[], idx=[];
-    const lock = (u)=>{ u -= Math.floor(u); const t = u<.36 ? u/.36 : (1-u)/.64; return Math.pow(t*t*(3-2*t), 1.6); };   // skewed lock tip (swept to one side)
+    const lock = (u)=>{ u -= Math.floor(u); const t = u<.4 ? u/.4 : (1-u)/.6; return t*t*(3-2*t); };   // skewed lock tip (swept to one side)
     const line = (a)=>{ const A = Math.abs(a);          // lower hairline (theta from top, x PI) per azimuth; 0 = front
       let th;
-      if(A<1.0) th = .335 + .05*lock((a+1.0)/2.0*4.2 + .15) * (1-sstep(.8,1.0,A));             // soft swept fringe: ~5 scalloped locks
-      else if(A<1.15) th = .335 + (A-1.0)/.15*.18;
+      if(A<1.0) th = .345 + .03*lock((a+1.0)/2.0*4.2 + .15) * (1-sstep(.8,1.0,A));             // soft swept fringe: ~5 scalloped locks
+      else if(A<1.15) th = .345 + (A-1.0)/.15*.17;
       else if(A<1.42) th = .515 + .05*Math.sin((A-1.15)/.27*Math.PI);                            // neat sideburn tab in front of the ear
       else if(A<1.9) th = .5 - Math.sin((A-1.42)/.48*Math.PI)*.04;                                  // clear arc over the ear
       else th = .5 + (A-1.9)/(Math.PI-1.9)*.26;                                                   // nape
@@ -190,7 +190,8 @@ function buildGeometry(D=1){
       for(let i=0;i<=rows;i++){ const th = th1*i/rows, sy = Math.cos(th), sxz = Math.sin(th);
         const A = Math.abs(a), front = 1 - sstep(.6,1.2,A);
         const side = sstep(.7,1.15,A) * (1-sstep(2.2,2.7,A)) * (1-sstep(1.45,1.85,th));          // rounded temple/side mass
-        const bulge = 1.045 + .2*side*Math.sin(Math.min(1, th/1.5)*Math.PI*.5) + (1-front)*(1-side)*.05;                    // volume at the temples, fringe lies on the forehead
+        const tuck = Math.sin(Math.PI*Math.pow(Math.min(1, th/th1), .75));                         // 0 at crown & at the hairline edge -> closed rounded mass
+        const bulge = 1.03 + (.17*side + .05*(1-front)*(1-side) + .02*front)*tuck;                    // volume at the temples, fringe lies on the forehead
         const R = hr(Math.sin(a)*sxz, sy, Math.cos(a)*sxz);
         pos.push(R[0]*(bulge+.012), R[1]+.008, R[2]*(bulge+.008)); } }
     for(let j=0;j<cols;j++) for(let i=0;i<rows;i++){ const A=j*(rows+1)+i, B=A+rows+1; idx.push(A,B,A+1, B,B+1,A+1); }
