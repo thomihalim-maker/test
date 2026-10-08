@@ -281,7 +281,7 @@ function tartanTexture(base){
   const S = 256, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d');
   const img = g.createImageData(S,S), d = img.data;
   let G, B, N, P, Y;
-  if(REF_SARONGS.has(base)){ G=[70,136,50]; B=[44,58,158]; N=[20,28,60]; P=[200,208,186]; Y=[214,200,76]; }
+  if(REF_SARONGS.has(base)){ G=[64,126,48]; B=[42,56,150]; N=[20,28,60]; P=[200,208,186]; Y=[214,200,76]; }
   else { const col = new THREE.Color(base), hsl = {}; col.getHSL(hsl);
     const mk = (h,s,l)=>{ const o = new THREE.Color().setHSL(((h%1)+1)%1, clamp(s,0,1), clamp(l,0,1)); return [o.r*255,o.g*255,o.b*255].map(v=>Math.round(Math.pow(v/255,1/2.2)*255)); };
     G = mk(hsl.h, hsl.s*1.05, Math.max(.3,hsl.l)); B = mk(hsl.h+.28, hsl.s*.9, hsl.l*.75); N = mk(hsl.h+.3, .5, .15); P = [232,232,210]; Y = mk(.14,.7,.62); }
