@@ -139,12 +139,13 @@ function buildGeometry(D=1){
 
   // ---- head: one continuous deformed ellipsoid (half-w .198, half-h .216, depth .19), cheeks fuller below centre
   const HC = 1.035;
-  b.add(sph(1,S(46),S(34)).rotateY(-Math.PI/2), { smooth:true, slot:SL.SKIN, mode:MODE.FACE, bone:'head',
-    deform:(x,y,z)=>{ const ch = Math.exp(-(((y+.45)/.5)**2));
+  const headDeform = (x,y,z)=>{ const ch = Math.exp(-(((y+.45)/.5)**2));
       let X = x*.186*(1+.085*ch), Y = y*.216*(y<-.45 ? 1-.13*((-y-.45)/.55)**1.5 : 1), Z = z*.19*(1+.05*ch);
       if(z<0) Z *= 1.06;                                 // fuller back of the skull
       if(z>0) Z *= 1 - .07*Math.max(0, z)*(1-Math.abs(y)); // slightly flattened face plane (decal reads cleaner)
-      return [X, HC+Y, Z]; } });
+      return [X, HC+Y, Z]; };
+  const hr = (x,y,z)=>{ const r = headDeform(x,y,z); r[1] -= HC; r[1] = HC + r[1]*1.0; return r; };
+  b.add(sph(1,S(46),S(34)).rotateY(-Math.PI/2), { smooth:true, slot:SL.SKIN, mode:MODE.FACE, bone:'head', deform:headDeform });
   // nose bulb
   b.add(sph(1,S(12),S(9)), { smooth:true, scale:[.024,.018,.018], pos:[0,.99,.184], slot:SL.SKIN, mode:MODE.FACE, tone:.97, flex:()=>-1, bone:'head' });
   // ears: flattened round auricles angled forward, C-shaped rim, warmer inner bowl
@@ -155,30 +156,32 @@ function buildGeometry(D=1){
   }
   // ---- hair: shell over the skull below/inside the peci + fringe tufts
   { const cols=S(48), rows=S(10), pos=[], idx=[];
-    const line = (a)=>{ const A = Math.abs(a);          // lower hairline (theta from top) per azimuth; 0 = front
-      if(A<.5) return .3; if(A<1.1) return .3 + (A-.5)/.6*.2; if(A<1.3) return .5 + (A-1.1)/.2*.04;
-      if(A<1.9) return .54 - Math.sin((A-1.3)/.6*Math.PI)*.04; return .54 + (A-1.9)/(Math.PI-1.9)*.24; };
+    const lock = (u)=>{ u -= Math.floor(u); const t = u<.36 ? u/.36 : (1-u)/.64; return Math.pow(t*t*(3-2*t), 1.6); };   // skewed lock tip (swept to one side)
+    const line = (a)=>{ const A = Math.abs(a);          // lower hairline (theta from top, x PI) per azimuth; 0 = front
+      let th;
+      if(A<1.0) th = .315 + .04*lock((a+1.0)/2.0*4.2 + .15) * (1-sstep(.8,1.0,A));             // soft swept fringe: ~5 scalloped locks
+      else if(A<1.15) th = .315 + (A-1.0)/.15*.2;
+      else if(A<1.42) th = .515 + .05*Math.sin((A-1.15)/.27*Math.PI);                            // neat sideburn tab in front of the ear
+      else if(A<1.9) th = .5 - Math.sin((A-1.42)/.48*Math.PI)*.04;                                  // clear arc over the ear
+      else th = .5 + (A-1.9)/(Math.PI-1.9)*.26;                                                   // nape
+      return th; };
     for(let j=0;j<=cols;j++){ const a = -Math.PI + 2*Math.PI*j/cols, th1 = line(a)*Math.PI;
       for(let i=0;i<=rows;i++){ const th = th1*i/rows, sy = Math.cos(th), sxz = Math.sin(th);
-        const bulge = 1.13 - .08*Math.max(0,(th-1.0))/(1.0) ;         // voluminous at the temples (under the peci rim)
-        pos.push(Math.sin(a)*sxz*.198*bulge, HC + sy*.216*1.03, Math.cos(a)*sxz*.19*(a>-1.6&&a<1.6?1.0:1.1)*Math.min(1.1,bulge)); } }
+        const A = Math.abs(a), front = 1 - sstep(.6,1.2,A);
+        const bulge = (1.16 - .1*Math.max(0,(th-1.0))) * (1-front) + 1.04*front;                    // volume at the temples, fringe lies on the forehead
+        const R = hr(Math.sin(a)*sxz, sy, Math.cos(a)*sxz);
+        pos.push(R[0]*(bulge+.012), R[1]+.008, R[2]*(bulge+.008)); } }
     for(let j=0;j<cols;j++) for(let i=0;i<rows;i++){ const A=j*(rows+1)+i, B=A+rows+1; idx.push(A,B,A+1, B,B+1,A+1); }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos,3)); g.setIndex(idx); g.computeVertexNormals();
     // outward check
     const n = g.attributes.normal; const t = Math.floor(cols/2)*(rows+1)+rows; if(n.getZ(t) < 0){ const ix=g.index.array; for(let i=0;i<ix.length;i+=3){ const q=ix[i+1]; ix[i+1]=ix[i+2]; ix[i+2]=q; } g.computeVertexNormals(); }
     b.add(g, { slot:SL.HAIR, bone:'head' });
   }
-  // fringe: short pointed tufts peeking under the front peci rim; sideburn wedges in front of the ears
-  for(const [x,y,len,rz,w] of [[-.1,1.19,.042,.4,.04],[-.035,1.185,.046,.12,.045],[.035,1.185,.044,-.15,.045],[.1,1.19,.042,-.42,.04]]){
-    const z = .19*Math.sqrt(Math.max(0,1-(x/.2)**2-((y-HC)/.22)**2))+.004;
-    b.add(new THREE.ConeGeometry(w,len,S(8),1), { rot:[Math.PI-.42,0,rz], order:'XYZ', scale:[1.2,1,.38], pos:[x,y-len*.3,z], slot:SL.HAIR, bone:'head' });
-  }
-  for(const s of [-1,1]) b.add(new THREE.ConeGeometry(.022,.055,S(8),1), { rot:[Math.PI,0,s*-.12], scale:[1,1,.55], pos:[s*.18,1.015,.07], slot:SL.HAIR, bone:'head' });
   // ---- peci (songkok): tapered flat-top oval, tilted back, closed bottom
   { const pts = [[.0,.004],[.226,.0],[.229,.018],[.205,.205],[.197,.232],[.183,.244],[.12,.249],[.0,.25]].map(p=>new THREE.Vector2(p[0],p[1]));
-    b.add(new THREE.LatheGeometry(pts, S(36)), { smooth:true, scale:[1,1,1.07], rot:[-.2,0,0], pos:[0,1.168,-.024], slot:SL.PECI, bone:'head' }); }
+    b.add(new THREE.LatheGeometry(pts, S(36)), { smooth:true, scale:[1,1,.97], rot:[-.2,0,0], pos:[0,1.168,-.024], slot:SL.PECI, bone:'head' }); }
 
-  b.add(new THREE.TorusGeometry(1,.0075,S(5),S(40)), { rot:[Math.PI/2-.2,0,0], scale:[.229,.245,1], pos:[0,1.172,-.02], slot:SL.PECI, color:0x6a6a74, bone:'head' });
+  b.add(new THREE.TorusGeometry(1,.0075,S(5),S(40)), { rot:[Math.PI/2-.2,0,0], scale:[.229,.222,1], pos:[0,1.172,-.02], slot:SL.PECI, color:0x6a6a74, bone:'head' });
   // ---- neck stub (hidden in the collar)
   b.add(new THREE.CylinderGeometry(.052,.058,.11,S(14),1,true), { pos:[0,.815,-.005], slot:SL.SKIN, tone:.9, w:wNeck });
   // ---- koko torso: boxy superellipse loft, shoulder .745 -> hem .355, slight hem flare; closed shoulder cap
@@ -305,40 +308,44 @@ function faceTexture(){
   const X = (x)=>(x-FACE.x0)/FACE.w*C, Y = (y)=>(FACE.y0+FACE.h-y)/FACE.h*C, PX = C/FACE.w, PY = C/FACE.h;
   const INK = '#2b1a12';
   const cell = (i, f)=>{ g.save(); g.translate((i%cols)*C, ((i/cols)|0)*C); g.beginPath(); g.rect(1,1,C-2,C-2); g.clip(); g.lineCap='round'; g.lineJoin='round'; f(); g.restore(); };
-  const eyes = (f)=>{ for(const s of [-1,1]) f(X(s*.09), Y(EYE_Y), s); };
+  const eyes = (f)=>{ for(const s of [-1,1]) f(X(s*.094), Y(EYE_Y), s); };
   cell(0, ()=>{
     for(const s of [-1,1]){ // blush
-      const cx = X(s*.132), cy = Y(.94), r = .062*PX;
-      const gr = g.createRadialGradient(cx,cy,1,cx,cy,r); gr.addColorStop(0,'rgba(236,104,96,.5)'); gr.addColorStop(.55,'rgba(236,110,100,.26)'); gr.addColorStop(1,'rgba(236,120,110,0)');
+      const cx = X(s*.128), cy = Y(.945), r = .078*PX;
+      const gr = g.createRadialGradient(cx,cy,1,cx,cy,r); gr.addColorStop(0,'rgba(232,112,100,.34)'); gr.addColorStop(.45,'rgba(234,120,108,.2)'); gr.addColorStop(.8,'rgba(236,128,116,.06)'); gr.addColorStop(1,'rgba(236,128,116,0)');
       g.fillStyle = gr; g.save(); g.scale(1,.8); g.beginPath(); g.arc(cx,cy/.8,r,0,Math.PI*2); g.fill(); g.restore();
       // thin arched brow
-      g.strokeStyle = '#3a2418'; g.lineWidth = .0095*PY;
-      g.beginPath(); g.moveTo(X(s*.058),Y(1.118)); g.quadraticCurveTo(X(s*.092),Y(1.15),X(s*.13),Y(1.116)); g.stroke();
+      g.strokeStyle = 'rgba(48,30,22,.92)'; g.lineWidth = .0068*PY;
+      g.beginPath(); g.moveTo(X(s*.06),Y(1.115)); g.quadraticCurveTo(X(s*.094),Y(1.148),X(s*.132),Y(1.117)); g.stroke();
+      g.strokeStyle = 'rgba(48,30,22,.35)'; g.lineWidth = .0105*PY; g.beginPath(); g.moveTo(X(s*.068),Y(1.121)); g.quadraticCurveTo(X(s*.094),Y(1.144),X(s*.118),Y(1.124)); g.stroke();
       // nostril shading under the nose bulb
       g.fillStyle = 'rgba(150,80,60,.45)'; g.beginPath(); g.ellipse(X(s*.009),Y(.976),.004*PX,.003*PY,0,0,Math.PI*2); g.fill();
     }
   });
-  const ovalEye = (cx,cy,s,k=1)=>{ const rx = .0155*PX*k, ry = .0235*PY*k;
-    const gr = g.createLinearGradient(cx,cy-ry,cx,cy+ry); gr.addColorStop(0,'#050505'); gr.addColorStop(1,'#241c18');
+  const ovalEye = (cx,cy,s,k=1)=>{ const rx = .0136*PX*k, ry = .0212*PY*k;
+    g.fillStyle = 'rgba(120,70,50,.18)'; g.beginPath(); g.ellipse(cx,cy+1.5,rx+2.2,ry+2.2,0,0,Math.PI*2); g.fill();     // soft socket shade
+    const gr = g.createRadialGradient(cx-s*rx*.2,cy-ry*.3,1,cx,cy,ry*1.05); gr.addColorStop(0,'#2a221e'); gr.addColorStop(.6,'#0b0908'); gr.addColorStop(1,'#030303');
     g.fillStyle = gr; g.beginPath(); g.ellipse(cx,cy,rx,ry,0,0,Math.PI*2); g.fill();
-    g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(cx+s*rx*.28, cy-ry*.42, rx*.34, ry*.24, 0, 0, Math.PI*2); g.fill();
-    g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.arc(cx-s*rx*.3, cy+ry*.5, rx*.14, 0, Math.PI*2); g.fill(); };
+    g.fillStyle = 'rgba(90,80,90,.55)'; g.beginPath(); g.ellipse(cx, cy+ry*.55, rx*.62, ry*.25, 0, 0, Math.PI*2); g.fill();      // glossy lower reflection
+    g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(cx+s*rx*.32, cy-ry*.4, rx*.3, ry*.2, s*-.4, 0, Math.PI*2); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.7)'; g.beginPath(); g.arc(cx-s*rx*.28, cy+ry*.42, rx*.12, 0, Math.PI*2); g.fill(); };
   cell(1, ()=>eyes((cx,cy,s)=>ovalEye(cx,cy,s)));
   cell(5, ()=>eyes((cx,cy,s)=>ovalEye(cx,cy-2,s,1.25)));
   cell(2, ()=>eyes((cx,cy,s)=>{ g.save(); g.beginPath(); g.rect(cx-30,cy-2,60,60); g.clip(); ovalEye(cx,cy,s); g.restore();
     g.strokeStyle = INK; g.lineWidth = 5; g.beginPath(); g.moveTo(cx-.019*PX,cy-1); g.lineTo(cx+.019*PX,cy-1); g.stroke(); }));
   cell(3, ()=>eyes((cx,cy,s)=>{ g.strokeStyle = INK; g.lineWidth = 6; g.beginPath(); g.arc(cx,cy+.012*PY,.018*PX,Math.PI*1.15,Math.PI*1.85); g.stroke(); }));
   cell(4, ()=>eyes((cx,cy,s)=>{ g.strokeStyle = INK; g.lineWidth = 5.5; g.beginPath(); g.arc(cx,cy-.01*PY,.017*PX,Math.PI*.15,Math.PI*.85); g.stroke(); }));
-  const MY = Y(.926), MX = X(0), mw = .06*PX;
+  const MY = Y(.927), MX = X(0), mw = .058*PX;
   const mouthShape = (top, bot, cornerUp)=>{ g.beginPath(); g.moveTo(MX-mw, MY-cornerUp); g.quadraticCurveTo(MX, MY-top, MX+mw, MY-cornerUp); g.quadraticCurveTo(MX+mw*.6, MY+bot, MX, MY+bot); g.quadraticCurveTo(MX-mw*.6, MY+bot, MX-mw, MY-cornerUp); g.closePath(); };
   cell(6, ()=>{ // toothy grin (reference): wide D-shaped opening, tall white upper-teeth band, a hint of lower teeth
-    mouthShape(-3, 26, 9); g.fillStyle = '#4a1816'; g.fill();
-    g.save(); mouthShape(-3, 26, 9); g.clip();
-    g.fillStyle = '#fbf9f4'; g.beginPath(); g.moveTo(MX-mw, MY-14); g.lineTo(MX+mw, MY-14); g.lineTo(MX+mw, MY+6); g.quadraticCurveTo(MX, MY+15, MX-mw, MY+6); g.fill();
-    g.strokeStyle = 'rgba(190,180,170,.6)'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(MX-mw*.7, MY+6); g.quadraticCurveTo(MX, MY+12, MX+mw*.7, MY+6); g.stroke();
-    g.fillStyle = '#e9e4dc'; g.beginPath(); g.ellipse(MX, MY+24, mw*.5, 5, 0, 0, Math.PI*2); g.fill();
+    mouthShape(-4, 14, 8); g.fillStyle = '#5c2622'; g.fill();
+    g.save(); mouthShape(-4, 14, 8); g.clip();
+    g.fillStyle = '#fbf9f5'; g.beginPath(); g.moveTo(MX-mw, MY-14); g.lineTo(MX+mw, MY-14); g.lineTo(MX+mw, MY+6); g.quadraticCurveTo(MX, MY+14, MX-mw, MY+6); g.fill();
+    g.strokeStyle = 'rgba(200,190,182,.55)'; g.lineWidth = 1; for(const k of [-.5,-.17,.17,.5]){ g.beginPath(); g.moveTo(MX+k*mw, MY-6); g.lineTo(MX+k*mw*1.02, MY+7); g.stroke(); }
     g.restore();
-    g.strokeStyle = 'rgba(140,60,50,.85)'; g.lineWidth = 2; mouthShape(-3, 26, 9); g.stroke(); });
+    g.strokeStyle = 'rgba(150,72,60,.6)'; g.lineWidth = 1.6; mouthShape(-4, 14, 8); g.stroke();
+    g.strokeStyle = 'rgba(150,80,66,.28)'; g.lineWidth = 2.2; for(const k of [-1,1]){ g.beginPath(); g.arc(MX+k*(mw+3), MY-9, 5, k>0?Math.PI*1.2:-.6, k>0?Math.PI*1.75:-.05); g.stroke(); }   // soft dimples
+    g.fillStyle = 'rgba(214,120,104,.25)'; g.beginPath(); g.ellipse(MX, MY+22, mw*.45, 4, 0, 0, Math.PI*2); g.fill(); });   // lower-lip hint
   cell(7, ()=>{ g.strokeStyle = '#7a3428'; g.lineWidth = 5; g.beginPath(); g.moveTo(MX-mw*.85, MY-6); g.quadraticCurveTo(MX, MY+12, MX+mw*.85, MY-6); g.stroke(); });
   cell(8, ()=>{ mouthShape(-4, 22, 4); g.fillStyle = '#5a1f1c'; g.fill(); g.save(); mouthShape(-4,22,4); g.clip();
     g.fillStyle = '#fbf8f2'; g.fillRect(MX-mw, MY-12, mw*2, 9); g.fillStyle = '#e8737f'; g.beginPath(); g.ellipse(MX, MY+18, mw*.5, 8, 0, 0, Math.PI*2); g.fill(); g.restore(); });
