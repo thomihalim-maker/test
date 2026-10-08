@@ -98,11 +98,12 @@ function contactAO(x,y,z,sl,md){
     a *= 1 - .14*sstep(1.1,1.15,y)*sstep(0,.1,z);                                                  // forehead under the fringe
     a *= 1 - .1*sstep(.15,.2,ax)*sstep(.9,1.0,y)*(1-sstep(1.0,1.06,y));                            // cheek next to the ear
   }
-  if(sl===SL.SKIN && y>.74 && y<.86 && ax<.08) a *= .5;                                            // neck in the collar
+  if(sl===SL.SKIN && y>.74 && y<.86 && ax<.08) a *= .68;                                            // neck in the collar
   if(sl===SL.KOKO){
     a *= 1 - .16*sstep(.76,.8,y)*(1-sstep(.08,.11,Math.hypot(x,z)));                              // collar base
     if(Math.hypot(x,z) < .2 && y<SH_Y) a *= 1 - .22*sstep(.6,.69,y)*sstep(.12,.16,ax)*(1-sstep(.69,.73,y));   // armpits
     if(ax > .14 && ax < .23 && y < SH_Y-.02) a *= 1 - .2*(1-sstep(.15,.23,ax));                     // sleeve underside at the root
+    if(y < .356 && Math.hypot(x/1.25,z) < .136) a *= .42;                                           // inside of the hem (bottom cap)
   }
   if(md===MODE.TARTAN) a *= 1 - .32*sstep(.28,.345,y);                                               // sarong in the koko hem shadow
   if(sl===SL.SKIN && y<.12 && ax<.2) a *= 1 - .18*(1-sstep(.03,.08,y));                              // feet on the sole
@@ -214,8 +215,8 @@ function buildGeometry(D=1){
   // hem lip (rolled edge)
   b.add(new THREE.TorusGeometry(1,.007,S(5),S(40)), { rot:[Math.PI/2,0,0], scale:[.182,.144,1], pos:[0,.356,0], slot:SL.KOKO, tone:.94, w:wKoko });
   // stand collar with a front V notch
-  b.add(loft([[.785,.074,.07],[.81,.072,.068],[.836,.068,.064],[.843,.063,.059]], S(30), { a0:.2, a1:Math.PI*2-.2 }), { slot:SL.KOKO, tone:.97, bone:'chest' });
-  b.add(loft([[.785,.064,.06],[.83,.06,.056]], S(30), { a0:.2, a1:Math.PI*2-.2 }), { flipNormals:true, slot:SL.KOKO, tone:.8, flex:()=>-1, bone:'chest' });
+  b.add(loft([[.785,.075,.071],[.815,.074,.07],[.845,.071,.068],[.853,.066,.063]], S(30), { a0:.2, a1:Math.PI*2-.2 }), { slot:SL.KOKO, tone:.97, bone:'chest' });
+  b.add(loft([[.785,.066,.062],[.845,.062,.058]], S(30), { a0:.2, a1:Math.PI*2-.2 }), { flipNormals:true, slot:SL.KOKO, tone:.8, flex:()=>-1, bone:'chest' });
   // dark V notch in the collar front
   // placket plate (raised, outlined) with pointed end + 3 domed buttons
   { const sh = new THREE.Shape(); const w=.0185, top=.79, bot=.6, tip=.585;
@@ -251,8 +252,8 @@ function buildGeometry(D=1){
     // flip-flop sole (rounded rect) + V thong strap
     const sole = new THREE.Shape(); { const w=.06, l0=-.06, l1=.128, r=.05;
       sole.moveTo(-w+r*.4,l0); sole.lineTo(w-r*.4,l0); sole.quadraticCurveTo(w,l0,w,l0+r*.6); sole.lineTo(w,l1-r); sole.quadraticCurveTo(w,l1,0,l1); sole.quadraticCurveTo(-w,l1,-w,l1-r); sole.lineTo(-w,l0+r*.6); sole.quadraticCurveTo(-w,l0,-w+r*.4,l0); }
-    const sg = new THREE.ExtrudeGeometry(sole,{depth:.02,bevelEnabled:true,bevelThickness:.003,bevelSize:.003,bevelSegments:1,curveSegments:4});
-    b.add(sg, { rot:[Math.PI/2,0,0], pos:[s*(HIP_X+.01),.023,0], slot:SL.SHOE, tone:1.05, bone:'foot'+L });
+    const sg = new THREE.ExtrudeGeometry(sole,{depth:.012,bevelEnabled:true,bevelThickness:.003,bevelSize:.003,bevelSegments:1,curveSegments:4});
+    b.add(sg, { rot:[Math.PI/2,0,0], pos:[s*(HIP_X+.01),.017,0], slot:SL.SHOE, tone:1.15, bone:'foot'+L });
     const fx = s*(HIP_X+.01);
     for(const k of [-1,1]){ const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(fx+k*.055,.026,.0), new THREE.Vector3(fx+k*.046,.062,.035), new THREE.Vector3(fx+s*.012*-1+k*.004,.058,.078), new THREE.Vector3(fx-s*.012,.03,.098)]);
       b.add(new THREE.TubeGeometry(curve,S(10),.0085,S(5),false), { slot:SL.SHOE, tone:.55, bone:'foot'+L }); }
@@ -287,7 +288,7 @@ function tartanTexture(base){
   // one sett = 64px: ground, a wide blue band with navy edges, pale + yellow pinstripes
   const sett = new Array(64);
   for(let i=0;i<64;i++){ let col = G;
-    if(i>=6 && i<28) col = B; if(i===5||i===6||i===27||i===28) col = N; if(i===16) col = N;
+    if(i>=4 && i<31) col = B; if(i===3||i===4||i===30||i===31) col = N; if(i===17) col = N;
     if(i===41) col = P; if(i===52||i===53) col = Y; if(i>=45 && i<49) col = [G[0]*.66,G[1]*.7,G[2]*.66]; if(i===34) col = [G[0]*.8,G[1]*.85,G[2]*.75];
     sett[i] = col; }
   for(let y=0;y<S;y++) for(let x=0;x<S;x++){
@@ -335,7 +336,7 @@ function faceTexture(){
   cell(0, ()=>{
     for(const s of [-1,1]){ // blush
       const cx = X(s*.128), cy = Y(.945), r = .078*PX;
-      const gr = g.createRadialGradient(cx,cy,1,cx,cy,r); gr.addColorStop(0,'rgba(232,112,100,.34)'); gr.addColorStop(.45,'rgba(234,120,108,.2)'); gr.addColorStop(.8,'rgba(236,128,116,.06)'); gr.addColorStop(1,'rgba(236,128,116,0)');
+      const gr = g.createRadialGradient(cx,cy,1,cx,cy,r); gr.addColorStop(0,'rgba(230,104,92,.42)'); gr.addColorStop(.45,'rgba(232,114,100,.25)'); gr.addColorStop(.8,'rgba(236,128,116,.06)'); gr.addColorStop(1,'rgba(236,128,116,0)');
       g.fillStyle = gr; g.save(); g.scale(1,.8); g.beginPath(); g.arc(cx,cy/.8,r,0,Math.PI*2); g.fill(); g.restore();
       // thin arched brow
       g.strokeStyle = 'rgba(48,30,22,.92)'; g.lineWidth = .0068*PY;
@@ -447,7 +448,7 @@ function heroMaterial(U){
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         { float fr = 1.0 - saturate(dot(normalize(vNormal), normalize(vViewPosition)));
           totalEmissiveRadiance += pow(fr,3.0) * 0.10 * vec3(1.0,0.9,0.8) * diffuseColor.rgb;                 // soft studio rim
-          if(gSlot==1.0) totalEmissiveRadiance += diffuseColor.rgb * vec3(1.0,0.5,0.38) * (0.07 + 0.08*pow(fr,1.5));   // subsurface-like warm fill
+          if(gSlot==1.0) totalEmissiveRadiance += diffuseColor.rgb * vec3(1.0,0.45,0.32) * (0.09 + 0.1*pow(fr,1.5));   // subsurface-like warm fill
           if(gSlot==4.0) totalEmissiveRadiance += pow(fr,2.2) * vec3(0.11,0.11,0.13);                           // velvet sheen
         }`);
   };
