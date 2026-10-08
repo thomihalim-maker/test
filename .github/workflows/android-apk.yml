@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: apk-${{ github.ref }}
+  group: apk-${{ github.ref }}-${{ inputs.ref || 'push' }}
   cancel-in-progress: true
 
 jobs:
