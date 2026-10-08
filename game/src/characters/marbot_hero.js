@@ -35,7 +35,7 @@ const SL = { FIX:0, SKIN:1, KOKO:2, SARONG:3, PECI:4, SHOE:5, TRIM:6, HAIR:7 };
 const MODE = { PLAIN:0, TARTAN:1, EMB:2, FACE:3 };
 
 // reference look (sampled from the reference, de-lit by eye)
-export const HERO_LOOK = { skin:0xe8b896, koko:0xf1ebe1, sarong:0x57a33a, peci:0x151518, shoe:0x5a3e2e, trim:0xf3eee4, hair:0x2a1d16 };
+export const HERO_LOOK = { skin:0xf5c8a6, koko:0xf0ebe3, sarong:0x57a33a, peci:0x151518, shoe:0x6b4a38, trim:0xf3eee4, hair:0x221812 };
 const REF_SARONGS = new Set([0x57a33a, 0x1f7a63, 0x2f7d6c]);    // default/klasik look -> the reference tartan
 
 // face decal rect (bind space) and embroidery rect
@@ -60,6 +60,7 @@ class HB {
     }
     if(o.deform){ const p = g.attributes.position; for(let i=0;i<p.count;i++){ const r = o.deform(p.getX(i),p.getY(i),p.getZ(i)); p.setXYZ(i,r[0],r[1],r[2]); } }
     if(o.smooth || o.deform || !g.attributes.normal) g.computeVertexNormals();
+    if(o.post) o.post(g);
     if(o.flipNormals){ const n = g.attributes.normal; for(let i=0;i<n.count;i++) n.setXYZ(i,-n.getX(i),-n.getY(i),-n.getZ(i)); const ix = g.index.array; for(let i=0;i<ix.length;i+=3){ const t=ix[i+1]; ix[i+1]=ix[i+2]; ix[i+2]=t; } }
     for(const k of Object.keys(g.attributes)) if(!['position','normal','uv'].includes(k)) g.deleteAttribute(k);
     const n = g.attributes.position.count, pos = g.attributes.position;
@@ -70,7 +71,8 @@ class HB {
     const col = new Float32Array(n*3), smf = new Float32Array(n*3), si = new Uint16Array(n*4), sw = new Float32Array(n*4);
     for(let i=0;i<n;i++){
       const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
-      col[i*3]=_c.r; col[i*3+1]=_c.g; col[i*3+2]=_c.b;
+      const ao = o.noAO ? 1 : contactAO(x,y,z,o.slot||0,o.mode||0);
+      col[i*3]=_c.r*ao; col[i*3+1]=_c.g*ao; col[i*3+2]=_c.b*ao;
       smf[i*3] = o.slot||0; smf[i*3+1] = o.mode||0; smf[i*3+2] = o.flex ? o.flex(x,y,z) : 0;
       let ws = o.w ? o.w(x,y,z) : [[BI[o.bone||'root'],1]];
       ws = ws.filter(a=>a[1]>1e-4).sort((a,b)=>b[1]-a[1]).slice(0,4);
@@ -87,6 +89,25 @@ class HB {
   build(){ if(HB.keepParts) HB.parts = this.list.slice(); const g = mergeGeometries(this.list, false); g.computeBoundingSphere(); return g; }
 }
 
+// authored contact ambient occlusion (bind space): soft darkening where parts meet, like the reference's soft studio AO
+function contactAO(x,y,z,sl,md){
+  const ax = Math.abs(x); let a = 1;
+  if(sl===SL.HAIR) a *= 1 - .4*sstep(1.1,1.17,y);                                                  // hair under the peci rim
+  if(sl===SL.SKIN && md===MODE.FACE){
+    a *= 1 - .3*(1-sstep(.815,.9,y));                                                              // under the chin / jaw
+    a *= 1 - .14*sstep(1.1,1.15,y)*sstep(0,.1,z);                                                  // forehead under the fringe
+    a *= 1 - .1*sstep(.15,.2,ax)*sstep(.9,1.0,y)*(1-sstep(1.0,1.06,y));                            // cheek next to the ear
+  }
+  if(sl===SL.SKIN && y>.74 && y<.86 && ax<.08) a *= .5;                                            // neck in the collar
+  if(sl===SL.KOKO){
+    a *= 1 - .16*sstep(.76,.8,y)*(1-sstep(.08,.11,Math.hypot(x,z)));                              // collar base
+    if(Math.hypot(x,z) < .2 && y<SH_Y) a *= 1 - .22*sstep(.6,.69,y)*sstep(.12,.16,ax)*(1-sstep(.69,.73,y));   // armpits
+    if(ax > .14 && ax < .23 && y < SH_Y-.02) a *= 1 - .2*(1-sstep(.15,.23,ax));                     // sleeve underside at the root
+  }
+  if(md===MODE.TARTAN) a *= 1 - .32*sstep(.28,.345,y);                                               // sarong in the koko hem shadow
+  if(sl===SL.SKIN && y<.12 && ax<.2) a *= 1 - .18*(1-sstep(.03,.08,y));                              // feet on the sole
+  return a;
+}
 // ring loft along +Y. rings: [y, rx, rz, cx=0, cz=0]; superellipse exponent n (2 = ellipse); seam at the back.
 function loft(rings, seg, { n=2, a0=-Math.PI, a1=Math.PI, capTop=false, capBot=false, capDy=.012 }={}){
   const pos = [], idx = [], R = rings.length, cols = seg+1;
@@ -140,7 +161,7 @@ function buildGeometry(D=1){
   // ---- head: one continuous deformed ellipsoid (half-w .198, half-h .216, depth .19), cheeks fuller below centre
   const HC = 1.035;
   const headDeform = (x,y,z)=>{ const ch = Math.exp(-(((y+.45)/.5)**2));
-      let X = x*.186*(1+.085*ch), Y = y*.216*(y<-.45 ? 1-.13*((-y-.45)/.55)**1.5 : 1), Z = z*.19*(1+.05*ch);
+      let X = x*.186*(1+.085*ch), Y = y*.216*(y<-.45 ? 1-.05*((-y-.45)/.55)**1.5 : 1), Z = z*.19*(1+.05*ch);
       if(z<0) Z *= 1.06;                                 // fuller back of the skull
       if(z>0) Z *= 1 - .07*Math.max(0, z)*(1-Math.abs(y)); // slightly flattened face plane (decal reads cleaner)
       return [X, HC+Y, Z]; };
@@ -159,8 +180,8 @@ function buildGeometry(D=1){
     const lock = (u)=>{ u -= Math.floor(u); const t = u<.36 ? u/.36 : (1-u)/.64; return Math.pow(t*t*(3-2*t), 1.6); };   // skewed lock tip (swept to one side)
     const line = (a)=>{ const A = Math.abs(a);          // lower hairline (theta from top, x PI) per azimuth; 0 = front
       let th;
-      if(A<1.0) th = .315 + .04*lock((a+1.0)/2.0*4.2 + .15) * (1-sstep(.8,1.0,A));             // soft swept fringe: ~5 scalloped locks
-      else if(A<1.15) th = .315 + (A-1.0)/.15*.2;
+      if(A<1.0) th = .335 + .05*lock((a+1.0)/2.0*4.2 + .15) * (1-sstep(.8,1.0,A));             // soft swept fringe: ~5 scalloped locks
+      else if(A<1.15) th = .335 + (A-1.0)/.15*.18;
       else if(A<1.42) th = .515 + .05*Math.sin((A-1.15)/.27*Math.PI);                            // neat sideburn tab in front of the ear
       else if(A<1.9) th = .5 - Math.sin((A-1.42)/.48*Math.PI)*.04;                                  // clear arc over the ear
       else th = .5 + (A-1.9)/(Math.PI-1.9)*.26;                                                   // nape
@@ -168,7 +189,8 @@ function buildGeometry(D=1){
     for(let j=0;j<=cols;j++){ const a = -Math.PI + 2*Math.PI*j/cols, th1 = line(a)*Math.PI;
       for(let i=0;i<=rows;i++){ const th = th1*i/rows, sy = Math.cos(th), sxz = Math.sin(th);
         const A = Math.abs(a), front = 1 - sstep(.6,1.2,A);
-        const bulge = (1.16 - .1*Math.max(0,(th-1.0))) * (1-front) + 1.04*front;                    // volume at the temples, fringe lies on the forehead
+        const side = sstep(.7,1.15,A) * (1-sstep(2.2,2.7,A)) * (1-sstep(1.45,1.85,th));          // rounded temple/side mass
+        const bulge = 1.045 + .2*side*Math.sin(Math.min(1, th/1.5)*Math.PI*.5) + (1-front)*(1-side)*.05;                    // volume at the temples, fringe lies on the forehead
         const R = hr(Math.sin(a)*sxz, sy, Math.cos(a)*sxz);
         pos.push(R[0]*(bulge+.012), R[1]+.008, R[2]*(bulge+.008)); } }
     for(let j=0;j<cols;j++) for(let i=0;i<rows;i++){ const A=j*(rows+1)+i, B=A+rows+1; idx.push(A,B,A+1, B,B+1,A+1); }
@@ -181,7 +203,6 @@ function buildGeometry(D=1){
   { const pts = [[.0,.004],[.226,.0],[.229,.018],[.205,.205],[.197,.232],[.183,.244],[.12,.249],[.0,.25]].map(p=>new THREE.Vector2(p[0],p[1]));
     b.add(new THREE.LatheGeometry(pts, S(36)), { smooth:true, scale:[1,1,.97], rot:[-.2,0,0], pos:[0,1.168,-.024], slot:SL.PECI, bone:'head' }); }
 
-  b.add(new THREE.TorusGeometry(1,.0075,S(5),S(40)), { rot:[Math.PI/2-.2,0,0], scale:[.229,.222,1], pos:[0,1.172,-.02], slot:SL.PECI, color:0x6a6a74, bone:'head' });
   // ---- neck stub (hidden in the collar)
   b.add(new THREE.CylinderGeometry(.052,.058,.11,S(14),1,true), { pos:[0,.815,-.005], slot:SL.SKIN, tone:.9, w:wNeck });
   // ---- koko torso: boxy superellipse loft, shoulder .745 -> hem .355, slight hem flare; closed shoulder cap
@@ -192,7 +213,7 @@ function buildGeometry(D=1){
   // hem lip (rolled edge)
   b.add(new THREE.TorusGeometry(1,.007,S(5),S(40)), { rot:[Math.PI/2,0,0], scale:[.182,.144,1], pos:[0,.356,0], slot:SL.KOKO, tone:.94, w:wKoko });
   // stand collar with a front V notch
-  b.add(loft([[.785,.074,.07],[.81,.072,.068],[.83,.068,.064],[.836,.063,.059]], S(30), { a0:.2, a1:Math.PI*2-.2 }), { slot:SL.KOKO, tone:.97, bone:'chest' });
+  b.add(loft([[.785,.074,.07],[.81,.072,.068],[.836,.068,.064],[.843,.063,.059]], S(30), { a0:.2, a1:Math.PI*2-.2 }), { slot:SL.KOKO, tone:.97, bone:'chest' });
   b.add(loft([[.785,.064,.06],[.83,.06,.056]], S(30), { a0:.2, a1:Math.PI*2-.2 }), { flipNormals:true, slot:SL.KOKO, tone:.8, flex:()=>-1, bone:'chest' });
   // dark V notch in the collar front
   // placket plate (raised, outlined) with pointed end + 3 domed buttons
@@ -200,8 +221,9 @@ function buildGeometry(D=1){
     sh.moveTo(-w,top); sh.lineTo(w,top); sh.lineTo(w,bot); sh.lineTo(0,tip); sh.lineTo(-w,bot); sh.closePath();
     const g = new THREE.ExtrudeGeometry(sh,{depth:.006,bevelEnabled:true,bevelThickness:.002,bevelSize:.002,bevelSegments:1,curveSegments:2});
     // bend onto the torso front (z = front surface at that height)
-    b.add(g, { deform:(x,y,z)=>[x, y, z + .1325 - (x*x)*1.6], slot:SL.KOKO, tone:.985, mode:MODE.PLAIN, flex:()=>-1, bone:'chest' }); }
-  for(const y of [.776,.741,.706]) b.add(sph(1,S(9),S(6)), { smooth:true, scale:[.0105,.0105,.006], pos:[0,y,.1425], slot:SL.TRIM, tone:.98, flex:()=>-1, bone:'chest' });
+    b.add(g, { deform:(x,y,z)=>[x, y, z + .1325 - (x*x)*1.6], slot:SL.KOKO, tone:.985, mode:MODE.PLAIN, flex:()=>-1, bone:'chest',
+      post:(g)=>{ const n = g.attributes.normal, p = g.attributes.position; for(let i=0;i<n.count;i++){ _v.set(p.getX(i)*3.2, 0, 1).normalize(); n.setXYZ(i,_v.x,_v.y,_v.z); } } }); }
+  for(const y of [.776,.741,.706]) b.add(sph(1,S(10),S(8)), { smooth:true, scale:[.0105,.0105,.008], pos:[0,y,.14], slot:SL.TRIM, tone:.98, flex:()=>-1, bone:'chest' });
   // ---- sleeves (T-pose bind, along X): root inside the torso, cuff with a slight flare + dark inner opening
   for(const s of [-1,1]){
     const R = [[.135,.064,.06],[.17,.062,.058],[.21,.059,.056],[.26,.056,.053],[.29,.054,.051],[.31,.0545,.0515],[.33,.052,.049],[.36,.051,.048],[.395,.05,.047],[.41,.053,.05],[.416,.051,.048]];
@@ -229,10 +251,10 @@ function buildGeometry(D=1){
     const sole = new THREE.Shape(); { const w=.06, l0=-.06, l1=.128, r=.05;
       sole.moveTo(-w+r*.4,l0); sole.lineTo(w-r*.4,l0); sole.quadraticCurveTo(w,l0,w,l0+r*.6); sole.lineTo(w,l1-r); sole.quadraticCurveTo(w,l1,0,l1); sole.quadraticCurveTo(-w,l1,-w,l1-r); sole.lineTo(-w,l0+r*.6); sole.quadraticCurveTo(-w,l0,-w+r*.4,l0); }
     const sg = new THREE.ExtrudeGeometry(sole,{depth:.02,bevelEnabled:true,bevelThickness:.003,bevelSize:.003,bevelSegments:1,curveSegments:4});
-    b.add(sg, { rot:[Math.PI/2,0,0], pos:[s*(HIP_X+.01),.023,0], slot:SL.SHOE, tone:.82, bone:'foot'+L });
+    b.add(sg, { rot:[Math.PI/2,0,0], pos:[s*(HIP_X+.01),.023,0], slot:SL.SHOE, tone:1.05, bone:'foot'+L });
     const fx = s*(HIP_X+.01);
     for(const k of [-1,1]){ const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(fx+k*.055,.026,.0), new THREE.Vector3(fx+k*.046,.062,.035), new THREE.Vector3(fx+s*.012*-1+k*.004,.058,.078), new THREE.Vector3(fx-s*.012,.03,.098)]);
-      b.add(new THREE.TubeGeometry(curve,S(10),.0085,S(5),false), { slot:SL.SHOE, tone:.62, bone:'foot'+L }); }
+      b.add(new THREE.TubeGeometry(curve,S(10),.0085,S(5),false), { slot:SL.SHOE, tone:.55, bone:'foot'+L }); }
   }
   // ---- sarong: straight tartan tube waist -> mid-shin, skinned to hips/thighs/knees; front overlap fold; inner hem
   const SAR = [[.083,.176,.154],[.11,.175,.153],[.16,.172,.151],[.22,.166,.146],[.28,.164,.144],[.32,.162,.142],[.345,.158,.134],[.38,.148,.124],[.45,.142,.118],[.52,.136,.112]];
@@ -257,7 +279,7 @@ function tartanTexture(base){
   const S = 256, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d');
   const img = g.createImageData(S,S), d = img.data;
   let G, B, N, P, Y;
-  if(REF_SARONGS.has(base)){ G=[88,166,58]; B=[55,70,178]; N=[24,34,74]; P=[232,236,200]; Y=[226,214,92]; }
+  if(REF_SARONGS.has(base)){ G=[70,136,50]; B=[44,58,158]; N=[20,28,60]; P=[200,208,186]; Y=[214,200,76]; }
   else { const col = new THREE.Color(base), hsl = {}; col.getHSL(hsl);
     const mk = (h,s,l)=>{ const o = new THREE.Color().setHSL(((h%1)+1)%1, clamp(s,0,1), clamp(l,0,1)); return [o.r*255,o.g*255,o.b*255].map(v=>Math.round(Math.pow(v/255,1/2.2)*255)); };
     G = mk(hsl.h, hsl.s*1.05, Math.max(.3,hsl.l)); B = mk(hsl.h+.28, hsl.s*.9, hsl.l*.75); N = mk(hsl.h+.3, .5, .15); P = [232,232,210]; Y = mk(.14,.7,.62); }
@@ -265,7 +287,7 @@ function tartanTexture(base){
   const sett = new Array(64);
   for(let i=0;i<64;i++){ let col = G;
     if(i>=6 && i<28) col = B; if(i===5||i===6||i===27||i===28) col = N; if(i===16) col = N;
-    if(i===40||i===41) col = P; if(i===52) col = Y; if(i>=46 && i<49) col = [G[0]*.72,G[1]*.72,G[2]*.72];
+    if(i===41) col = P; if(i===52||i===53) col = Y; if(i>=45 && i<49) col = [G[0]*.66,G[1]*.7,G[2]*.66]; if(i===34) col = [G[0]*.8,G[1]*.85,G[2]*.75];
     sett[i] = col; }
   for(let y=0;y<S;y++) for(let x=0;x<S;x++){
     const a = sett[x&63], b = sett[y&63], tw = ((x+y)&3)<2 ? .58 : .42;          // 2/2 twill
@@ -369,54 +391,62 @@ const SHADOW_BIAS = `#include <shadowmap_vertex>
   }
 #endif`;
 function heroMaterial(U){
-  const m = new THREE.MeshToonMaterial({ color:0xffffff, gradientMap:gradientMap(), vertexColors:true });
+  // soft vinyl/clay look (reference render): smooth PBR shading, per-slot roughness, warm subsurface-style fill on skin,
+  // velvet sheen on the peci, glossy hair + eyes; no cel ramp
+  const m = new THREE.MeshStandardMaterial({ color:0xffffff, vertexColors:true, roughness:.85, metalness:0 });
   m.onBeforeCompile = (sh)=>{
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', `#include <common>
         ${PAL_GLSL}
-        uniform vec2 uFlex; varying vec3 vSM; varying vec2 vBind; varying float vNz; varying vec2 vTUV;`)
+        uniform vec2 uFlex; varying vec3 vSM; varying vec3 vBind; varying float vNz; varying vec2 vTUV;`)
       .replace('#include <color_vertex>', 'vColor = color.rgb * palOf(aSMF.x);')
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         transformed.xz += uFlex * max(aSMF.z, 0.0);
-        vSM = aSMF; vBind = position.xy; vNz = normal.z; vTUV = uv;`)
+        vSM = aSMF; vBind = position; vNz = normal.z; vTUV = uv;`)
       .replace('#include <shadowmap_vertex>', SHADOW_BIAS);
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
         uniform sampler2D uTartan, uEmb, uFace; uniform vec4 uFaceRect, uEmbRect, uCells; uniform vec3 uEmbTint;
-        varying vec3 vSM; varying vec2 vBind; varying float vNz; varying vec2 vTUV;
+        varying vec3 vSM; varying vec3 vBind; varying float vNz; varying vec2 vTUV;
+        float gEye = 0.0, gSlot = 0.0;
         vec4 cellS(float idx, vec2 uv){
           if(uv.x<0.0||uv.y<0.0||uv.x>1.0||uv.y>1.0) return vec4(0.0);
           float col = mod(idx, 4.0), row = floor(idx/4.0);
           return texture2D(uFace, vec2((col+uv.x)/4.0, (row+1.0-uv.y)/3.0));
         }`)
       .replace('#include <color_fragment>', `#include <color_fragment>
+        gSlot = floor(vSM.x + 0.5);
         float md = floor(vSM.y + 0.5);
         if(md > 0.5 && md < 1.5){ diffuseColor.rgb *= texture2D(uTartan, vTUV).rgb; }
         else if(md > 1.5 && md < 2.5){
-          vec2 e = (vBind - uEmbRect.xy) / uEmbRect.zw;
+          vec2 e = (vBind.xy - uEmbRect.xy) / uEmbRect.zw;
           if(e.x>0.0 && e.y>0.0 && e.x<1.0 && e.y<1.0 && vNz>0.25){ float a = texture2D(uEmb, vec2(e.x, 1.0-e.y)).a * smoothstep(0.25,0.45,vNz);
             diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * uEmbTint, a); }
         } else if(md > 2.5){
-          vec2 f = (vBind - uFaceRect.xy) / uFaceRect.zw; float fm = smoothstep(0.05, 0.3, vNz);
+          vec2 f = (vBind.xy - uFaceRect.xy) / uFaceRect.zw; float fm = smoothstep(0.05, 0.3, vNz);
           if(fm > 0.0){
             vec4 c = cellS(0.0, f); diffuseColor.rgb = mix(diffuseColor.rgb, c.rgb, c.a*fm);
             vec2 eu = f; float ev = ${((EYE_Y-FACE.y0)/FACE.h).toFixed(4)}; eu.y = ev + (eu.y-ev)/max(uCells.z, 0.06);
-            c = cellS(uCells.x, eu); diffuseColor.rgb = mix(diffuseColor.rgb, c.rgb, c.a*fm);
-            c = cellS(uCells.y, f); diffuseColor.rgb = mix(diffuseColor.rgb, c.rgb, c.a*fm);
+            c = cellS(uCells.x, eu); diffuseColor.rgb = mix(diffuseColor.rgb, c.rgb, c.a*fm); gEye = c.a*fm;
+            c = cellS(uCells.y, f); diffuseColor.rgb = mix(diffuseColor.rgb, c.rgb, c.a*fm); gEye = max(gEye, c.a*fm*0.6);
           }
-        }`)
+        }
+        if(gSlot > 6.5){ float a = atan(vBind.x, vBind.z);                      // hair: fine strand breakup
+          diffuseColor.rgb *= 0.88 + 0.1*sin(a*70.0 + vBind.y*24.0) + 0.06*sin(a*23.0 - vBind.y*40.0); }
+        else if(gSlot > 1.5 && gSlot < 2.5){                                     // koko: faint cotton weave
+          diffuseColor.rgb *= 0.985 + 0.015*sin(vBind.y*900.0)*sin((vBind.x+vBind.z)*900.0); }`)
+      .replace('#include <roughnessmap_fragment>', `float roughnessFactor = roughness;
+        roughnessFactor = gSlot==7.0 ? 0.36 : gSlot==1.0 ? 0.55 : gSlot==4.0 ? 0.82 : gSlot==5.0 ? 0.7 : gSlot==6.0 ? 0.45 : 0.9;
+        roughnessFactor = mix(roughnessFactor, 0.14, gEye);`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         { float fr = 1.0 - saturate(dot(normalize(vNormal), normalize(vViewPosition)));
-          totalEmissiveRadiance += pow(fr,3.0) * 0.15 * vec3(1.0,0.84,0.66) * diffuseColor.rgb; }`)
-      .replace('#include <opaque_fragment>', `
-        { float sl = floor(vSM.x+0.5); float cloth = (sl==2.0||sl==4.0||sl==6.0||floor(vSM.y+0.5)==1.0) ? 1.0 : 0.0;
-          float lb = dot(diffuseColor.rgb, vec3(.333)) + 1e-3;
-          float shd = 1.0 - clamp(dot(outgoingLight, vec3(.333)) / lb, 0.0, 1.0);
-          outgoingLight = mix(outgoingLight, outgoingLight * vec3(0.9,0.86,1.06), cloth * clamp(shd*1.2,0.0,1.0) * 0.8); }
-        #include <opaque_fragment>`);
+          totalEmissiveRadiance += pow(fr,3.0) * 0.10 * vec3(1.0,0.9,0.8) * diffuseColor.rgb;                 // soft studio rim
+          if(gSlot==1.0) totalEmissiveRadiance += diffuseColor.rgb * vec3(1.0,0.5,0.38) * (0.07 + 0.08*pow(fr,1.5));   // subsurface-like warm fill
+          if(gSlot==4.0) totalEmissiveRadiance += pow(fr,2.2) * vec3(0.11,0.11,0.13);                           // velvet sheen
+        }`);
   };
-  m.customProgramCacheKey = ()=>'marbotHero1';
+  m.customProgramCacheKey = ()=>'marbotHeroStd2';
   return m;
 }
 function heroOutline(U, thick=.011, maxPx=2.0, minPx=.7){
@@ -444,13 +474,13 @@ function heroOutline(U, thick=.011, maxPx=2.0, minPx=.7){
 
 // ------------------------------------------------------------------ public builder
 let _geoCache = null;
-export function buildMarbotHero({ look = {}, outline = true, castShadow = true, D = 1 } = {}){
+export function buildMarbotHero({ look = {}, outline = false, castShadow = true, D = 1 } = {}){
   const geo = (D===1 && _geoCache) ? _geoCache : buildGeometry(D); if(D===1) _geoCache = geo;
   const U = {
     uPal:{ value: Array.from({length:8},()=>new THREE.Color(1,1,1)) }, uFlex:{ value:new THREE.Vector2() },
     uTartan:{ value:null }, uEmb:{ value:embroideryTexture() }, uFace:{ value:faceTexture() },
     uFaceRect:{ value:new THREE.Vector4(FACE.x0, FACE.y0, FACE.w, FACE.h) }, uEmbRect:{ value:new THREE.Vector4(EMB.x0, EMB.y0, EMB.w, EMB.h) },
-    uEmbTint:{ value:new THREE.Vector3(.84,.81,.75) }, uCells:{ value:new THREE.Vector4(FCELL.eyeOpen, FCELL.mGrin, 1, 0) },
+    uEmbTint:{ value:new THREE.Vector3(.76,.72,.65) }, uCells:{ value:new THREE.Vector4(FCELL.eyeOpen, FCELL.mGrin, 1, 0) },
   };
   const group = new THREE.Group(); group.name = 'marbotHero';
   // bones (bind pose = T-pose of the reference)
