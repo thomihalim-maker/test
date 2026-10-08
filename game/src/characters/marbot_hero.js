@@ -35,7 +35,7 @@ const SL = { FIX:0, SKIN:1, KOKO:2, SARONG:3, PECI:4, SHOE:5, TRIM:6, HAIR:7 };
 const MODE = { PLAIN:0, TARTAN:1, EMB:2, FACE:3 };
 
 // reference look (sampled from the reference, de-lit by eye)
-export const HERO_LOOK = { skin:0xf2c09c, koko:0xf0ebe3, sarong:0x57a33a, peci:0x151518, shoe:0x6b4a38, trim:0xf3eee4, hair:0x221812 };
+export const HERO_LOOK = { skin:0xeeb28c, koko:0xf0ebe3, sarong:0x57a33a, peci:0x151518, shoe:0x6b4a38, trim:0xf3eee4, hair:0x221812 };
 const REF_SARONGS = new Set([0x57a33a, 0x1f7a63, 0x2f7d6c]);    // default/klasik look -> the reference tartan
 
 // face decal rect (bind space) and embroidery rect
@@ -103,7 +103,6 @@ function contactAO(x,y,z,sl,md){
     a *= 1 - .16*sstep(.76,.8,y)*(1-sstep(.08,.11,Math.hypot(x,z)));                              // collar base
     if(Math.hypot(x,z) < .2 && y<SH_Y) a *= 1 - .22*sstep(.6,.69,y)*sstep(.12,.16,ax)*(1-sstep(.69,.73,y));   // armpits
     if(ax > .14 && ax < .23 && y < SH_Y-.02) a *= 1 - .2*(1-sstep(.15,.23,ax));                     // sleeve underside at the root
-    if(y < .356 && Math.hypot(x/1.25,z) < .136) a *= .42;                                           // inside of the hem (bottom cap)
   }
   if(md===MODE.TARTAN) a *= 1 - .32*sstep(.28,.345,y);                                               // sarong in the koko hem shadow
   if(sl===SL.SKIN && y<.12 && ax<.2) a *= 1 - .18*(1-sstep(.03,.08,y));                              // feet on the sole
@@ -209,11 +208,11 @@ function buildGeometry(D=1){
   b.add(new THREE.CylinderGeometry(.052,.058,.11,S(14),1,true), { pos:[0,.815,-.005], slot:SL.SKIN, tone:.9, w:wNeck });
   // ---- koko torso: boxy superellipse loft, shoulder .745 -> hem .355, slight hem flare; closed shoulder cap
   const TOR = [[.352,.1835,.1452],[.37,.1822,.1438],[.42,.1762,.1395],[.47,.171,.136],[.52,.167,.134],[.62,.163,.132],[.7,.163,.131],[.745,.16,.127],[.775,.146,.112],[.794,.105,.084],[.802,.07,.066]];
-  b.add(loft(TOR, S(44), { n:2.4, capTop:true, capBot:true }), { slot:SL.KOKO, mode:MODE.EMB, w:wKoko,
-    deform:(x,y,z)=>{ const a = Math.atan2(x,z), k = Math.max(0, 1-(y-.352)/.3), fold = .0045*k*Math.sin(a*7+.6) + .002*Math.sin(a*13);   // soft hem folds
+  b.add(loft(TOR, S(44), { n:2.1, capTop:true }), { slot:SL.KOKO, mode:MODE.EMB, w:wKoko,
+    deform:(x,y,z)=>{ const a = Math.atan2(x,z), k = Math.max(0, 1-(y-.352)/.3)*sstep(.354,.372,y), fold = .0045*k*Math.sin(a*7+.6) + .002*Math.sin(a*13);   // soft hem folds
       const r = Math.hypot(x,z)||1; return [x*(1+fold/r), y, z*(1+fold/r)]; } });
-  // hem lip (rolled edge)
-  b.add(new THREE.TorusGeometry(1,.007,S(5),S(40)), { rot:[Math.PI/2,0,0], scale:[.182,.144,1], pos:[0,.356,0], slot:SL.KOKO, tone:.94, w:wKoko });
+  // inside of the hem: a dark closing disc (the hem itself stays a clean edge)
+  b.add(new THREE.CircleGeometry(1,S(40)), { rot:[Math.PI/2,0,0], scale:[.18,.143,1], pos:[0,.356,0], slot:SL.KOKO, tone:.35, noAO:true, flex:()=>-1, w:wKoko });
   // stand collar with a front V notch
   b.add(loft([[.785,.075,.071],[.815,.074,.07],[.845,.071,.068],[.853,.066,.063]], S(30), { a0:.2, a1:Math.PI*2-.2 }), { slot:SL.KOKO, tone:.97, bone:'chest' });
   b.add(loft([[.785,.066,.062],[.845,.062,.058]], S(30), { a0:.2, a1:Math.PI*2-.2 }), { flipNormals:true, slot:SL.KOKO, tone:.8, flex:()=>-1, bone:'chest' });
@@ -288,7 +287,7 @@ function tartanTexture(base){
   // one sett = 64px: ground, a wide blue band with navy edges, pale + yellow pinstripes
   const sett = new Array(64);
   for(let i=0;i<64;i++){ let col = G;
-    if(i>=4 && i<31) col = B; if(i===3||i===4||i===30||i===31) col = N; if(i===17) col = N;
+    if(i>=5 && i<29) col = B; if(i===4||i===5||i===28||i===29) col = N; if(i===17) col = N;
     if(i===41) col = P; if(i===52||i===53) col = Y; if(i>=45 && i<49) col = [G[0]*.66,G[1]*.7,G[2]*.66]; if(i===34) col = [G[0]*.8,G[1]*.85,G[2]*.75];
     sett[i] = col; }
   for(let y=0;y<S;y++) for(let x=0;x<S;x++){
@@ -444,7 +443,7 @@ function heroMaterial(U){
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
         { // studio-bounce: neutralise the sky-blue hemisphere tint on the figure and lift the shadow side a little (soft vinyl look)
           vec3 ind = reflectedLight.indirectDiffuse; float l = dot(ind, vec3(0.299,0.587,0.114));
-          reflectedLight.indirectDiffuse = mix(ind, l*vec3(1.06,1.0,0.92), 0.65) * 1.12; }`)
+          reflectedLight.indirectDiffuse = mix(ind, l*vec3(1.06,1.0,0.92), 0.65) * 1.02; }`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         { float fr = 1.0 - saturate(dot(normalize(vNormal), normalize(vViewPosition)));
           totalEmissiveRadiance += pow(fr,3.0) * 0.10 * vec3(1.0,0.9,0.8) * diffuseColor.rgb;                 // soft studio rim
