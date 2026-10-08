@@ -140,8 +140,8 @@ function buildGeometry(D=1){
   // ---- head: one continuous deformed ellipsoid (half-w .198, half-h .216, depth .19), cheeks fuller below centre
   const HC = 1.035;
   b.add(sph(1,S(46),S(34)).rotateY(-Math.PI/2), { smooth:true, slot:SL.SKIN, mode:MODE.FACE, bone:'head',
-    deform:(x,y,z)=>{ const ch = Math.exp(-(((y+.42)/.42)**2));
-      let X = x*.19*(1+.045*ch), Y = y*.216, Z = z*.19*(1+.035*ch);
+    deform:(x,y,z)=>{ const ch = Math.exp(-(((y+.45)/.5)**2));
+      let X = x*.186*(1+.085*ch), Y = y*.216*(y<-.45 ? 1-.13*((-y-.45)/.55)**1.5 : 1), Z = z*.19*(1+.05*ch);
       if(z<0) Z *= 1.06;                                 // fuller back of the skull
       if(z>0) Z *= 1 - .07*Math.max(0, z)*(1-Math.abs(y)); // slightly flattened face plane (decal reads cleaner)
       return [X, HC+Y, Z]; } });
@@ -150,8 +150,8 @@ function buildGeometry(D=1){
   // ears: flattened round auricles angled forward, C-shaped rim, warmer inner bowl
   for(const s of [-1,1]){
     // auricle: a thick round disc facing forward-outward, rim bulge + recessed warm concha
-    b.add(sph(1,S(18),S(14)), { smooth:true, scale:[.024,.074,.048], rot:[0,-s*.85,s*-.1], order:'YXZ', pos:[s*.218,.975,-.025], slot:SL.SKIN, tone:.98, bone:'head' });
-    b.add(sph(1,S(12),S(10)), { smooth:true, scale:[.009,.036,.02], rot:[0,-s*.85,s*-.1], order:'YXZ', pos:[s*.232,.97,-.014], slot:SL.SKIN, color:0xeaa892, flex:()=>-1, bone:'head' });
+    b.add(sph(1,S(18),S(14)), { smooth:true, scale:[.022,.064,.042], rot:[0,-s*.85,s*-.1], order:'YXZ', pos:[s*.214,.972,-.025], slot:SL.SKIN, tone:.98, bone:'head' });
+    b.add(sph(1,S(12),S(10)), { smooth:true, scale:[.008,.03,.017], rot:[0,-s*.85,s*-.1], order:'YXZ', pos:[s*.226,.968,-.015], slot:SL.SKIN, tone:.88, flex:()=>-1, bone:'head' });
   }
   // ---- hair: shell over the skull below/inside the peci + fringe tufts
   { const cols=S(48), rows=S(10), pos=[], idx=[];
@@ -175,22 +175,23 @@ function buildGeometry(D=1){
   }
   for(const s of [-1,1]) b.add(new THREE.ConeGeometry(.022,.055,S(8),1), { rot:[Math.PI,0,s*-.12], scale:[1,1,.55], pos:[s*.18,1.015,.07], slot:SL.HAIR, bone:'head' });
   // ---- peci (songkok): tapered flat-top oval, tilted back, closed bottom
-  { const pts = [[.0,.004],[.226,.0],[.229,.018],[.206,.19],[.198,.214],[.184,.226],[.12,.231],[.0,.232]].map(p=>new THREE.Vector2(p[0],p[1]));
-    b.add(new THREE.LatheGeometry(pts, S(36)), { smooth:true, scale:[1,1,1.07], rot:[-.2,0,0], pos:[0,1.168,-.012], slot:SL.PECI, bone:'head' }); }
+  { const pts = [[.0,.004],[.226,.0],[.229,.018],[.205,.205],[.197,.232],[.183,.244],[.12,.249],[.0,.25]].map(p=>new THREE.Vector2(p[0],p[1]));
+    b.add(new THREE.LatheGeometry(pts, S(36)), { smooth:true, scale:[1,1,1.07], rot:[-.2,0,0], pos:[0,1.168,-.024], slot:SL.PECI, bone:'head' }); }
 
-  b.add(new THREE.TorusGeometry(1,.0075,S(5),S(40)), { rot:[Math.PI/2-.2,0,0], scale:[.229,.245,1], pos:[0,1.172,-.008], slot:SL.PECI, color:0x6a6a74, bone:'head' });
+  b.add(new THREE.TorusGeometry(1,.0075,S(5),S(40)), { rot:[Math.PI/2-.2,0,0], scale:[.229,.245,1], pos:[0,1.172,-.02], slot:SL.PECI, color:0x6a6a74, bone:'head' });
   // ---- neck stub (hidden in the collar)
-  b.add(new THREE.CylinderGeometry(.052,.058,.11,S(14),1,true), { pos:[0,.815,-.005], slot:SL.SKIN, tone:.78, w:wNeck });
+  b.add(new THREE.CylinderGeometry(.052,.058,.11,S(14),1,true), { pos:[0,.815,-.005], slot:SL.SKIN, tone:.9, w:wNeck });
   // ---- koko torso: boxy superellipse loft, shoulder .745 -> hem .355, slight hem flare; closed shoulder cap
-  const TOR = [[.352,.1775,.1432],[.37,.1762,.1418],[.42,.1712,.1381],[.52,.166,.134],[.62,.166,.134],[.7,.166,.133],[.745,.162,.128],[.775,.146,.112],[.794,.105,.084],[.802,.07,.066]];
-  b.add(loft(TOR, S(40), { n:2.5, capTop:true, capBot:true }), { slot:SL.KOKO, mode:MODE.EMB, w:wKoko });
+  const TOR = [[.352,.1835,.1452],[.37,.1822,.1438],[.42,.1762,.1395],[.47,.171,.136],[.52,.167,.134],[.62,.163,.132],[.7,.163,.131],[.745,.16,.127],[.775,.146,.112],[.794,.105,.084],[.802,.07,.066]];
+  b.add(loft(TOR, S(44), { n:2.4, capTop:true, capBot:true }), { slot:SL.KOKO, mode:MODE.EMB, w:wKoko,
+    deform:(x,y,z)=>{ const a = Math.atan2(x,z), k = Math.max(0, 1-(y-.352)/.3), fold = .0045*k*Math.sin(a*7+.6) + .002*Math.sin(a*13);   // soft hem folds
+      const r = Math.hypot(x,z)||1; return [x*(1+fold/r), y, z*(1+fold/r)]; } });
   // hem lip (rolled edge)
-  b.add(new THREE.TorusGeometry(1,.008,S(5),S(40)), { rot:[Math.PI/2,0,0], scale:[.176,.142,1], pos:[0,.356,0], slot:SL.KOKO, tone:.94, w:wKoko });
+  b.add(new THREE.TorusGeometry(1,.007,S(5),S(40)), { rot:[Math.PI/2,0,0], scale:[.182,.144,1], pos:[0,.356,0], slot:SL.KOKO, tone:.94, w:wKoko });
   // stand collar with a front V notch
   b.add(loft([[.785,.074,.07],[.81,.072,.068],[.83,.068,.064],[.836,.063,.059]], S(30), { a0:.2, a1:Math.PI*2-.2 }), { slot:SL.KOKO, tone:.97, bone:'chest' });
   b.add(loft([[.785,.064,.06],[.83,.06,.056]], S(30), { a0:.2, a1:Math.PI*2-.2 }), { flipNormals:true, slot:SL.KOKO, tone:.8, flex:()=>-1, bone:'chest' });
   // dark V notch in the collar front
-  b.add(new THREE.ConeGeometry(.012,.034,S(6),1), { rot:[Math.PI,0,0], scale:[1,1,.3], pos:[0,.818,.066], slot:SL.FIX, color:0x6e4a3a, flex:()=>-1, bone:'chest' });
   // placket plate (raised, outlined) with pointed end + 3 domed buttons
   { const sh = new THREE.Shape(); const w=.0185, top=.79, bot=.6, tip=.585;
     sh.moveTo(-w,top); sh.lineTo(w,top); sh.lineTo(w,bot); sh.lineTo(0,tip); sh.lineTo(-w,bot); sh.closePath();
@@ -200,18 +201,17 @@ function buildGeometry(D=1){
   for(const y of [.776,.741,.706]) b.add(sph(1,S(9),S(6)), { smooth:true, scale:[.0105,.0105,.006], pos:[0,y,.1425], slot:SL.TRIM, tone:.98, flex:()=>-1, bone:'chest' });
   // ---- sleeves (T-pose bind, along X): root inside the torso, cuff with a slight flare + dark inner opening
   for(const s of [-1,1]){
-    const R = [[.135,.064,.06],[.17,.062,.058],[.21,.059,.056],[.26,.056,.053],[.31,.053,.05],[.36,.051,.048],[.4,.049,.047],[.413,.052,.05]];
+    const R = [[.135,.064,.06],[.17,.062,.058],[.21,.059,.056],[.26,.056,.053],[.29,.054,.051],[.31,.0545,.0515],[.33,.052,.049],[.36,.051,.048],[.395,.05,.047],[.41,.053,.05],[.416,.051,.048]];
     const g = loft(R.map(r=>[r[0],r[1],r[2]]), S(18), {});
     g.rotateZ(-s*Math.PI/2); g.translate(0, SH_Y, 0);          // +Y -> +X (left) / -X (right)
     b.add(g, { slot:SL.KOKO, w:wSleeve });
-    b.add(new THREE.TorusGeometry(.0505,.006,S(5),S(18)), { rot:[0,Math.PI/2,0], scale:[1,1,.96], pos:[s*.414,SH_Y,0], slot:SL.KOKO, tone:.95, bone:s>0?'elbowL':'elbowR' });
-    b.add(new THREE.CircleGeometry(.047,S(14)), { rot:[0,s*Math.PI/2,0], pos:[s*.409,SH_Y,0], slot:SL.FIX, color:0x8a7060, bone:s>0?'elbowL':'elbowR' });
+    b.add(new THREE.CircleGeometry(.05,S(14)), { rot:[0,s*Math.PI/2,0], pos:[s*.41,SH_Y,0], slot:SL.KOKO, tone:.55, flex:()=>-1, bone:s>0?'elbowL':'elbowR' });
     // hand: mitten palm + finger block + thumb (palm down, fingers outward); wrist inside the cuff
     const H = s>0?'handL':'handR';
-    b.add(new THREE.CylinderGeometry(.03,.034,.06,S(12)), { rot:[0,0,Math.PI/2], scale:[1,1,1.05], pos:[s*.42,SH_Y-.002,0], slot:SL.SKIN, bone:H });
-    b.add(sph(1,S(14),S(10)), { smooth:true, scale:[.05,.03,.042], pos:[s*.462,SH_Y-.004,0], slot:SL.SKIN, bone:H });
-    b.add(sph(1,S(14),S(10)), { smooth:true, scale:[.055,.023,.04], pos:[s*.515,SH_Y-.01,-.003], rot:[0,0,s*-.1], slot:SL.SKIN, tone:.98, bone:H });
-    b.add(new THREE.CapsuleGeometry(.015,.035,2,S(8)), { rot:[Math.PI/2,s*-.7,0], order:'YXZ', pos:[s*.468,SH_Y-.002,.042], slot:SL.SKIN, tone:.97, bone:H });
+    b.add(new THREE.CylinderGeometry(.029,.032,.05,S(12)), { rot:[0,0,Math.PI/2], pos:[s*.418,SH_Y-.002,0], slot:SL.SKIN, bone:H });
+    b.add(sph(1,S(18),S(12)), { smooth:true, scale:[.075,.031,.043], pos:[s*.482,SH_Y-.006,-.002], rot:[0,0,s*-.08], slot:SL.SKIN, bone:H,
+      deform:(x,y,z)=>{ const t = (x*s-.43)/.13; return [x, y - .006*Math.max(0,t)*Math.max(0,t), z*(1-.12*Math.max(0,t))]; } });   // tapering, slightly curled mitten
+    b.add(sph(1,S(12),S(9)), { smooth:true, scale:[.032,.015,.016], rot:[0,s*-.75,0], pos:[s*.462,SH_Y-.002,.038], slot:SL.SKIN, tone:.98, bone:H });
   }
   // ---- legs (thighs hidden; shins/ankles show under the hem when walking)
   for(const s of [-1,1]){
@@ -232,16 +232,16 @@ function buildGeometry(D=1){
       b.add(new THREE.TubeGeometry(curve,S(10),.0085,S(5),false), { slot:SL.SHOE, tone:.62, bone:'foot'+L }); }
   }
   // ---- sarong: straight tartan tube waist -> mid-shin, skinned to hips/thighs/knees; front overlap fold; inner hem
-  const SAR = [[.083,.168,.148],[.11,.168,.148],[.16,.167,.147],[.22,.166,.146],[.28,.164,.144],[.32,.162,.142],[.345,.158,.134],[.38,.148,.124],[.45,.142,.118],[.52,.136,.112]];
+  const SAR = [[.083,.176,.154],[.11,.175,.153],[.16,.172,.151],[.22,.166,.146],[.28,.164,.144],[.32,.162,.142],[.345,.158,.134],[.38,.148,.124],[.45,.142,.118],[.52,.136,.112]];
   const tUV = (x,y,z)=>{ const a = Math.atan2(x,z); return [(a/(Math.PI*2)+.5)*.97/.25, y/.25]; };
   const flex = (x,y,z)=>Math.pow(Math.max(0,(.36-y)/.27),1.5);
   b.add(loft(SAR, S(44), {}), { slot:SL.FIX, mode:MODE.TARTAN, uv:tUV, w:wSarong, flex });
   // inner hem shell (seen from below/behind when the legs swing)
-  b.add(loft([[.083,.165,.145],[.17,.16,.14]], S(30), {}), { flipNormals:true, slot:SL.FIX, mode:MODE.TARTAN, tone:.55, uv:tUV, w:wSarong, flex });
+  b.add(loft([[.083,.172,.15],[.17,.164,.144]], S(30), {}), { flipNormals:true, slot:SL.FIX, mode:MODE.TARTAN, tone:.55, uv:tUV, w:wSarong, flex });
   // hem roll
-  b.add(new THREE.TorusGeometry(1,.0055,S(4),S(44)), { rot:[Math.PI/2,0,0], scale:[.168,.148,1], pos:[0,.084,0], slot:SL.FIX, mode:MODE.TARTAN, tone:.9, uv:tUV, w:wSarong, flex });
+  b.add(new THREE.TorusGeometry(1,.0055,S(4),S(44)), { rot:[Math.PI/2,0,0], scale:[.176,.154,1], pos:[0,.084,0], slot:SL.FIX, mode:MODE.TARTAN, tone:.9, uv:tUV, w:wSarong, flex });
   // front overlap fold: a raised flap over the character-left front with a crease line
-  b.add(loft([[.085,.1735,.1535],[.2,.1715,.1515],[.3,.169,.149],[.34,.164,.141]], S(8), { a0:.06, a1:.42 }), { slot:SL.FIX, mode:MODE.TARTAN, uv:tUV, tone:.97, w:wSarong, flex });
+  b.add(loft([[.085,.1815,.1595],[.2,.1735,.1535],[.3,.169,.149],[.34,.164,.141]], S(8), { a0:.06, a1:.42 }), { slot:SL.FIX, mode:MODE.TARTAN, uv:tUV, tone:.97, w:wSarong, flex });
   b.add(new THREE.CylinderGeometry(.0035,.0035,.25,S(5)), { pos:[Math.sin(.06)*.174,.218,Math.cos(.06)*.154], slot:SL.FIX, mode:MODE.TARTAN, uv:tUV, tone:.5, w:wSarong, flex });
   return b.build();
 }
@@ -481,7 +481,7 @@ export function rigPayload(hero){
   hero.group.updateMatrixWorld(true);
   return { schemaVersion:1, coordinateSystem:{ up:'Y', handedness:'right', unit:'game-unit (rig space, size 1)' },
     joints: BONES.map(n=>JP[n]), parents: BONES.map(n=>PARENT[n] ? BI[PARENT[n]] : null), names: BONES.slice(),
-    matrix_local: B.map(b=>Array.from(b.matrix.elements)),
+    matrix_local: B.map(b=>Array.from(b.matrix.clone().transpose().elements)),   // row-major
     skinIndex: Array.from({length:si.count},(_,i)=>[si.getX(i),si.getY(i),si.getZ(i),si.getW(i)]),
     skinWeight: Array.from({length:sw.count},(_,i)=>[sw.getX(i),sw.getY(i),sw.getZ(i),sw.getW(i)]) };
 }
