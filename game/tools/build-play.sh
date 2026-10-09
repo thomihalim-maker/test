@@ -8,6 +8,9 @@ rm -rf "$OUT"; mkdir -p "$OUT"
 cp -r src "$OUT/src"
 find "$OUT/src" -name 'test.html' -delete
 mkdir -p "$OUT/assets"; cp -r assets/models "$OUT/assets/models"   # sculpted hero (marbot.glb); assets/ref stays out
+# When publishing, the file list must include assets/models/marbot.glb (content type model/gltf-binary); GLTFLoader comes
+# from jsDelivr through the "three/addons/" import-map prefix (examples/jsm/loaders/GLTFLoader.js). Without the .glb the
+# game silently falls back to the code-built hero.
 ln -s "$(pwd)/vendor" "$OUT/vendor"   # local-only, so the snapshot can be smoke-tested with tools/shot.mjs
 cp index.html "$OUT/index.html"
 cp boot.js manifest.webmanifest "$OUT/"; cp -r icons "$OUT/icons"   # index.html loader + icons (play.html needs neither)

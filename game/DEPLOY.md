@@ -259,6 +259,8 @@ proyek GitHub Pages lain di domain `thomihalim-maker.github.io` tidak ikut terha
 - Modul baru di daftar `order` di `src/main.js` otomatis ikut di-preload, di-precache, dan diverifikasi.
 - `main.js` mengirim event `game:progress` dan `game:ready` untuk layar loading; keduanya aman jika tidak ada yang mendengarkan.
 - `tools/build-play.sh` (snapshot untuk artifact claude.ai, three.js dari jsDelivr) tetap berfungsi dan terpisah dari build ini.
+  Saat mem-publish snapshot itu, sertakan `assets/models/marbot.glb` (tipe `model/gltf-binary`); tanpa file itu game
+  otomatis memakai hero versi kode (`?hero=code`).
   Hasilnya sekarang di `game/play-dist/` (di-ignore git), bukan di dalam `dist/`, supaya tidak ikut ter-deploy.
 - `tools/shot.mjs` menunggu layar loading selesai dulu (maks. 180 dtk), baru menunggu `waitMs`.
   Label sandbox tidak muncul di screenshot otomatis (`navigator.webdriver`).
