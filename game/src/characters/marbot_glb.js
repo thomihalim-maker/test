@@ -32,11 +32,16 @@ const LIMB = { LeftUpLeg:['LeftLeg',[0,-1,0]], LeftLeg:['LeftFoot',[0,-1,0]], Ri
 const FINGERS = ['Index','Middle','Ring','Pinky'];
 const EAR = [.28, .17, .08];                   // takbir wrist target in the head frame (rig units): beside the ear, a little forward
 const WRIST_MAT = .05;                         // sujud wrist height above the mat (rig units)
-const BOW = [.08, .1];                         // extra sujud bow (rad): spine, head -> the forehead rests on the mat
+const BOW = [.08, .1];
+const QIYAM_Y = .64;                           // qiyam: folded hands just above the navel (rig units, bind)
+// acts whose hands rest on the body: thighs when sitting / kneeling, knees in rukuk, folded on the belly in qiyam
+const ON_THIGHS = new Set(['duduk','salam','salamR','salamL','tahiyat','sit']);                         // extra sujud bow (rad): spine, head -> the forehead rests on the mat
 // bind hands point sideways with the palms down; sujud turns them to point forward (character space)
 const flat = { L: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), -Math.PI/2), R: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), Math.PI/2) };
+// qiyam: both palms against the belly, fingers across the body (bind: fingers out sideways, palms down)
+const QIYAM_Q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), Math.PI/2).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), Math.PI));
 // acts with flat open hands (adzan beside the ears, takbir, palms on the mat / knees, offered hands)
-const OPEN_HANDS = new Set(['adzan','takbir','sujud','rukuk','wave','greet','cheer']);
+const OPEN_HANDS = new Set(['adzan','takbir','sujud','rukuk','wave','greet','cheer','qiyam']);
 
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _q3 = new THREE.Quaternion(), _inv = new THREE.Quaternion();
 const _H = new THREE.Vector3(), _A = new THREE.Vector3(), _t = new THREE.Vector3();
@@ -96,13 +101,16 @@ export function buildFromGLTF(gltf, { castShadow = true } = {}){
   // head ellipsoid (character space at bind) from the vertices skinned mostly to the Head bone: the arm IK keeps the
   // wrists out of the face (this head is much bigger than the code-built hero's, so hands raised in front of the face
   // for the hammer swing, the salam hand etc. would otherwise sink into the chin and cheeks)
-  const headBox = new THREE.Box3();
+  const headBox = new THREE.Box3(); let bellyZ = 0;
   { const g = mesh.geometry, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, pa = g.attributes.position;
     const hi = mesh.skeleton.bones.indexOf(B.Head);
     for(let i=0;i<pa.count;i++){
+      _v.fromBufferAttribute(pa, i).applyMatrix4(mesh.matrixWorld);
+      if(Math.abs(_v.x) < .1 && Math.abs(_v.y - QIYAM_Y) < .03) bellyZ = Math.max(bellyZ, _v.z);
       let w = 0; for(let c=0;c<4;c++) if(si.getComponent(i, c) === hi) w += sw.getComponent(i, c);
       if(w > .6) headBox.expandByPoint(_v.fromBufferAttribute(pa, i).applyMatrix4(mesh.matrixWorld));
     } }
+  const qiyamT = { L: new THREE.Vector3(.05, QIYAM_Y, bellyZ + .035), R: new THREE.Vector3(-.035, QIYAM_Y + .015, bellyZ + .075) };
   const headC = headBox.getCenter(new THREE.Vector3()), headR = headBox.getSize(new THREE.Vector3()).multiply(_v.set(.42, .45, .5));
   const headOff = headC.clone().sub(bind.get(B.Head).mp);
   const arm = {};
@@ -143,7 +151,7 @@ export function buildFromGLTF(gltf, { castShadow = true } = {}){
   for(const b of order){ mq.set(b, new THREE.Quaternion()); mp.set(b, new THREE.Vector3()); }
   const sockets = {};
   for(const [side, , s] of ARMS){ const o = new THREE.Object3D(); o.name = 'socket_hand'+(s>0?'L':'R'); B[side+'Hand'].add(o); sockets['hand'+(s>0?'L':'R')] = o; }
-  let curl = .25;
+  let curl = .25, wQ = 0, wT = 0, wK = 0;
 
   function target(name, out){
     const m = MAP[name];
@@ -199,6 +207,8 @@ export function buildFromGLTF(gltf, { castShadow = true } = {}){
     _q.copy(bind.get(B.Head).mq).invert().premultiply(mq.get(B.Head)); headQ.copy(_q);
     headP.copy(headOff).applyQuaternion(_q).add(mp.get(B.Head));
     avoidHead = suj === 0 && tak === 0 && q.anim !== 'adzan';
+    wQ += ((q.anim === 'qiyam' ? 1 : 0) - wQ) * .25; wT += ((ON_THIGHS.has(q.anim) ? 1 : 0) - wT) * .25; wK += ((q.anim === 'rukuk' ? 1 : 0) - wK) * .25;
+    if(wQ < 1e-3) wQ = 0; if(wT < 1e-3) wT = 0; if(wK < 1e-3) wK = 0;
     solveArm('Left'); solveArm('Right');
     // 4. fingers: relaxed curl, closed round a held prop, flat for open-hand acts
     const want = q.prop ? .95 : OPEN_HANDS.has(q.anim) ? 0 : .3;
@@ -213,6 +223,11 @@ export function buildFromGLTF(gltf, { castShadow = true } = {}){
     root.scale.set(sz*sx, sz*sy, sz*sx);
     { const bh = Math.max(0, 1-jy*.9); blob.scale.set((.8*bh+.25)*sz, 1, (.95*bh+.25)*sz); }
   }
+  // ellipsoid 'radius' of a point relative to the posed, padded head (< 1 = inside)
+  function headInside(P){
+    _hp.subVectors(P, headP).applyQuaternion(_hq.copy(headQ).invert());
+    return Math.hypot(_hp.x/(headR.x+HEAD_PAD), _hp.y/(headR.y+HEAD_PAD), _hp.z/(headR.z+HEAD_PAD));
+  }
   // 2-bone IK of one arm onto the driver wrist, elbow towards the driver elbow; twist from the driver's rotations
   function solveArm(side){
     const R = arm[side], s = side==='Left' ? 'L' : 'R';
@@ -220,12 +235,24 @@ export function buildFromGLTF(gltf, { castShadow = true } = {}){
     fkPos(A); _S.copy(mp.get(A));
     _T.copy(dp['hand'+s]);
     if(suj > 0) _T.y += (WRIST_MAT - _T.y) * suj;               // sujud: wrists down at the mat so the palms lie flat
+    if(wQ > 0){ const sp = B.Spine1, bs = bind.get(sp);           // qiyam: right hand over the left, on the belly
+      _q2.copy(bs.mq).invert().premultiply(mq.get(sp)); _T.lerp(_v.copy(qiyamT[s]).sub(bs.mp).applyQuaternion(_q2).add(mp.get(sp)), wQ); }
+    if(wT > 0 || wK > 0){ const U = B[side+'UpLeg'], K = B[side+'Leg'];
+      if(wT > 0) _T.lerp(_v.copy(mp.get(U)).lerp(mp.get(K), .7).add(_v2.set(0, .085, .01)), wT);      // palm on the thigh, near the knee
+      if(wK > 0) _T.lerp(_v.copy(mp.get(K)).add(_v2.set(0, .06, .05)), wK); }                        // rukuk: hands on the knees
     if(tak > 0) _T.lerp(_v.set(s==='L' ? EAR[0] : -EAR[0], EAR[1], EAR[2]).applyQuaternion(dq.head).add(dp.head), tak);   // takbir: open hands beside the ears (this head is bigger than the arm swing)
     // empty hands raised above the shoulder (cheer, wave, jump, khutbah gestures): keep the driver's arm DIRECTION and use
     // this model's own reach, so arms that go up overhead on the code-built hero do not stop in front of this bigger face
     if(avoidHead && !cur.prop){
       const up = clamp((_T.y - dp['shoulder'+s].y) / .12 + .3, 0, 1);
-      if(up > 0) _T.lerp(_v.subVectors(dp['hand'+s], dp['shoulder'+s]).multiplyScalar(reach * .97).add(_S), up);
+      if(up > 0){
+        _v.subVectors(dp['hand'+s], dp['shoulder'+s]).multiplyScalar(reach * .97);
+        // swing the raised arm out sideways (about the body's forward axis) until the hand clears the head: a V, not a
+        // hand in front of the face
+        _hq.copy(headQ).invert(); _q2.setFromAxisAngle(_v2.set(0, 0, 1).applyQuaternion(dq.spine), (s==='L' ? -1 : 1) * .12);
+        for(let i=0;i<10 && headInside(_t.copy(_S).add(_v)) < 1.15;i++) _v.applyQuaternion(_q2);
+        _T.lerp(_v.add(_S), up);
+      }
     }
     if(avoidHead){                                               // wrist outside the (padded) head ellipsoid
       _hq.copy(headQ).invert(); _hp.subVectors(_T, headP).applyQuaternion(_hq);
@@ -258,7 +285,9 @@ export function buildFromGLTF(gltf, { castShadow = true } = {}){
     fkPos(H);
     const bH = bind.get(H);
     _q.copy(dq['hand'+s]).multiply(corr[side+'ForeArm']).multiply(bH.mq).premultiply(_q2);
-    if(suj > 0) _q.slerp(_q3.copy(flat[s]).multiply(bH.mq), suj);    // palms flat on the mat, fingers forward
+    if(suj > 0) _q.slerp(_q3.copy(flat[s]).multiply(bH.mq), suj);
+    if(wQ > 0){ const bs = bind.get(B.Spine1);
+      _q3.copy(bs.mq).invert().premultiply(mq.get(B.Spine1)).multiply(QIYAM_Q).multiply(bH.mq); _q.slerp(_q3, wQ); }    // palms flat on the mat, fingers forward
     if(handle && (s === 'R' || cur.propMode === 'grip')) gripTwist(_q, bH.mq, s === 'L' ? 1 : -1);
     mq.get(H).copy(_q); H.quaternion.copy(_inv.copy(mq.get(F)).invert()).multiply(_q);
   }
@@ -275,7 +304,7 @@ export function buildFromGLTF(gltf, { castShadow = true } = {}){
     q.premultiply(_q3.setFromAxisAngle(_H, ang * .85));
   }
 
-  const hero = { group, mesh, blob, bones: B, sockets, driver, kind: 'glb', _dbg:{ headC, headR, headP, dp },
+  const hero = { group, mesh, blob, bones: B, sockets, driver, kind: 'glb', _dbg:{ headC, headR, headP, dp, qiyamT, mp, B, get w(){ return [wQ,wT,wK]; } },
     stats: { triangles: (mesh.geometry.index ? mesh.geometry.index.count : mesh.geometry.attributes.position.count) / 3, vertices: mesh.geometry.attributes.position.count, bones: order.length, drawCalls: 2 },
     pose, setLook(l){ setLook(U, l); }, setFace(){},          // painted face: no blink/talk (no blendshapes)
     dispose(){ mesh.geometry.dispose(); for(const m of mats){ for(const t of ['map','normalMap']) m[t]?.dispose(); m.dispose(); } blob.geometry.dispose(); blob.material.map.dispose(); blob.material.dispose(); } };
