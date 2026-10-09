@@ -30,6 +30,7 @@ const MAP = {
 const LIMB = { LeftUpLeg:['LeftLeg',[0,-1,0]], LeftLeg:['LeftFoot',[0,-1,0]], RightUpLeg:['RightLeg',[0,-1,0]], RightLeg:['RightFoot',[0,-1,0]],
   LeftArm:['LeftForeArm',[1,0,0]], LeftForeArm:['LeftHand',[1,0,0]], RightArm:['RightForeArm',[-1,0,0]], RightForeArm:['RightHand',[-1,0,0]] };
 const FINGERS = ['Index','Middle','Ring','Pinky'];
+const EAR = [.28, .17, .08];                   // takbir wrist target in the head frame (rig units): beside the ear, a little forward
 const WRIST_MAT = .05;                         // sujud wrist height above the mat (rig units)
 const BOW = [.08, .1];                         // extra sujud bow (rad): spine, head -> the forehead rests on the mat
 // bind hands point sideways with the palms down; sujud turns them to point forward (character space)
@@ -137,13 +138,14 @@ export function buildFromGLTF(gltf, { castShadow = true } = {}){
   // parent's frame, already scaled to character units)
   function fkPos(b){ const bd = bind.get(b); mp.get(b).copy(bd.off).applyQuaternion(mq.get(b.parent)).add(mp.get(b.parent)); }
 
-  let suj = 0, handle = false, cur = null;
+  let suj = 0, tak = 0, handle = false, cur = null;
   const handleDir = new THREE.Vector3();
   function pose(q){
     // 1. drive the joints-only rig with the regular pose (this also writes q.handL/handR prop frames and q.head)
     poseHero(driver, q);
     const p = q.p;
     suj = clamp((p[IDX.pp]-.35)/.15, 0, 1) * clamp((p[IDX.lean]-.5)/.3, 0, 1);   // sujud weight (same rule as poseHero)
+    tak = q.anim === 'takbir' ? clamp((-(p[IDX.alx] + p[IDX.arx])/2 - 1.5)/.7, 0, 1) : 0;
     // 2. read the driver in character space
     driver.group.position.set(0,0,0); driver.group.rotation.set(0,0,0); DJ.root.position.set(0,0,0); DJ.root.scale.set(1,1,1);
     // sujud: this model's torso is longer than its arms reach, so bow deeper to bring the forehead and palms to the mat
@@ -195,6 +197,7 @@ export function buildFromGLTF(gltf, { castShadow = true } = {}){
     fkPos(A); _S.copy(mp.get(A));
     _T.copy(dp['hand'+s]);
     if(suj > 0) _T.y += (WRIST_MAT - _T.y) * suj;               // sujud: wrists down at the mat so the palms lie flat
+    if(tak > 0) _T.lerp(_v.set(s==='L' ? EAR[0] : -EAR[0], EAR[1], EAR[2]).applyQuaternion(dq.head).add(dp.head), tak);   // takbir: open hands beside the ears (this head is bigger than the arm swing)
     _dir.subVectors(_T, _S); let d = _dir.length(); _dir.multiplyScalar(1/Math.max(d, 1e-6));
     d = clamp(d, Math.abs(a-b) + 1e-3, a + b - 1e-4);
     _pp.subVectors(dp['elbow'+s], _S); _pp.addScaledVector(_dir, -_pp.dot(_dir));
