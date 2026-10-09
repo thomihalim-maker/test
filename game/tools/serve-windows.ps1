@@ -11,6 +11,7 @@ $mime = @{
   '.css' = 'text/css; charset=utf-8'; '.json' = 'application/json'; '.webmanifest' = 'application/manifest+json'
   '.png' = 'image/png'; '.jpg' = 'image/jpeg'; '.svg' = 'image/svg+xml'; '.ico' = 'image/x-icon'
   '.woff2' = 'font/woff2'; '.woff' = 'font/woff'; '.txt' = 'text/plain; charset=utf-8'; '.wasm' = 'application/wasm'
+  '.glb' = 'model/gltf-binary'
 }
 
 # Find a free port starting at $Port.

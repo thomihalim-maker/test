@@ -89,8 +89,23 @@ try {
   const b = JSON.parse(m[1]); pre = b.files;
   if (b.version === 'dev' || !b.files.length) err('sw.js: build info not injected');
   for (const f of b.files) if (f !== './' && !has(f)) err(`sw.js precaches missing file: ${f}`);
-  for (const f of files) if (/\.(m?js|css|woff2|html|webmanifest)$/.test(f) && f !== 'sw.js' && !b.files.includes(f)) err(`sw.js does not precache ${f} (offline would break)`);
+  for (const f of files) if (/\.(m?js|css|woff2|html|webmanifest|glb)$/.test(f) && f !== 'sw.js' && !b.files.includes(f)) err(`sw.js does not precache ${f} (offline would break)`);
 } catch (e) { err('sw.js: cannot read BUILD line: ' + e.message); }
+
+// 6. assets: new URL('...', import.meta.url) references resolve, reference art never ships, .glb files are binary glTF 2.0
+for (const f of files.filter((x) => x.startsWith('src/') && x.endsWith('.js'))) {
+  for (const m of read(f).matchAll(/new URL\(\s*['"]([^'"]+)['"]\s*,\s*import\.meta\.url\s*\)/g)) {
+    const t = path.posix.normalize(path.posix.join(path.posix.dirname(f), m[1]));
+    if (!has(t)) err(`${f}: new URL("${m[1]}") -> ${t} not in dist`);
+  }
+}
+for (const f of files.filter((x) => x.startsWith('assets/'))) {
+  if (f.startsWith('assets/ref/')) err(`${f}: reference art must not ship`);
+  if (f.endsWith('.glb')) {
+    const d = fs.readFileSync(path.join(dist, f));
+    if (d.length < 20 || d.toString('latin1', 0, 4) !== 'glTF' || d.readUInt32LE(4) !== 2 || d.readUInt32LE(8) !== d.length) err(`${f}: not a valid binary glTF 2.0 file`);
+  }
+}
 
 if (errors.length) { console.error(`verify: ${errors.length} problem(s) in ${path.relative(process.cwd(), dist) || dist}`); for (const e of errors) console.error('  - ' + e); process.exit(1); }
 console.log(`verify: OK  (${files.length} files, ${checked} imports resolved, ${pre.length} precache entries)`);

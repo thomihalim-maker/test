@@ -37,5 +37,6 @@ THE SOFTWARE.
 
 
 3. Player character model (assets/models/marbot.glb)
-   Made for this game (generated from the game's own reference art, assets/ref/marbot-ref.png, auto-rigged with a
-   Mixamo-style skeleton). Not third-party software; listed here only so the file's origin is clear.
+   Made for this game by its developer: generated with Tripo from the game's own reference art
+   (assets/ref/marbot-ref.png), auto-rigged with Mixamo, then optimised for the game (textures, geometry precision).
+   Not third-party software or a stock asset; listed here only so the file's origin is clear.

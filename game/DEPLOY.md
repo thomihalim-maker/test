@@ -46,8 +46,11 @@ Isi `game/dist/`:
   `<link rel="modulepreload">` untuk semua modul (memuat lebih cepat), dan nomor versi.
 - `boot.js` — loader, penanganan error, registrasi service worker, tombol back Android.
 - `src/**` — kode game apa adanya (tidak di-minify supaya tetap mudah dibaca), **tanpa** halaman tes (`*.html`) dan file `_*`.
-- `vendor/**` — **hanya** file three.js yang benar-benar di-import (13 dari 134 file, ±1,3 MB dari ±8,7 MB).
+- `vendor/**` — **hanya** file three.js yang benar-benar di-import (14 dari 135 file, ±1,4 MB dari ±8,8 MB).
   Daftar ini dihitung otomatis dari import graph, jadi addon baru yang di-import di `src/` ikut terbawa.
+- `assets/models/marbot.glb` — model 3D tokoh utama (±0,8 MB, ikut di-precache supaya jalan offline). Hanya file `assets/`
+  yang dirujuk kode (`new URL(..., import.meta.url)`) yang ikut; `assets/ref/` (gambar referensi) tidak pernah ikut.
+  Server harus mengirim `.glb` sebagai `model/gltf-binary` (sudah diatur di `tools/serve.mjs` dan `serve-windows.ps1`).
 - `icons/`, `manifest.webmanifest`, `sw.js` (daftar precache lengkap + nama cache berversi), `version.json`, `.nojekyll`.
 - `LICENSES.txt` (lisensi MIT three.js + rujukan ke lisensi font Nunito) dan `privacy.html` (kebijakan privasi, ID/EN).
 - File di `src/` yang ikut hanya `.js`, `.css`, `.woff2`, `.txt`, `.json`, plus file lain yang benar-benar dirujuk kode
