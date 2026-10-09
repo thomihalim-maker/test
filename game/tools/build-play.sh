@@ -8,9 +8,16 @@ rm -rf "$OUT"; mkdir -p "$OUT"
 cp -r src "$OUT/src"
 find "$OUT/src" -name 'test.html' -delete
 mkdir -p "$OUT/assets"; cp -r assets/models "$OUT/assets/models"   # sculpted hero (marbot.glb); assets/ref stays out
-# When publishing, the file list must include assets/models/marbot.glb (content type model/gltf-binary); GLTFLoader comes
-# from jsDelivr through the "three/addons/" import-map prefix (examples/jsm/loaders/GLTFLoader.js). Without the .glb the
+# When publishing, the file list must include assets/models/marbot.glb.js (generated below); GLTFLoader comes from
+# jsDelivr through the "three/addons/" import-map prefix (examples/jsm/loaders/GLTFLoader.js). Without the model the
 # game silently falls back to the code-built hero.
+# Artifact hosting does not serve .glb, so the snapshot ships the model as a JS module holding a data: URL instead
+# (GLTFLoader reads data: URLs natively); the production build keeps the real .glb.
+node -e "const fs=require('fs');fs.writeFileSync(process.argv[2],'export default \"data:model/gltf-binary;base64,'+fs.readFileSync(process.argv[1]).toString('base64')+'\";\n')" \
+  "$OUT/assets/models/marbot.glb" "$OUT/assets/models/marbot.glb.js"
+rm "$OUT/assets/models/marbot.glb"
+sed -i "s#^export const MARBOT_GLB_URL = .*#export const MARBOT_GLB_URL = (await import('../../assets/models/marbot.glb.js')).default;#" "$OUT/src/characters/marbot_glb.js"
+grep -q "marbot.glb.js" "$OUT/src/characters/marbot_glb.js"
 ln -s "$(pwd)/vendor" "$OUT/vendor"   # local-only, so the snapshot can be smoke-tested with tools/shot.mjs
 cp index.html "$OUT/index.html"
 cp boot.js manifest.webmanifest "$OUT/"; cp -r icons "$OUT/icons"   # index.html loader + icons (play.html needs neither)
