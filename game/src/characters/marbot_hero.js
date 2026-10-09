@@ -36,7 +36,7 @@ const MODE = { PLAIN:0, TARTAN:1, EMB:2, FACE:3 };
 
 // reference look (sampled from the reference, de-lit by eye)
 export const HERO_LOOK = { skin:0xeeb28c, koko:0xf0ebe3, sarong:0x57a33a, peci:0x151518, shoe:0x6b4a38, trim:0xf3eee4, hair:0x221812 };
-const REF_SARONGS = new Set([0x57a33a, 0x1f7a63, 0x2f7d6c]);    // default/klasik look -> the reference tartan
+export const REF_SARONGS = new Set([0x57a33a, 0x1f7a63, 0x2f7d6c]);    // default/klasik look -> the reference tartan
 
 // face decal rect (bind space) and embroidery rect
 const FACE = { x0:-.19, y0:.85, w:.38, h:.32 };
@@ -405,7 +405,7 @@ function faceTexture(){
 
 // ------------------------------------------------------------------ materials
 const PAL_GLSL = `uniform vec3 uPal[8]; attribute vec3 aSMF; vec3 palOf(float s){ return uPal[int(s+0.5)]; }`;
-const SHADOW_BIAS = `#include <shadowmap_vertex>
+export const SHADOW_BIAS = `#include <shadowmap_vertex>
 #if defined( USE_SHADOWMAP ) && NUM_DIR_LIGHT_SHADOWS > 0
   for(int i=0;i<NUM_DIR_LIGHT_SHADOWS;i++){
     vec4 swp = worldPosition + vec4(shadowWorldNormal * (directionalLightShadows[i].shadowNormalBias + 0.07), 0.0);
@@ -540,6 +540,18 @@ export function buildMarbotHero({ look = {}, outline = false, castShadow = true,
     destructionGroups:{}, destructionNote:'character: not breakable; parts are addressable by name via parts (index ranges)', source:'img2threejs spec marbot-hero (assets/ref/marbot-ref.png)' };
   setLook(hero, look);
   return hero;
+}
+
+// Joints-only copy of the hero rig (no geometry, never added to the scene): poseHero() drives it and other player
+// models (marbot_glb.js) retarget its joints. Bind pose = the same T-pose, every joint unrotated in character space.
+export function buildHeroDriver(){
+  const group = new THREE.Group(), joints = {}, sockets = {};
+  for(const n of BONES){ const b = new THREE.Object3D(); b.name = n; joints[n] = b; }
+  for(const n of BONES){ const b = joints[n], p = PARENT[n], jp = JP[n], pp = p ? JP[p] : [0,0,0];
+    b.position.set(jp[0]-pp[0], jp[1]-pp[1], jp[2]-pp[2]); (p ? joints[p] : group).add(b); }
+  for(const [n,s] of [['handL',1],['handR',-1]]){ const o = new THREE.Object3D(); o.position.set(s*(ARM_B-(WR_X-EL_X)), -.004, .01); joints[n].add(o); sockets[n] = o; }
+  const U = { uFlex:{ value:new THREE.Vector2() }, uCells:{ value:new THREE.Vector4(FCELL.eyeOpen, FCELL.mGrin, 1, 0) } };
+  return { group, joints, sockets, uniforms:U, blob:new THREE.Object3D() };
 }
 
 // img2threejs rig payload (validate_rig_payload.py): bind joints, parents, local matrices, packed skin

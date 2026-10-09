@@ -1,6 +1,6 @@
 # Marbot Masjid — module contract
 Game: cozy stylized 3D sim. You are the *marbot* (mosque caretaker) at a village mosque-in-progress. Care for sacrificial animals (goats, sheep, cows) for Idul Adha, and build up the masjid so visitors (jamaah) come. Theme: warm Indonesian village, golden light, lush greenery. Target: Pokopia / Animal Crossing level of polish (soft shading, rich color, juicy animation).
-- Pure ES modules, no build. Three r170 via import map (`three`, `three/addons/`). No network at runtime. No external assets: everything procedural (geometry, canvas textures, WebAudio).
+- Pure ES modules, no build. Three r170 via import map (`three`, `three/addons/`). No network at runtime. No external assets: everything procedural (geometry, canvas textures, WebAudio). Exception: the player hero model `assets/models/marbot.glb` (local file, shipped in dist + precached; loaded by src/characters/marbot_glb.js via the vendored GLTFLoader). `?hero=code` = code-built hero (also the automatic fallback if the .glb cannot load), `?hero=0` = legacy rig.
 - Each module file exports `async init(ctx)` and returns `{update(dt,t), ...api}`. See src/ctx.js, src/main.js.
 - Own ONLY your files/dirs. Talk to others via `ctx.emit/on` and `ctx.modules.<name>`.
 - Verify with: `node tools/shot.mjs out.png 1280 720 3000 "?cam=..."` and Read the PNG. Keep zero console errors. Mobile perf matters (budget: <250 draw calls, instancing for repeats).

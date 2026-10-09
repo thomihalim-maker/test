@@ -6,7 +6,7 @@ const dir = path.resolve(game, process.argv[2] || '.');
 const port = +(process.argv[3] || process.env.PORT || 8123);
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png',
-  '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8', '.ico': 'image/x-icon', '.wasm': 'application/wasm' };
+  '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8', '.ico': 'image/x-icon', '.wasm': 'application/wasm', '.glb': 'model/gltf-binary' };
 if (!fs.existsSync(path.join(dir, 'index.html'))) { console.error(`no index.html in ${dir}` + (dir.endsWith('dist') ? ' (run: npm run build)' : '')); process.exit(1); }
 http.createServer((req, res) => {
   let p; try { p = decodeURIComponent(new URL(req.url, 'http://x').pathname); } catch { res.writeHead(400).end(); return; }

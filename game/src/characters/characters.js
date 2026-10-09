@@ -65,12 +65,19 @@ export async function init(ctx){
 
   const LOW = ctx.quality==='low' || q.get('quality')==='low';
   const people = new People(scene, {max:2, D:1, cast:true, name:'player'});
-  // player model: the img2threejs-rebuilt marbot hero (SkinnedMesh driven by the same pose solver); ?hero=0 = legacy instanced rig
-  const HERO = q.get('hero') !== '0';
+  // player model (all driven by the same pose solver):
+  //   default      sculpted marbot (assets/models/marbot.glb, retargeted onto its Mixamo skeleton, marbot_glb.js)
+  //   ?hero=code   img2threejs code-built hero (marbot_hero.js); also the automatic fallback when the .glb cannot load
+  //   ?hero=0      legacy instanced rig
+  const HMODE = q.get('hero')==='0' ? 'legacy' : q.get('hero')==='code' ? 'code' : 'glb';
   const heroLook = ()=>{ const l = { ...HERO_LOOK }; const sl = ctx.state?.look || {};
     for(const k of ['skin','koko','sarong','peci','shoe','trim','hair']) if(sl[k]!=null) l[k] = hexOf(sl[k]); return l; };
   let hero = null;
-  if(HERO){ try{ hero = buildMarbotHero({ look:heroLook() }); scene.add(hero.group); }catch(e){ console.warn('characters: hero build failed, using legacy rig', e); hero = null; } }
+  if(HMODE==='glb'){
+    try{ const { loadMarbotGLB } = await import('./marbot_glb.js'); hero = await loadMarbotGLB(); hero.setLook(heroLook()); scene.add(hero.group); }
+    catch(e){ console.info('characters: marbot.glb unavailable, using the code-built hero (' + (e?.message||e) + ')'); hero = null; }
+  }
+  if(!hero && HMODE!=='legacy'){ try{ hero = buildMarbotHero({ look:heroLook() }); scene.add(hero.group); }catch(e){ console.warn('characters: hero build failed, using legacy rig', e); hero = null; } }
   // draw-call budget (<250 at stage 8 with a prayer crowd): the near hi-detail crowd is capped and casts no real shadows
   // (every People part set already draws a soft blob shadow under each person)
   const crowdHi = new People(scene, {max:LOW?6:12, D:.75, cast:false, name:'crowdHi'});
@@ -610,7 +617,7 @@ export async function init(ctx){
     let cut = nearR;
     if(nV > crowdHi.max){ lodS.set(lodD.subarray(0,nV)); const srt = lodS.subarray(0,nV).sort(); cut = Math.min(nearR, srt[crowdHi.max-1] + 1e-4); }
     for(let i=0;i<VL.length;i++){ const p=VL[i].person; const near = i<nV && p._d<cut && hiList.length<crowdHi.max; p._hi = near; (near?hiList:loList).push(p); }
-    if(hero){ poseHero(hero, player); people.render(EMPTY); } else people.render(playerList);
+    if(hero){ if(hero.pose) hero.pose(player); else poseHero(hero, player); people.render(EMPTY); } else people.render(playerList);
     crowdHi.render(hiList); crowdLo.render(loList);
     renderer.getDrawingBufferSize(OUTLINE_U.uRes.value); OUTLINE_U.uDpr.value = renderer.getPixelRatio();
     updateProps(props, player, t, dt, player.pos.y);

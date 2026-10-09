@@ -7,6 +7,7 @@ OUT=${1:-play-dist}
 rm -rf "$OUT"; mkdir -p "$OUT"
 cp -r src "$OUT/src"
 find "$OUT/src" -name 'test.html' -delete
+mkdir -p "$OUT/assets"; cp -r assets/models "$OUT/assets/models"   # sculpted hero (marbot.glb); assets/ref stays out
 ln -s "$(pwd)/vendor" "$OUT/vendor"   # local-only, so the snapshot can be smoke-tested with tools/shot.mjs
 cp index.html "$OUT/index.html"
 cp boot.js manifest.webmanifest "$OUT/"; cp -r icons "$OUT/icons"   # index.html loader + icons (play.html needs neither)

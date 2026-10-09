@@ -79,6 +79,9 @@ for (const f of srcOther) {
   if (assets.has(f)) srcFiles.push(f);
   else console.warn(`  note: ${f} is not shipped (only .js/.css/.woff2/.txt/.json, or files referenced via new URL(..., import.meta.url) / CSS url())`);
 }
+// models etc. under assets/ ship only when the code references them (assets/ref/ holds reference art: never shipped)
+const assetFiles = [...assets].filter((f) => f.startsWith('assets/') && !f.startsWith('assets/ref/')).sort();
+for (const f of assetFiles) if (!exists(f)) fail(`${f} is referenced by the code but missing`);
 
 // ---- debug URL params (boot.js sandbox): everything src/ reads, except player params ----
 const bootSrc = read('boot.js');
@@ -101,6 +104,7 @@ function put(r, data) { const p = path.join(out, r); fs.mkdirSync(path.dirname(p
 const copy = (r) => put(r, fs.readFileSync(path.join(root, r)));
 
 for (const f of srcFiles) copy(f);
+for (const f of assetFiles) copy(f);
 for (const f of [...vendor].sort()) copy(f);
 for (const f of walk('icons')) copy(f);
 put('boot.js', writeDebugParams(bootSrc, debugParams));
@@ -140,7 +144,7 @@ put('version.json', JSON.stringify({ name: pkg.name, version, build: buildId, ca
 const size = (f) => fs.statSync(path.join(out, f)).size;
 const kb = (n) => (n / 1024).toFixed(1).padStart(8) + ' KB';
 const groups = {};
-for (const f of written) { const g = f.startsWith('vendor/') ? 'vendor (three.js)' : f.startsWith('src/ui/fonts/') ? 'fonts' : f.startsWith('src/') ? 'src' : f.startsWith('icons/') ? 'icons' : 'root'; (groups[g] ??= { n: 0, b: 0 }).n++; groups[g].b += size(f); }
+for (const f of written) { const g = f.startsWith('vendor/') ? 'vendor (three.js)' : f.startsWith('src/ui/fonts/') ? 'fonts' : f.startsWith('src/') ? 'src' : f.startsWith('icons/') ? 'icons' : f.startsWith('assets/') ? 'assets (models)' : 'root'; (groups[g] ??= { n: 0, b: 0 }).n++; groups[g].b += size(f); }
 const total = written.reduce((a, f) => a + size(f), 0);
 const vendorAll = walk('vendor').reduce((a, f) => a + fs.statSync(path.join(root, f)).size, 0);
 console.log(`\nMarbot Masjid ${version}  (cache ${cacheName})`);

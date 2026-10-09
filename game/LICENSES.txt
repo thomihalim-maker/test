@@ -4,7 +4,7 @@ Marbot Masjid — third-party licenses
 This game ships the following third-party software and fonts.
 
 
-1. three.js r170 (vendor/three-build/three.module.js and the files in vendor/addons/)
+1. three.js r170 (vendor/three-build/three.module.js and the files in vendor/addons/, incl. loaders/GLTFLoader.js)
    https://threejs.org  —  https://github.com/mrdoob/three.js
 
 The MIT License
@@ -34,3 +34,8 @@ THE SOFTWARE.
    Copyright 2014 The Nunito Project Authors (https://github.com/googlefonts/nunito)
    Licensed under the SIL Open Font License, Version 1.1.
    The full license text is in src/ui/fonts/OFL.txt (shipped next to the font files).
+
+
+3. Player character model (assets/models/marbot.glb)
+   Made for this game (generated from the game's own reference art, assets/ref/marbot-ref.png, auto-rigged with a
+   Mixamo-style skeleton). Not third-party software; listed here only so the file's origin is clear.
