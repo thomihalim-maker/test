@@ -38,6 +38,7 @@ const flat = { L: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,
 const OPEN_HANDS = new Set(['adzan','takbir','sujud','rukuk','wave','greet','cheer']);
 
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _q3 = new THREE.Quaternion(), _inv = new THREE.Quaternion();
+const _H = new THREE.Vector3(), _A = new THREE.Vector3(), _t = new THREE.Vector3();
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _S = new THREE.Vector3(), _T = new THREE.Vector3(), _E = new THREE.Vector3(), _dir = new THREE.Vector3(), _pp = new THREE.Vector3();
 const clamp = (x,a,b)=>Math.min(b, Math.max(a, x));
 
@@ -136,7 +137,8 @@ export function buildFromGLTF(gltf, { castShadow = true } = {}){
   // parent's frame, already scaled to character units)
   function fkPos(b){ const bd = bind.get(b); mp.get(b).copy(bd.off).applyQuaternion(mq.get(b.parent)).add(mp.get(b.parent)); }
 
-  let suj = 0;
+  let suj = 0, handle = false, cur = null;
+  const handleDir = new THREE.Vector3();
   function pose(q){
     // 1. drive the joints-only rig with the regular pose (this also writes q.handL/handR prop frames and q.head)
     poseHero(driver, q);
@@ -148,6 +150,12 @@ export function buildFromGLTF(gltf, { castShadow = true } = {}){
     if(suj > 0){ DJ.spine.rotation.x += BOW[0]*suj; DJ.head.rotation.x += BOW[1]*suj; }
     driver.group.updateMatrixWorld(true);
     for(const n in DJ){ DJ[n].getWorldQuaternion(dq[n]); DJ[n].getWorldPosition(dp[n]); }
+    // long tool in the hands: handle direction in character space (props.js: from the floor tip up through the hands)
+    cur = q; handle = (q.prop === 'broom' || q.prop === 'mop');
+    if(handle){
+      if(q.propMode === 'grip') handleDir.addVectors(dp.handL, dp.handR).multiplyScalar(.5).sub(_v.set(q.aimX || 0, 0, q.aimZ || .6)).normalize();
+      else handleDir.set(0, 1, .14).normalize();
+    }
     // 3. retarget bone by bone (parents first)
     for(const b of order){
       const bd = bind.get(b), key = bd.key;
@@ -214,7 +222,20 @@ export function buildFromGLTF(gltf, { castShadow = true } = {}){
     const bH = bind.get(H);
     _q.copy(dq['hand'+s]).multiply(corr[side+'ForeArm']).multiply(bH.mq).premultiply(_q2);
     if(suj > 0) _q.slerp(_q3.copy(flat[s]).multiply(bH.mq), suj);    // palms flat on the mat, fingers forward
+    if(handle && (s === 'R' || cur.propMode === 'grip')) gripTwist(_q, bH.mq, s === 'L' ? 1 : -1);
     mq.get(H).copy(_q); H.quaternion.copy(_inv.copy(mq.get(F)).invert()).multiply(_q);
+  }
+  // long tools: twist the hand about its pointing direction so the curled fingers wrap round the handle
+  function gripTwist(q, bq, sg){
+    _inv.copy(bq).invert(); _q3.copy(q).multiply(_inv);                      // bind -> posed delta of the hand
+    _H.set(sg, 0, 0).applyQuaternion(_q3);                                   // finger direction
+    _A.set(0, 0, -sg).applyQuaternion(_q3);                                  // curl axis
+    _t.copy(handleDir).addScaledVector(_H, -handleDir.dot(_H));
+    if(_t.lengthSq() < 1e-4) return;
+    _t.normalize(); if(_t.dot(_A) < 0) _t.negate();
+    _A.addScaledVector(_H, -_A.dot(_H)).normalize();
+    let ang = Math.acos(clamp(_A.dot(_t), -1, 1)); if(_v.crossVectors(_A, _t).dot(_H) < 0) ang = -ang;
+    q.premultiply(_q3.setFromAxisAngle(_H, ang * .85));
   }
 
   const hero = { group, mesh, blob, bones: B, sockets, driver, kind: 'glb',
