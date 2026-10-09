@@ -304,7 +304,7 @@ export function buildFromGLTF(gltf, { castShadow = true } = {}){
     q.premultiply(_q3.setFromAxisAngle(_H, ang * .85));
   }
 
-  const hero = { group, mesh, blob, bones: B, sockets, driver, kind: 'glb', _dbg:{ headC, headR, headP, dp, qiyamT, mp, B, get w(){ return [wQ,wT,wK]; } },
+  const hero = { group, mesh, blob, bones: B, sockets, driver, kind: 'glb',
     stats: { triangles: (mesh.geometry.index ? mesh.geometry.index.count : mesh.geometry.attributes.position.count) / 3, vertices: mesh.geometry.attributes.position.count, bones: order.length, drawCalls: 2 },
     pose, setLook(l){ setLook(U, l); }, setFace(){},          // painted face: no blink/talk (no blendshapes)
     dispose(){ mesh.geometry.dispose(); for(const m of mats){ for(const t of ['map','normalMap']) m[t]?.dispose(); m.dispose(); } blob.geometry.dispose(); blob.material.map.dispose(); blob.material.dispose(); } };
