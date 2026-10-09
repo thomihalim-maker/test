@@ -235,7 +235,7 @@ export function buildFromGLTF(gltf, { castShadow = true } = {}){
 function figureMaterial(m, U){
   if('roughness' in m) m.roughness = .85;
   if('metalness' in m) m.metalness = 0;
-  if(m.normalScale) m.normalScale.set(.8, .8);
+  if(m.normalMap){ m.normalMap.dispose(); m.normalMap = null; }      // not shipped (baked into the colour); older files may carry one
   m.onBeforeCompile = (sh)=>{
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader
@@ -271,7 +271,7 @@ function figureMaterial(m, U){
           reflectedLight.indirectDiffuse = mix(ind, l * vec3(1.06, 1.0, 0.92), 0.65) * 1.15; }`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         { float fr = 1.0 - saturate(dot(normalize(vNormal), normalize(vViewPosition)));
-          totalEmissiveRadiance += diffuseColor.rgb * (0.07 + pow(fr, 3.0) * 0.12); }`);
+          totalEmissiveRadiance += diffuseColor.rgb * (0.11 + pow(fr, 3.0) * 0.12); }`);
   };
   m.customProgramCacheKey = ()=>'marbotGLB1';
   m.needsUpdate = true;
