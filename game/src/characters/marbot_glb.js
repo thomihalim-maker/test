@@ -93,6 +93,18 @@ export function buildFromGLTF(gltf, { castShadow = true } = {}){
     const a = bind.get(B[n]).mp, b = bind.get(B[c]).mp;
     corr[n] = new THREE.Quaternion().setFromUnitVectors(_v.subVectors(b, a).normalize(), _v2.set(...d));
   }
+  // head ellipsoid (character space at bind) from the vertices skinned mostly to the Head bone: the arm IK keeps the
+  // wrists out of the face (this head is much bigger than the code-built hero's, so hands raised in front of the face
+  // for the hammer swing, the salam hand etc. would otherwise sink into the chin and cheeks)
+  const headBox = new THREE.Box3();
+  { const g = mesh.geometry, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, pa = g.attributes.position;
+    const hi = mesh.skeleton.bones.indexOf(B.Head);
+    for(let i=0;i<pa.count;i++){
+      let w = 0; for(let c=0;c<4;c++) if(si.getComponent(i, c) === hi) w += sw.getComponent(i, c);
+      if(w > .6) headBox.expandByPoint(_v.fromBufferAttribute(pa, i).applyMatrix4(mesh.matrixWorld));
+    } }
+  const headC = headBox.getCenter(new THREE.Vector3()), headR = headBox.getSize(new THREE.Vector3()).multiply(_v.set(.42, .45, .5));
+  const headOff = headC.clone().sub(bind.get(B.Head).mp);
   const arm = {};
   for(const [side, s] of ARMS){
     const A = B[side+'Arm'], F = B[side+'ForeArm'], H = B[side+'Hand'];
@@ -123,6 +135,10 @@ export function buildFromGLTF(gltf, { castShadow = true } = {}){
   const dq = {}, dp = {};                                      // driver joint world quats / positions (character space)
   for(const n in DJ){ dq[n] = new THREE.Quaternion(); dp[n] = new THREE.Vector3(); }
   const drvHipsBind = DJ.hips.position.clone();
+  // arm reach ratio (model / driver), for raised empty-handed arms
+  driver.group.updateMatrixWorld(true);
+  const drvArm = DJ.shoulderL.getWorldPosition(new THREE.Vector3()).distanceTo(DJ.elbowL.getWorldPosition(_v)) + _v.distanceTo(DJ.handL.getWorldPosition(_v2));
+  const reach = (arm.Left.a + arm.Left.b) / Math.max(1e-4, drvArm);
   const mq = new Map(), mp = new Map();                        // posed model-space quats / positions per bone
   for(const b of order){ mq.set(b, new THREE.Quaternion()); mp.set(b, new THREE.Vector3()); }
   const sockets = {};
@@ -138,7 +154,9 @@ export function buildFromGLTF(gltf, { castShadow = true } = {}){
   // parent's frame, already scaled to character units)
   function fkPos(b){ const bd = bind.get(b); mp.get(b).copy(bd.off).applyQuaternion(mq.get(b.parent)).add(mp.get(b.parent)); }
 
-  let suj = 0, tak = 0, handle = false, cur = null;
+  let suj = 0, tak = 0, handle = false, cur = null, avoidHead = false;
+  const headQ = new THREE.Quaternion(), headP = new THREE.Vector3(), _hq = new THREE.Quaternion(), _hp = new THREE.Vector3();
+  const HEAD_PAD = .075;                                       // wrist-to-hand-surface allowance (rig units)
   const handleDir = new THREE.Vector3();
   function pose(q){
     // 1. drive the joints-only rig with the regular pose (this also writes q.handL/handR prop frames and q.head)
@@ -172,11 +190,16 @@ export function buildFromGLTF(gltf, { castShadow = true } = {}){
       if(MAP[key]){
         target(key, _q); if(corr[key]) _q.multiply(corr[key]); _q.multiply(bd.mq);
         mq.get(b).copy(_q); b.quaternion.copy(_inv.copy(pq).invert()).multiply(_q);
-      } else if(key.endsWith('Arm') && arm[key.slice(0, -3)]) { solveArm(key.slice(0, -3)); }
-      else if(b.parent && (b.parent === arm.Left.A || b.parent === arm.Right.A || b.parent === arm.Left.F || b.parent === arm.Right.F)) { /* set by solveArm */ }
+      } else if(key.endsWith('Arm') && arm[key.slice(0, -3)]) { continue; }   // arms: solved below, once the head is posed
+      else if(b.parent && (b.parent === arm.Left.A || b.parent === arm.Right.A || b.parent === arm.Left.F || b.parent === arm.Right.F)) { continue; }
       else { mq.get(b).copy(pq).multiply(b.quaternion); }      // unmapped (toes, head top, fingers): keep the local rotation
       fkPos(b);
     }
+    // posed head ellipsoid (centre + rotation), then the arms
+    _q.copy(bind.get(B.Head).mq).invert().premultiply(mq.get(B.Head)); headQ.copy(_q);
+    headP.copy(headOff).applyQuaternion(_q).add(mp.get(B.Head));
+    avoidHead = suj === 0 && tak === 0 && q.anim !== 'adzan';
+    solveArm('Left'); solveArm('Right');
     // 4. fingers: relaxed curl, closed round a held prop, flat for open-hand acts
     const want = q.prop ? .95 : OPEN_HANDS.has(q.anim) ? 0 : .3;
     curl += (want - curl) * .25;
@@ -198,6 +221,17 @@ export function buildFromGLTF(gltf, { castShadow = true } = {}){
     _T.copy(dp['hand'+s]);
     if(suj > 0) _T.y += (WRIST_MAT - _T.y) * suj;               // sujud: wrists down at the mat so the palms lie flat
     if(tak > 0) _T.lerp(_v.set(s==='L' ? EAR[0] : -EAR[0], EAR[1], EAR[2]).applyQuaternion(dq.head).add(dp.head), tak);   // takbir: open hands beside the ears (this head is bigger than the arm swing)
+    // empty hands raised above the shoulder (cheer, wave, jump, khutbah gestures): keep the driver's arm DIRECTION and use
+    // this model's own reach, so arms that go up overhead on the code-built hero do not stop in front of this bigger face
+    if(avoidHead && !cur.prop){
+      const up = clamp((_T.y - dp['shoulder'+s].y) / .12 + .3, 0, 1);
+      if(up > 0) _T.lerp(_v.subVectors(dp['hand'+s], dp['shoulder'+s]).multiplyScalar(reach * .97).add(_S), up);
+    }
+    if(avoidHead){                                               // wrist outside the (padded) head ellipsoid
+      _hq.copy(headQ).invert(); _hp.subVectors(_T, headP).applyQuaternion(_hq);
+      const ex = _hp.x/(headR.x+HEAD_PAD), ey = _hp.y/(headR.y+HEAD_PAD), ez = _hp.z/(headR.z+HEAD_PAD), e = Math.hypot(ex, ey, ez);
+      if(e < 1 && e > 1e-4){ _hp.multiplyScalar(1/e).applyQuaternion(headQ); _T.copy(headP).add(_hp); }
+    }
     _dir.subVectors(_T, _S); let d = _dir.length(); _dir.multiplyScalar(1/Math.max(d, 1e-6));
     d = clamp(d, Math.abs(a-b) + 1e-3, a + b - 1e-4);
     _pp.subVectors(dp['elbow'+s], _S); _pp.addScaledVector(_dir, -_pp.dot(_dir));
@@ -241,7 +275,7 @@ export function buildFromGLTF(gltf, { castShadow = true } = {}){
     q.premultiply(_q3.setFromAxisAngle(_H, ang * .85));
   }
 
-  const hero = { group, mesh, blob, bones: B, sockets, driver, kind: 'glb',
+  const hero = { group, mesh, blob, bones: B, sockets, driver, kind: 'glb', _dbg:{ headC, headR, headP, dp },
     stats: { triangles: (mesh.geometry.index ? mesh.geometry.index.count : mesh.geometry.attributes.position.count) / 3, vertices: mesh.geometry.attributes.position.count, bones: order.length, drawCalls: 2 },
     pose, setLook(l){ setLook(U, l); }, setFace(){},          // painted face: no blink/talk (no blendshapes)
     dispose(){ mesh.geometry.dispose(); for(const m of mats){ for(const t of ['map','normalMap']) m[t]?.dispose(); m.dispose(); } blob.geometry.dispose(); blob.material.map.dispose(); blob.material.dispose(); } };
