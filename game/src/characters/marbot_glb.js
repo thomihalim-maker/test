@@ -265,7 +265,7 @@ function figureMaterial(m, U){
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vBindP;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBindP = position;')
-      .replace('#include <shadowmap_vertex>', SHADOW_BIAS);
+      .replace('#include <shadowmap_vertex>', SHADOW_BIAS.replace('+ 0.07)', '+ 0.16)'));   // no small self-shadows (nose, ears) on the painted face
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
         varying vec3 vBindP; uniform vec3 uTint; uniform vec3 uKoko, uSarA, uSarB, uPeci;`)
