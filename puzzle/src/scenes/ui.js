@@ -261,29 +261,27 @@ export async function showWin(scene, { stars = 3, next } = {}) {
   const dim = root.add(new Node({ alpha: 0, drawFn: ctx => {
     // dim only the top and bottom bands so the level's payoff in the centre stays visible
     const w = W(), h = H(), g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, 'rgba(44,40,92,0.55)'); g.addColorStop(0.36, 'rgba(44,40,92,0.12)'); g.addColorStop(0.5, 'rgba(44,40,92,0)');
-    g.addColorStop(0.7, 'rgba(44,40,92,0.06)'); g.addColorStop(1, 'rgba(44,40,92,0.5)');
+    g.addColorStop(0, 'rgba(44,40,92,0.5)'); g.addColorStop(0.28, 'rgba(44,40,92,0.08)'); g.addColorStop(0.42, 'rgba(44,40,92,0)');
+    g.addColorStop(0.74, 'rgba(44,40,92,0)'); g.addColorStop(1, 'rgba(44,40,92,0.45)');
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
   } }));
   tween(dim, { alpha: 1 }, { dur: 0.45 });
   const topY = Math.min(oy, 60) * 0.5;
-  const rays = root.add(new Node({ x: cx, y: topY + 200, alpha: 0, sx: 0.4, sy: 0.4 }).setImage(raysSprite()));
+  const rays = root.add(new Node({ x: cx, y: topY + 120, alpha: 0, sx: 0.3, sy: 0.3 }).setImage(raysSprite()));
   rays.w = rays.h = 1500;
-  tween(rays, { alpha: 0.45, sx: 0.75, sy: 0.75 }, { dur: 0.9, delay: 0.25, ease: 'outCubic' });
+  tween(rays, { alpha: 0.4, sx: 0.55, sy: 0.55 }, { dur: 0.9, delay: 0.25, ease: 'outCubic' });
   game.onUpdate((dt) => { rays.rot += dt * 0.12; });
 
-  const CW = 640, CH = 170, cardY = topY + 268;
-  const card = root.add(new Node({ x: cx, y: cardY, alpha: 0, sx: 0.5, sy: 0.5 }).setImage(cardSprite(CW, CH)));
-  tween(card, { alpha: 1, sx: 1, sy: 1 }, { dur: 0.55, delay: 0.15, ease: 'outBack' });
+  const cardY = topY + 196;
 
   // banner with per-letter "Hebat!"
-  const banner = root.add(new Node({ x: cx, y: -260 }));
+  const banner = root.add(new Node({ x: cx, y: -260, sx: 0.86, sy: 0.86 }));
   banner.add(new Node().setImage(bannerSprite()));
   const word = banner.add(crayonWord('Hebat!', 118, ['#fff3b0', '#ffe27a', '#fff3b0', '#ffe27a', '#fff3b0', '#ffffff'], { line: '#7a3b2e', halo: 0.5 }));
   word.y = -12;
-  const bannerY = topY + 112;
+  const bannerY = topY + 84;
   tween(banner, { y: bannerY }, { dur: 0.75, delay: 0.35, ease: 'outBounce' }).then(() => {
-    if (!alive()) return; banner.sy = 0.9; banner.sx = 1.06; tween(banner, { sx: 1, sy: 1 }, { dur: 0.5, ease: 'outElastic' });
+    if (!alive()) return; banner.sy = 0.78; banner.sx = 0.92; tween(banner, { sx: 0.86, sy: 0.86 }, { dur: 0.5, ease: 'outElastic' });
   });
   game.onUpdate((dt, t) => {
     for (const L of word.letters) { L.y = Math.sin(t * 5 - L.i * 0.7) * 7; L.rot = L.baseRot + Math.sin(t * 3 - L.i) * 0.05; }
@@ -294,7 +292,7 @@ export async function showWin(scene, { stars = 3, next } = {}) {
   const sY = cardY + 6, slots = [];
   const emptyS = starSprite(150, '#efe4d0', { line: '#c2b192' }), fullS = starSprite(150, PAL.yellow, { line: '#b8892a' });
   for (let i = 0; i < 3; i++) {
-    const big = i === 1 ? 0.92 : 0.76, sx = cx + (i - 1) * 165, sy = sY - (i === 1 ? 10 : 0);
+    const big = i === 1 ? 0.66 : 0.56, sx = cx + (i - 1) * 118, sy = sY - (i === 1 ? 8 : 0);
     const slot = root.add(new Node({ x: sx, y: sy, sx: 0, sy: 0, rot: (i - 1) * 0.18 }).setImage(emptyS));
     slot.big = big; slots.push(slot);
     tween(slot, { sx: big, sy: big }, { dur: 0.4, delay: 0.45 + i * 0.06, ease: 'outBack' });
@@ -305,14 +303,13 @@ export async function showWin(scene, { stars = 3, next } = {}) {
     for (let i = 0; i < 3; i++) {
       if (i < stars) {
         const s = slots[i]; s.setImage(fullS); s.sx = s.sy = 0.1; s.rot = (i - 1) * 0.18 - 1.2;
-        tween(s, { sx: s.big * 1.3, sy: s.big * 1.3, rot: (i - 1) * 0.18 }, { dur: 0.26, ease: 'outCubic' }).then(() => tween(s, { sx: s.big, sy: s.big }, { dur: 0.45, ease: 'outElastic' }));
+        tween(s, { sx: s.big * 1.9, sy: s.big * 1.9, rot: (i - 1) * 0.18 }, { dur: 0.26, ease: 'outCubic' }).then(() => tween(s, { sx: s.big, sy: s.big }, { dur: 0.45, ease: 'outElastic' }));
         audio.sfx('star', { i });
         burst(root, s.x, s.y, 'sparkle', { count: 16, spread: 0.9 });
         burst(root, s.x, s.y, 'stars', { count: 7, spread: 1.2, scale: 0.6 });
-        card.y += 6; tween(card, { y: cardY }, { dur: 0.3, ease: 'outBack' });
         // glow pulse behind the star
         const gl = new Node({ x: s.x, y: s.y, alpha: 0.9, sx: 0.5, sy: 0.5, composite: 'lighter' }).setImage(glowSprite(64, '#fff0a0'));
-        gl.w = gl.h = 240; gl.parent = root; root.children.splice(root.children.indexOf(s), 0, gl);
+        gl.w = gl.h = 190; gl.parent = root; root.children.splice(root.children.indexOf(s), 0, gl);
         tween(gl, { sx: 1.3, sy: 1.3, alpha: 0.35 }, { dur: 0.6, ease: 'outCubic' });
         await wait(0.38); if (!alive()) return;
       }

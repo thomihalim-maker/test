@@ -465,6 +465,11 @@ export default class Level1 extends LevelScene {
     this.complete();
   }
 
+  complete() {
+    for (const n of [this.pipBar, ...this.pips]) tween(n, { alpha: 0 }, { dur: 0.4 });
+    return super.complete();
+  }
+
   debugSolve(n = Infinity) {
     const list = this.items.filter(o => !o.placed);
     const k = Math.min(n, list.length);
