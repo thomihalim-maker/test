@@ -57,13 +57,13 @@ export default class Finale {
     this.v = v; const W = v.w, H = v.h, oy = (H - 900) / 2, si = safeInset(v);
     this.sky.w = Math.max(W, H * 1.7) + 4; this.sky.h = H + 4; this.sky.x = this.sky.y = -2;
     this.stars.layout(W, H * 0.65); this.shoot.area = { w: W, h: H * 0.5 };
-    this.moon.x = W - 200 - si; this.moon.y = 290 + oy * 0.4; this.moonGlow.x = this.moon.x; this.moonGlow.y = this.moon.y;
+    this.moon.x = W - 200 - si; this.moon.y = oy + 375; this.moonGlow.x = this.moon.x; this.moonGlow.y = this.moon.y;
     for (const h of [this.hillFar, this.hillMid, this.hillNear]) { h.x = W / 2; h.y = H + 8; }
     this.hillMid.x = W / 2 - 80;
     this.flies.layout(0, H * 0.45, W, H * 0.45);
     this.bunting.x = W / 2; this.bunting.y = -6; this.bunting.sx = Math.max(1, W / 1700);
     this.title.x = W / 2; this.title.y = oy + 205;
-    this.fam.x = W / 2; this.fam.y = H - 40;
+    this.fam.x = W / 2; this.fam.y = H - 40; this.fam.sx = this.fam.sy = Math.min(1.2, Math.max(1, H / 900));
     this.mom.x = -250; this.dad.x = 250; this.baby.x = 0; this.baby.y = -26;
     this.home.x = W - 110 - si; this.home.y = H - 110;
   }

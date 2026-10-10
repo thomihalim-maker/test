@@ -61,7 +61,7 @@ export function buttonSprite(icon = 'play', size = 120, color = PAL.orange) {
     // soft ground shadow
     x.save(); x.filter = `blur(${size * 0.04}px)`; x.fillStyle = 'rgba(60,40,30,0.22)';
     x.beginPath(); x.ellipse(c, cy + lip + r * 0.9, r * 0.82, r * 0.18, 0, 0, 7); x.fill(); x.restore();
-    crayonShape(x, circlePts(c, cy + lip, r), shade(color, -0.28), { seed: 3, lw: 3, volume: false, hatchStep: 5 });
+    crayonShape(x, circlePts(c, cy + lip, r), shade(color, -0.2), { seed: 3, lw: 3, volume: false, hatchStep: 5 });
     const face = crayonShape(x, circlePts(c, cy, r), color, { seed: 5, lw: 3.2, hatchStep: 5, light: shade(color, 0.3) });
     // crayon highlight arc
     scribble(x, ellipsePts(c, cy, r * 0.72, r * 0.72, 18, Math.PI * 1.08).slice(0, 6), 'rgba(255,255,255,0.75)', size * 0.06, { seed: 8, passes: 1, grain: 0.4 });

@@ -87,6 +87,7 @@ export default class Level1 extends LevelScene {
     this.top = this.world.add(new Node());
     this.beam = this.top.add(new Node({ drawFn: ctx => this.drawBeam(ctx) }));
     this.topFx = this.top.add(new Node());
+    this.ghost = this.top.add(new Node({ alpha: 0 }));
     this.hand = this.top.add(new Node({ ax: 58 / 130, ay: 10 / 160, alpha: 0, rot: -0.35 }).setImage(S.hand));
 
     // tap targets for little delights (not draggable)
@@ -416,17 +417,21 @@ export default class Level1 extends LevelScene {
       })
       .then(() => {
         if (!this.hinting) return;
-        const x0 = h.x, y0 = h.y, x1 = s.x + 20, y1 = s.y + 20;
-        return tween({ k: 0 }, { k: 1 }, { dur: 1.3, ease: 'inOutSine', onUpdate: (e) => {
+        const x0 = h.x, y0 = h.y, x1 = s.x + 20, y1 = s.y + 20, g = this.ghost, s0 = n.home.sx;
+        g.setImage(this.S['item_' + it.key]);
+        return tween({ k: 0 }, { k: 1 }, { dur: 1.5, ease: 'inOutSine', onUpdate: (e) => {
           if (!this.hinting) return;
-          h.x = lerp(x0, x1, e); h.y = lerp(y0, y1, e) - Math.sin(e * Math.PI) * 140;
+          h.x = lerp(x0, x1, e); h.y = lerp(y0, y1, e) - Math.sin(e * Math.PI) * 270;
+          g.x = h.x - 30; g.y = h.y - 30; g.sx = g.sy = lerp(s0, 1, e); g.rot = lerp(n.home.rot, s.rot, e) + Math.sin(e * Math.PI) * 0.15;
+          g.alpha = 0.6 * Math.min(1, e * 6);
         } });
       })
       .then(() => {
         if (!this.hinting) return;
         this.mom.lookAt(...this.w(s.x, s.y));
         tween(it, { silS: 1.2 }, { dur: 0.18 }).then(() => tween(it, { silS: 1 }, { dur: 0.6, ease: 'outElastic' }));
-        return wait(0.6);
+        tween(h, { sx: 0.86, sy: 0.86 }, { dur: 0.15 }).then(() => tween(h, { sx: 1, sy: 1 }, { dur: 0.3, ease: 'outBack' }));
+        return wait(1.0);
       })
       .then(() => { this.hideHint(); });
   }
@@ -435,6 +440,7 @@ export default class Level1 extends LevelScene {
     this.hinting = false; this.idle = 0;
     killTweensOf(this.hand);
     tween(this.hand, { alpha: 0 }, { dur: 0.25 });
+    killTweensOf(this.ghost); tween(this.ghost, { alpha: 0 }, { dur: 0.25 });
     for (const it of this.items) tween(it, { glowK: 0 }, { dur: 0.3 });
   }
 
@@ -509,7 +515,7 @@ export default class Level1 extends LevelScene {
       if (it.placed) { sh.x = n.x + 3; sh.y = n.y + 6; sh.rot = n.rot; sh.sx = n.sx; sh.sy = n.sy; sh.alpha = 0.16; }
       else {
         sh.x = n.x + 6 + lift * 22; sh.y = n.y + 7 + lift * 30; sh.rot = n.rot; sh.sx = n.sx * (1 - lift * 0.04); sh.sy = n.sy * (1 - lift * 0.04);
-        sh.alpha = (n.sx > 0.05 ? 1 : 0) * (0.2 + lift * 0.06);
+        sh.alpha = (n.sx > 0.05 ? 1 : 0) * (0.2 + lift * 0.14);
       }
       const gl = it.glow;
       gl.x = n.x; gl.y = n.y; gl.rot = n.rot; gl.sx = n.sx; gl.sy = n.sy;
