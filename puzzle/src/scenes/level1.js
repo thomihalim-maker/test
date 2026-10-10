@@ -22,7 +22,7 @@ const L = {
   cribFront: { x: 480, y: 375 },
   stool: { x: 330, y: 690 },
   rug: { x: 800, y: 868 },
-  mom: { x: 205, y: 880, s: 0.94 },
+  mom: { x: 222, y: 880, s: 0.94 },
   baby: { x: 818, y: 618, s: 0.86, rot: -0.34 },
   mobile: { x: 806, y: 0, ring: 148, R: 112 },
 };
