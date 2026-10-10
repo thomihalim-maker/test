@@ -259,7 +259,7 @@ function basketFrontSVG(k) {
     <path d="${body}" fill="${lighten(C.wick, 0.25)}"/>
     <path d="${body}" fill="${C.wick}" filter="url(#crayon)"/>
     <g clip-path="url(#${cid})">
-      <g filter="url(#crayon)" opacity="0.9">${bumps}</g>
+      <g filter="url(#crayon)" opacity="0.7">${bumps}</g>
       <path d="${shades}" ${L(3, lighten(C.wick, 0.5))} opacity="0.8"/>
       <g filter="url(#penU)" opacity="0.55"><path d="${rowPath}" ${L(2.2, C.wickD)}/><path d="${stakePath}" ${L(2, C.wickD)}/></g>
       <path d="M${cx - rx} ${ty}C${cx - rx + 6} ${ty + 60} ${cx - rx + 22} ${by - 30} ${cx - rx + 34} ${by - 10}L${cx - rx + 70} ${by}L${cx - rx + 40} ${ty}Z" fill="${C.wickD}" opacity="0.2"/>

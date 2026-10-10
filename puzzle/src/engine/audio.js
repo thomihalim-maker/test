@@ -213,9 +213,9 @@ class Audio {
           break;
         }
         case 'whoosh': {
-          const n = this._noise(t, 0.42, 0.22 * v, 'bandpass', 400, 1.4);
+          const n = this._noise(t, 0.42, 0.36 * v, 'bandpass', 400, 1.4);
           n.f.frequency.setValueAtTime(350, t); n.f.frequency.exponentialRampToValueAtTime(2600, t + 0.18); n.f.frequency.exponentialRampToValueAtTime(700, t + 0.4);
-          n.g.gain.cancelScheduledValues(t); n.g.gain.setValueAtTime(0, t); n.g.gain.linearRampToValueAtTime(0.22 * v, t + 0.15); n.g.gain.exponentialRampToValueAtTime(0.0001, t + 0.42);
+          n.g.gain.cancelScheduledValues(t); n.g.gain.setValueAtTime(0, t); n.g.gain.linearRampToValueAtTime(0.36 * v, t + 0.15); n.g.gain.exponentialRampToValueAtTime(0.0001, t + 0.42);
           break;
         }
         case 'sparkle': {
@@ -242,7 +242,7 @@ class Audio {
           break;
         }
         case 'pop': {
-          this._glide(t, 320 * p, 1300 * p, 0.05, 0.24 * v, 'sine', this.sfxBus, 0.15);
+          this._glide(t, 320 * p, 1300 * p, 0.06, 0.5 * v, 'sine', this.sfxBus, 0.15);
           this._noise(t, 0.02, 0.06 * v, 'highpass', 2500, 1);
           break;
         }
@@ -254,7 +254,7 @@ class Audio {
             o.type = 'triangle';
             o.frequency.setValueAtTime(f * 0.85, st); o.frequency.exponentialRampToValueAtTime(f * 1.3, st + 0.035); o.frequency.exponentialRampToValueAtTime(f * 0.9, st + 0.08);
             bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 0.8;
-            const vol = (0.16 - k * 0.012) * v;
+            const vol = (0.32 - k * 0.022) * v;
             g.gain.setValueAtTime(0, st); g.gain.linearRampToValueAtTime(vol, st + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, st + 0.09);
             o.connect(bp).connect(g).connect(out); o.start(st); o.stop(st + 0.12);
             f *= R(0.92, 0.98);

@@ -200,13 +200,13 @@ function raysSprite() {
 }
 function cardSprite(w, h) {
   return makeSprite(w + 30, h + 40, (x) => {
-    x.save(); x.filter = 'blur(10px)'; x.fillStyle = 'rgba(50,30,40,0.3)'; x.beginPath(); x.roundRect(22, 34, w - 14, h - 10, 50); x.fill(); x.restore();
-    crayonShape(x, roundRectPts(15, 15, w, h, 54), '#fff8ec', { seed: 12, lw: 3.6, shade: '#f0e0c6', light: '#ffffff', hatchStep: 10 });
+    x.save(); x.filter = 'blur(10px)'; x.fillStyle = 'rgba(50,30,40,0.3)'; x.beginPath(); x.roundRect(22, 34, w - 14, h - 10, Math.min(50, h / 2)); x.fill(); x.restore();
+    crayonShape(x, roundRectPts(15, 15, w, h, Math.min(54, h / 2)), '#fff8ec', { seed: 12, lw: 3.6, shade: '#f0e0c6', light: '#ffffff', hatchStep: 10 });
     // inner dashed pencil frame
-    const inner = roundRectPts(42, 42, w - 54, h - 54, 34);
+    const inner = roundRectPts(34, 34, w - 38, h - 38, Math.min(34, h / 2 - 22));
     x.save(); x.setLineDash([14, 12]); pencil(x, inner, { w: 2.4, color: '#d9b98a', seed: 4, passes: 1 }); x.restore();
     // corner doodle stars
-    for (const [px, py, s] of [[60, 66, 22], [w - 30, 70, 18], [58, h - 22, 16], [w - 26, h - 26, 22]]) crayonShape(x, starPts(px, py, s, s * 0.47, 5, -Math.PI / 2, 2), '#f8dc86', { seed: px, lw: 1.8, lineColor: '#c9a548', wobble: 0.6, hatchStep: 4 });
+    for (const [px, py, s] of [[52, h / 2 + 15, 16], [w - 22, h / 2 + 15, 16]]) crayonShape(x, starPts(px, py, s, s * 0.47, 5, -Math.PI / 2, 2), '#f8dc86', { seed: px, lw: 1.8, lineColor: '#c9a548', wobble: 0.6, hatchStep: 4 });
   }, { key: `wincard|${w}|${h}` });
 }
 function bannerSprite(w = 760, h = 190) {
@@ -259,18 +259,21 @@ export async function showWin(scene, { stars = 3, next } = {}) {
   const cx = W() / 2, oy = (H() - 900) / 2;
   // dim + warm vignette
   const dim = root.add(new Node({ alpha: 0, drawFn: ctx => {
-    const w = W(), h = H(); ctx.fillStyle = 'rgba(44,40,92,0.5)'; ctx.fillRect(0, 0, w, h);
-    const g = ctx.createRadialGradient(w / 2, h * 0.45, 50, w / 2, h * 0.45, h * 0.9); g.addColorStop(0, 'rgba(255,220,170,0.35)'); g.addColorStop(1, 'rgba(255,220,170,0)');
+    // dim only the top and bottom bands so the level's payoff in the centre stays visible
+    const w = W(), h = H(), g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, 'rgba(44,40,92,0.55)'); g.addColorStop(0.36, 'rgba(44,40,92,0.12)'); g.addColorStop(0.5, 'rgba(44,40,92,0)');
+    g.addColorStop(0.7, 'rgba(44,40,92,0.06)'); g.addColorStop(1, 'rgba(44,40,92,0.5)');
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
   } }));
   tween(dim, { alpha: 1 }, { dur: 0.45 });
-  const rays = root.add(new Node({ x: cx, y: oy + 400, alpha: 0, sx: 0.6, sy: 0.6 }).setImage(raysSprite()));
+  const topY = Math.min(oy, 60) * 0.5;
+  const rays = root.add(new Node({ x: cx, y: topY + 200, alpha: 0, sx: 0.4, sy: 0.4 }).setImage(raysSprite()));
   rays.w = rays.h = 1500;
-  tween(rays, { alpha: 0.5, sx: 1, sy: 1 }, { dur: 0.9, delay: 0.25, ease: 'outCubic' });
+  tween(rays, { alpha: 0.45, sx: 0.75, sy: 0.75 }, { dur: 0.9, delay: 0.25, ease: 'outCubic' });
   game.onUpdate((dt) => { rays.rot += dt * 0.12; });
 
-  const CW = 860, CH = 470;
-  const card = root.add(new Node({ x: cx, y: oy + 470, alpha: 0, sx: 0.5, sy: 0.5 }).setImage(cardSprite(CW, CH)));
+  const CW = 640, CH = 170, cardY = topY + 268;
+  const card = root.add(new Node({ x: cx, y: cardY, alpha: 0, sx: 0.5, sy: 0.5 }).setImage(cardSprite(CW, CH)));
   tween(card, { alpha: 1, sx: 1, sy: 1 }, { dur: 0.55, delay: 0.15, ease: 'outBack' });
 
   // banner with per-letter "Hebat!"
@@ -278,7 +281,7 @@ export async function showWin(scene, { stars = 3, next } = {}) {
   banner.add(new Node().setImage(bannerSprite()));
   const word = banner.add(crayonWord('Hebat!', 118, ['#fff3b0', '#ffe27a', '#fff3b0', '#ffe27a', '#fff3b0', '#ffffff'], { line: '#7a3b2e', halo: 0.5 }));
   word.y = -12;
-  const bannerY = oy + 236;
+  const bannerY = topY + 112;
   tween(banner, { y: bannerY }, { dur: 0.75, delay: 0.35, ease: 'outBounce' }).then(() => {
     if (!alive()) return; banner.sy = 0.9; banner.sx = 1.06; tween(banner, { sx: 1, sy: 1 }, { dur: 0.5, ease: 'outElastic' });
   });
@@ -288,10 +291,10 @@ export async function showWin(scene, { stars = 3, next } = {}) {
   });
 
   // star slots + filled stars
-  const sY = oy + 458, slots = [];
+  const sY = cardY + 6, slots = [];
   const emptyS = starSprite(150, '#efe4d0', { line: '#c2b192' }), fullS = starSprite(150, PAL.yellow, { line: '#b8892a' });
   for (let i = 0; i < 3; i++) {
-    const big = i === 1 ? 1.2 : 1, sx = cx + (i - 1) * 205, sy = sY - (i === 1 ? 26 : 0);
+    const big = i === 1 ? 0.92 : 0.76, sx = cx + (i - 1) * 165, sy = sY - (i === 1 ? 10 : 0);
     const slot = root.add(new Node({ x: sx, y: sy, sx: 0, sy: 0, rot: (i - 1) * 0.18 }).setImage(emptyS));
     slot.big = big; slots.push(slot);
     tween(slot, { sx: big, sy: big }, { dur: 0.4, delay: 0.45 + i * 0.06, ease: 'outBack' });
@@ -306,10 +309,10 @@ export async function showWin(scene, { stars = 3, next } = {}) {
         audio.sfx('star', { i });
         burst(root, s.x, s.y, 'sparkle', { count: 16, spread: 0.9 });
         burst(root, s.x, s.y, 'stars', { count: 7, spread: 1.2, scale: 0.6 });
-        card.y += 6; tween(card, { y: oy + 470 }, { dur: 0.3, ease: 'outBack' });
+        card.y += 6; tween(card, { y: cardY }, { dur: 0.3, ease: 'outBack' });
         // glow pulse behind the star
         const gl = new Node({ x: s.x, y: s.y, alpha: 0.9, sx: 0.5, sy: 0.5, composite: 'lighter' }).setImage(glowSprite(64, '#fff0a0'));
-        gl.w = gl.h = 300; gl.parent = root; root.children.splice(root.children.indexOf(s), 0, gl);
+        gl.w = gl.h = 240; gl.parent = root; root.children.splice(root.children.indexOf(s), 0, gl);
         tween(gl, { sx: 1.3, sy: 1.3, alpha: 0.35 }, { dur: 0.6, ease: 'outCubic' });
         await wait(0.38); if (!alive()) return;
       }
@@ -322,7 +325,7 @@ export async function showWin(scene, { stars = 3, next } = {}) {
     // buttons
     const defs = [['replay', PAL.green, 140, () => game.go(game.sceneName)], ['home', PAL.blue, 140, () => game.go('menu')]];
     if (next) defs.push(['next', PAL.orange, 178, () => game.go(next)]);
-    const by = oy + 700, gap = 215;
+    const by = H() - 112, gap = 215;
     for (let i = 0; i < defs.length; i++) {
       const [icon, col, size, fn] = defs[i];
       const b = await makeButton({ icon, size, color: col }, fn);

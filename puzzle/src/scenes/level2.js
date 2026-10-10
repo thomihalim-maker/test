@@ -27,7 +27,7 @@ const TOYS = [
 // toy resting slots inside a basket (basket-local; origin = basket bottom centre)
 const SLOTS = [{ x: -64, y: -122, r: -0.22 }, { x: 62, y: -120, r: 0.2 }, { x: 0, y: -110, r: 0.03 }];
 const SLOT_S = 0.84;
-const DAD = { x: 165, y: 924, s: 0.95 };
+const DAD = { x: 190, y: 924, s: 0.95 };
 const BOUNCER = { x: 1452, y: 664 };
 const PRAISE = ['Pintar!', 'Hebat!', 'Bagus sekali!', 'Hore!'];
 
