@@ -1,0 +1,44 @@
+# Lightweight check for pull requests: build the game and statically verify that every module import,
+# import-map target, manifest icon and service-worker precache entry resolves inside dist/ (no browser).
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: game
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Build
+        run: node tools/build.mjs
+
+      - name: Verify dist
+        run: node tools/verify-dist.mjs
+
+      - name: Check JSON configs
+        run: node -e "for (const f of ['package.json','capacitor.config.json','manifest.webmanifest']) JSON.parse(require('fs').readFileSync(f,'utf8'))"
+
+      - name: Upload dist (download for itch.io / manual testing)
+        uses: actions/upload-artifact@v7
+        with:
+          name: marbot-masjid-dist
+          path: game/dist
+          include-hidden-files: true
+          retention-days: 7

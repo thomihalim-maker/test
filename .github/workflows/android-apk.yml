@@ -1,0 +1,89 @@
+# Builds an installable Android APK of Marbot Masjid with Capacitor.
+# Download it from the run's "Artifacts" section (marbot-masjid-apk), unzip, and install on a phone.
+# The APK is signed with the standard debug key: fine for testing/sideloading, not for the Play Store.
+name: Android APK
+
+on:
+  push:
+    branches: ['claude/**', main]
+    paths: ['game/**', '.github/workflows/android-apk.yml']
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Commit or branch to build (empty = this commit)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apk-${{ github.ref }}-${{ inputs.ref || 'push' }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: game
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      # Android-only overrides live on this branch's workflow commit, so building an older ref still gets them.
+      - uses: actions/checkout@v5
+        with:
+          path: _overrides
+          sparse-checkout: game/android-overrides
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install Capacitor
+        run: npm install --no-audit --no-fund
+
+      - name: Build web game into dist/
+        run: node tools/build.mjs && node tools/verify-dist.mjs
+
+      - name: Create Android project
+        run: |
+          [ -d android ] || npx cap add android
+          npx cap sync android
+
+      - name: Landscape + full-screen (immersive) activity
+        run: |
+          M=android/app/src/main/AndroidManifest.xml
+          grep -q 'screenOrientation' $M || sed -i 's#android:name=".MainActivity"#android:name=".MainActivity"\n            android:screenOrientation="sensorLandscape"\n            android:resizeableActivity="false"#' $M
+          F=$(find android/app/src/main/java -name MainActivity.java | head -1)
+          cp ../_overrides/game/android-overrides/MainActivity.java "$F"
+          grep -n 'screenOrientation' $M
+          head -3 "$F"
+
+      - name: App icon and splash from the game icon
+        continue-on-error: true
+        run: |
+          mkdir -p assets
+          cp icons/icon-512.png assets/icon-only.png
+          npx --yes @capacitor/assets generate --android --iconBackgroundColor '#fff6e0' --splashBackgroundColor '#fff6e0'
+
+      - name: Build debug APK
+        working-directory: game/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk ../marbot-masjid.apk
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: marbot-masjid-apk
+          path: game/marbot-masjid.apk
+          if-no-files-found: error

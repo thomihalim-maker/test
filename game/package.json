@@ -1,0 +1,26 @@
+{
+  "name": "marbot-masjid",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Marbot Masjid: a cozy Three.js village-masjid game for kids (Indonesian / English). Static, offline-capable PWA; Android via Capacitor.",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "serve": "node tools/serve.mjs . 8123",
+    "serve:dist": "node tools/serve.mjs dist 8124",
+    "build": "node tools/build.mjs && node tools/verify-dist.mjs",
+    "verify": "node tools/verify-dist.mjs",
+    "icons": "node tools/make-icons.mjs",
+    "smoke": "node tools/smoke-dist.mjs",
+    "shot": "node tools/shot.mjs",
+    "build:play": "sh tools/build-play.sh",
+    "cap:add": "npm run build && cap add android",
+    "cap:sync": "npm run build && cap sync android",
+    "cap:open": "cap open android",
+    "cap:run": "npm run build && cap run android"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2"
+  }
+}

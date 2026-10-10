@@ -1,0 +1,13 @@
+{
+  "appId": "id.marbotmasjid.game",
+  "appName": "Marbot Masjid",
+  "webDir": "dist",
+  "backgroundColor": "#fff6e0",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "backgroundColor": "#fff6e0",
+    "allowMixedContent": false
+  }
+}

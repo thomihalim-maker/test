@@ -1,0 +1,75 @@
+# Builds game/ and publishes game/dist to GitHub Pages (https://<owner>.github.io/<repo>/).
+# One-time setup (game/DEPLOY.md section 3):
+#   1. Settings -> General -> Default branch: the branch that should go live (recommended: main).
+#   2. Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
+# Only the repository's DEFAULT branch deploys. GitHub's auto-created "github-pages" environment accepts deployments
+# from the default branch only, so pushes to other branches start this workflow but skip it straight away.
+name: Deploy game to GitHub Pages
+
+on:
+  push:
+    # Only changes that can alter the shipped game: every deploy gets a new version (git sha), which makes every
+    # installed player re-download the whole precache and see "Versi baru tersedia".
+    paths:
+      - 'game/**'
+      - '!game/**/*.md'
+      - '!game/tools/**'
+      - 'game/tools/build.mjs'
+      - 'game/tools/modgraph.mjs'
+      - '!game/src/**/*.html'
+      - '!game/capacitor.config.json'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; never cancel a deployment that is already running. Keyed by branch so skipped runs from
+# other branches never replace a queued deployment of the default branch.
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: game
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v6
+
+      - name: Build (node built-ins only, no npm install needed)
+        run: node tools/build.mjs
+        env:
+          SITE_URL: ${{ steps.pages.outputs.base_url }}/
+
+      - name: Verify build (imports, precache list, manifest, syntax)
+        run: node tools/verify-dist.mjs
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: game/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
