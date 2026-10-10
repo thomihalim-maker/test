@@ -113,8 +113,10 @@ Semua hosting statis bisa dipakai; tidak perlu header khusus.
 
 - **Netlify**: buka https://app.netlify.com/drop lalu seret folder `game/dist`.
   Atau hubungkan repo dengan *Base directory* `game`, *Build command* `node tools/build.mjs`, *Publish directory* `game/dist`.
-- **Vercel**: `npx vercel deploy game/dist --prod`, atau project dengan *Root Directory* `game`,
-  *Build Command* `node tools/build.mjs`, *Output Directory* `dist`, *Framework* "Other".
+- **Vercel**: `game/vercel.json` sudah berisi semua pengaturan (build, output `dist`, header cache). Cukup:
+  *Add New → Project* → import repo GitHub → **Root Directory: `game`** → Deploy. Atur *Settings → Git →
+  Production Branch* ke branch yang berisi game terbaru. Tanpa GitHub: `npm run build` lalu
+  `npx vercel deploy game/dist --prod`.
 - **Cloudflare Pages**: sama seperti Netlify (build `node tools/build.mjs`, output `dist`, root `game`).
   Cloudflare mengalihkan `/index.html` ke `/` (308); service worker sudah menangani pengalihan ini.
 - **itch.io**:
