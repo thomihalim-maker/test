@@ -15,22 +15,22 @@ const BASKETS = [{ col: 'red', x: 585 }, { col: 'yellow', x: 865 }, { col: 'blue
 const BASKET_Y = 640;
 const ROW_BACK = 768, ROW_FRONT = 824;
 const TOYS = [
-  { type: 'ball', col: 'red', x: 470, y: ROW_BACK, rot: -0.12 },
-  { type: 'duck', col: 'yellow', x: 585, y: ROW_FRONT, rot: 0.06 },
-  { type: 'car', col: 'blue', x: 700, y: ROW_BACK, rot: -0.07 },
-  { type: 'block', col: 'red', x: 815, y: ROW_FRONT, rot: 0.13 },
-  { type: 'rings', col: 'yellow', x: 930, y: ROW_BACK, rot: 0.02 },
-  { type: 'duck', col: 'blue', x: 1045, y: ROW_FRONT, rot: -0.07 },
-  { type: 'car', col: 'red', x: 1160, y: ROW_BACK, rot: 0.06 },
-  { type: 'ball', col: 'yellow', x: 1275, y: ROW_FRONT, rot: 0.1 },
-  { type: 'block', col: 'blue', x: 1390, y: ROW_BACK + 6, rot: -0.12 },
+  { type: 'ball', col: 'red', x: 495, y: ROW_BACK, rot: -0.12 },
+  { type: 'duck', col: 'yellow', x: 610, y: ROW_FRONT, rot: 0.06 },
+  { type: 'car', col: 'blue', x: 725, y: ROW_BACK, rot: -0.07 },
+  { type: 'block', col: 'red', x: 840, y: ROW_FRONT, rot: 0.13 },
+  { type: 'rings', col: 'yellow', x: 955, y: ROW_BACK, rot: 0.02 },
+  { type: 'duck', col: 'blue', x: 1070, y: ROW_FRONT, rot: -0.07 },
+  { type: 'car', col: 'red', x: 1185, y: ROW_BACK, rot: 0.06 },
+  { type: 'ball', col: 'yellow', x: 1300, y: ROW_FRONT, rot: 0.1 },
+  { type: 'block', col: 'blue', x: 1415, y: ROW_BACK + 6, rot: -0.12 },
 ];
 // resting slots inside a basket (basket-local; origin = basket bottom centre). The third toy sits on top of the pile.
 const SLOTS = [{ x: -66, y: -128, r: -0.2 }, { x: 66, y: -124, r: 0.18 }, { x: 0, y: -158, r: 0.03 }];
 const TYPE_DY = { rings: -16, car: -16, ball: 0, block: -4, duck: -6 };
 const SLOT_S = 0.9;
 const LIFT_Y = -50, LIFT_S = 1.15;
-const DAD = { x: 250, s: 0.88, drop: 64 };
+const DAD = { x: 235, s: 0.88, drop: 24 };
 const BOUNCER = { x: 1460, y: 690 };
 const PRAISE = ['Pintar!', 'Hebat!', 'Bagus sekali!', 'Hore!'];
 const DUST = '#f3e3c8';
@@ -78,11 +78,11 @@ export default class Level2 extends LevelScene {
       const n = S.add(new Node({ x: b.x, y: BASKET_Y }));
       const A = art.baskets[b.col];
       n.col = b.col; n.items = []; n.hover = 0; n.hv = 0; n.base = { x: b.x, y: BASKET_Y };
-      n.faces = { idle: A.faceidle, open: A.faceopen, happy: A.facehappy };
-      n.glowN = n.add(new Node({ alpha: 0, drawFn: (c, g) => drawRimGlow(c, COLS[b.col].c) }));
+      n.faces = { idle: A.faceidle, open: A.faceopen, happy: A.facehappy, hmm: A.facehmm };
       n.back = n.add(spr(A.back, { ax: 0.5, ay: BASKET_BASE / BASKET_H }));
       n.inner = n.add(new Node());
       n.front = n.add(spr(A.front, { ax: 0.5, ay: BASKET_BASE / BASKET_H }));
+      n.glowN = n.add(new Node({ alpha: 0, drawFn: c => drawRimGlow(c) }));
       n.face = n.front.add(spr(A.faceidle, { x: 0, y: -72, rot: -0.052, ax: 0.5, ay: FACE_CY / FACE_H }));
       n.faceMood = 'idle'; n.faceHold = 0;
       return n;
@@ -113,7 +113,7 @@ export default class Level2 extends LevelScene {
       n.shadow = n.add(spr(art.shadow, { sx: 0.75, sy: 0.75, alpha: 0.6 }));
       n.glow = n.add(new Node({ alpha: 0, drawFn: drawHintRing }));
       n.art = n.add(spr(art.toys[`${t.type}-${t.col}`], { ax: 0.5, ay: TOY_BASE / TOY_H }));
-      n.tilt = 0; n.shake = null; n.pulse = 0; n.spin = 0; n.shOff = 0;
+      n.tilt = 0; n.shake = null; n.pulse = 0; n.spin = 0; n.shOff = 0; n.shA = 1;
       return n;
     });
     [...this.toys].sort((a, b) => a.y - b.y).forEach(n => this.toyLayer.add(n));
@@ -138,13 +138,13 @@ export default class Level2 extends LevelScene {
   onLayout(v) {
     this.stage.x = Math.round((v.w - 1600) / 2);
     // taller (tablet) views: show more wall above, keep the play area low so the rug is not empty
-    this.stage.y = Math.round((v.h - 900) * 0.78);
+    this.stage.y = Math.round((v.h - 900) * 0.33); // curtain rod ~12% from the top on 4:3
     const bottom = v.h - this.stage.y; // stage-space y of the screen's bottom edge
     this.dad.y = bottom + DAD.drop;
     this.dadHit.y = this.dad.y - 330;
     const right = v.w - this.stage.x;
-    this.cushion.visible = bottom > 960;
-    this.cushion.x = right - 150; this.cushion.y = bottom - 30;
+    this.cushion.visible = bottom > 1040; // only where there is floor below the rug for the whole cushion
+    this.cushion.x = right - 190; this.cushion.y = bottom - 92;
   }
 
   // ---------------------------------------------------------------- intro choreography
@@ -154,7 +154,7 @@ export default class Level2 extends LevelScene {
   }
 
   async intro() {
-    for (const n of this.toys) { n.sx = n.sy = 0.01; n.shadow.alpha = 0; }
+    for (const n of this.toys) { n.sx = n.sy = 0.01; n.shA = 0; }
     for (const b of this.baskets) { b.sx = b.sy = 0.01; }
     await wait(0.35);
     this.dad.react('happy', 2.2);
@@ -176,11 +176,10 @@ export default class Level2 extends LevelScene {
       tween(n, { spin: 0 }, { dur: 0.9, delay: d, ease: 'outElastic' });
       wait(d).then(() => { if (!n.placed) { audio.sfx('pop', { volume: 0.45 }); this.puff(n.x, n.y, 0.6); } });
       tween(n, { sx: 1, sy: 1 }, { dur: 0.45, delay: d, ease: 'outBack' });
-      tween(n.shadow, { alpha: 0.6 }, { dur: 0.4, delay: d + 0.1 });
       n.art.y = 0;
-      tween(n.art, { y: n.home.y < 800 ? -55 : -100 }, { dur: 0.26, delay: d, ease: 'outQuad' })
-        .then(() => tween(n.art, { y: 0 }, { dur: 0.5, ease: 'outBounce' }))
-        .then(() => { if (!n.placed) { audio.sfx('drop', { volume: 0.4 }); this.puff(n.x, n.y, 0.8); } });
+      tween(n.art, { y: -45 }, { dur: 0.22, delay: d, ease: 'outQuad' })
+        .then(() => tween(n.art, { y: 0 }, { dur: 0.45, ease: 'outBounce' }))
+        .then(() => { if (!n.placed) { audio.sfx('drop', { volume: 0.4 }); this.puff(n.x, n.y, 0.8); tween(n, { shA: 1 }, { dur: 0.35 }); } });
     });
     this.baby.react('happy', 1.5);
     await wait(0.35); // toys are grabbable while the rest are still popping
@@ -353,8 +352,8 @@ export default class Level2 extends LevelScene {
     const sx = n.x, sy = n.y, h = n.home;
     n._k = 0;
     tween(n, { _k: 1, rot: h.rot }, {
-      dur: 0.62, ease: 'linear', tag: 'drag',
-      onUpdate: (e, k) => { const q = Ease.inOutSine(k); n.x = lerp(sx, h.x, q); n.y = lerp(sy, h.y, q) - Math.sin(k * Math.PI) * 130; },
+      dur: 0.75, ease: 'linear', tag: 'drag',
+      onUpdate: (e, k) => { const q = Ease.inOutSine(k); n.x = lerp(sx, h.x, q); n.y = lerp(sy, h.y, q) - Math.sin(k * Math.PI) * 300; },
     }).then(() => { if (n.x === h.x && n.y === h.y) this.land(n, 0.8); });
     const right = this.baskets.find(x => x.col === n.col);
     wait(0.75).then(() => this.nudgeBasket(right));
@@ -370,7 +369,10 @@ export default class Level2 extends LevelScene {
   // ---------------------------------------------------------------- hint
   showHint() {
     // back-row toys first so the pointing hand (above the toy) never hides another toy
-    const toy = this.toys.filter(t => !t.placed).sort((a, c) => a.y - c.y || a.idx - c.idx)[0];
+    // the most central unplaced toy (well away from Ayah); back row first so the hand never hides another toy
+    const score = t => Math.abs(t.x - 900) + (t.y > 800 ? 160 : 0);
+    const toy = this.toys.filter(t => !t.placed && Math.abs(t.x - DAD.x) >= 250).sort((a, c) => score(a) - score(c))[0]
+      || this.toys.find(t => !t.placed);
     if (!toy) return;
     const b = this.baskets.find(x => x.col === toy.col);
     const token = this.hintToken = {};
@@ -427,8 +429,8 @@ export default class Level2 extends LevelScene {
     const N = 16;
     for (let i = 1; i < N; i++) {
       const q = i / N; if (q > T.k + 0.02) break;
-      const p = arcPt(T, q), r = 7 - q * 2.5;
-      c.fillStyle = '#fff3c4'; c.strokeStyle = '#b8913e'; c.lineWidth = 2;
+      const p = arcPt(T, q), r = 10 - q * 3;
+      c.fillStyle = '#fff3c4'; c.strokeStyle = '#8a6420'; c.lineWidth = 2.8;
       c.beginPath(); c.arc(p.x, p.y + 10, r, 0, Math.PI * 2); c.fill(); c.stroke();
     }
   }
@@ -471,7 +473,7 @@ export default class Level2 extends LevelScene {
     }
     for (const t of this.toys) if (!t.placed) {
       killTweensOf(t); killTweensOf(t.art);
-      Object.assign(t, { x: t.home.x, y: t.home.y, rot: t.home.rot, sx: 1, sy: 1, spin: 0 }); Object.assign(t.art, { y: 0, sx: 1, sy: 1, rot: 0 }); t.shadow.alpha = 0.6;
+      Object.assign(t, { x: t.home.x, y: t.home.y, rot: t.home.rot, sx: 1, sy: 1, spin: 0, shA: 1 }); Object.assign(t.art, { y: 0, sx: 1, sy: 1, rot: 0 }); t.shadow.alpha = 0.6;
     }
     for (const b of this.baskets) { killTweensOf(b); b.sx = b.sy = 1; }
     if (this.toys.every(t => t.placed)) this.celebrate();
@@ -510,7 +512,7 @@ export default class Level2 extends LevelScene {
       d.art.rot = d.tilt + Math.sin(t * 7) * 0.025;
       const w = d.toWorld(0, -80); this.dad.lookAt(w.x, w.y);
       const near = this.basketAt(d);
-      for (const b of this.baskets) b.hover = b === near ? 1 : 0;
+      for (const b of this.baskets) { b.hover = b === near ? 1 : 0; b.match = b.col === d.col; }
     }
     for (const n of this.toys) {
       if (n !== d && !n.placed) { n.tilt = lerp(n.tilt, 0, Math.min(1, dt * 10)); if (!n.shake) n.art.rot = n.tilt + n.spin; }
@@ -528,7 +530,7 @@ export default class Level2 extends LevelScene {
         const h = clamp(-n.art.y / 150, 0, 1);
         n.shadow.sx = n.shadow.sy = lerp(0.75 * (1 - h * 0.4), 0.97, n.shOff);
         n.shadow.x = n.shOff * 20; n.shadow.y = n.shOff * 20;
-        if (n.sx > 0.9) n.shadow.alpha = lerp(0.6 * (1 - h * 0.5), 1, n.shOff);
+        n.shadow.alpha = lerp(0.6 * (1 - h * 0.5), 1, n.shOff) * n.shA;
       }
     }
     for (const b of this.baskets) {
@@ -537,20 +539,23 @@ export default class Level2 extends LevelScene {
         const s = b.shake; s.t += dt; const k = s.t / s.dur;
         b.rot = k >= 1 ? 0 : Math.sin(s.t * s.freq) * s.amp * (1 - k);
         if (k >= 1) b.shake = null;
-      } else b.rot = 0;
-      const hs = 1 + b.hv * (0.05 + 0.02 * Math.sin(t * 9));
+      }
+      const m = b.match ? 1 : 0;
+      const hs = 1 + b.hv * (m ? 0.05 + 0.02 * Math.sin(t * 9) : 0.015);
       b.front.sx = b.back.sx = b.inner.sx = hs;
       b.front.sy = b.back.sy = b.inner.sy = hs;
-      b.glowN.alpha = b.hv;
+      if (!b.shake) b.rot = b.hv * (m ? Math.sin(t * 11) * 0.035 : -0.03);
+      b.glowN.alpha = b.hv * m * (0.8 + 0.2 * Math.sin(t * 8));
       if (b.faceHold > 0) b.faceHold -= dt;
-      else this.setFace(b, b.hover ? 'open' : 'idle');
+      else this.setFace(b, b.hover ? (m ? 'open' : 'hmm') : 'idle');
       if (b.faceMood === 'open') b.face.y = -72 - 2 * b.hv;
     }
 
     // Ayah: an occasional friendly wave while the child is thinking
     if (!this.finished && !this.celebrating && !d && t > this.nextWave) {
       this.nextWave = t + 8 + Math.random() * 4;
-      if (game.time - this.lastInput > 2) { this.dad.react('happy', 1.4); }
+      const idle = game.time - this.lastInput;
+      if (idle > 2 && idle < 4 && !this.hintToken) this.dad.react('happy', 1.4);
     }
     // after the win: keep the family celebrating under the win UI
     if (this.finished && this.winLoop !== undefined) {
@@ -608,15 +613,18 @@ function drawHintRing(c) {
   c.beginPath(); c.ellipse(0, cy, r - 5.5, r * 0.92 - 5.5, -0.03, 0.2, Math.PI * 2 - 0.3); c.stroke();
 }
 
-/** soft glow around a basket rim in the basket's own colour (hover feedback) */
-function drawRimGlow(c, col) {
+/** warm cream/gold halo around a basket rim (hover feedback on the matching basket) */
+function drawRimGlow(c) {
   const cy = -(BASKET_BASE - BASKET_RIM);
   c.save();
-  c.shadowColor = col; c.shadowBlur = 26;
-  c.strokeStyle = col; c.globalAlpha *= 0.85; c.lineWidth = 14;
+  c.shadowColor = '#ffd86a'; c.shadowBlur = 40;
+  c.strokeStyle = '#fff3c4'; c.lineWidth = 20;
   c.beginPath(); c.ellipse(0, cy, 156, 46, 0, 0, Math.PI * 2); c.stroke();
-  c.strokeStyle = '#fffbe8'; c.lineWidth = 4; c.globalAlpha *= 0.8;
-  c.beginPath(); c.ellipse(0, cy - 2, 160, 50, 0, Math.PI * 1.05, Math.PI * 1.95); c.stroke();
+  c.beginPath(); c.ellipse(0, cy, 156, 46, 0, 0, Math.PI * 2); c.stroke();
+  c.shadowBlur = 0;
+  c.strokeStyle = '#c99a3c'; c.lineWidth = 2.4;
+  c.beginPath(); c.ellipse(0, cy, 166, 55, 0.01, 0, Math.PI * 2); c.stroke();
+  c.beginPath(); c.ellipse(0, cy, 146, 37, -0.01, 0.15, Math.PI * 2 - 0.2); c.stroke();
   c.restore();
 }
 

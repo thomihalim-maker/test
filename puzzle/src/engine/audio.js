@@ -178,7 +178,7 @@ class Audio {
       // tiny anti-machine-gun guard for identical sfx in the same frame
       if (this._lastSfx[name] && now - this._lastSfx[name] < 0.03) return;
       this._lastSfx[name] = now;
-      const t = now + 0.005, v = (opts.vol ?? 1) * (LEVEL[name] ?? 1), p = Math.pow(2, (opts.pitch || 0) / 12);
+      const t = now + 0.005, v = (opts.vol ?? opts.volume ?? 1) * (LEVEL[name] ?? 1), p = Math.pow(2, (opts.pitch || 0) / 12);
       const I = (inst, m, dt, vel, rev = 0.35, len = 1) => this._inst(inst, mtof(m) * p, t + dt, vel * v, this.sfxBus, rev, len);
       switch (name) {
         case 'tap': {
@@ -384,14 +384,54 @@ const ARR = {
     },
   },
 };
-ARR.finale = { bpm: 92, step(a, tr, s, t) { ARR.level.step(a, tr, s, t); if (s % 16 === 0) a._m(tr, 'bell', 84 + (s % 32 ? 7 : 0), t, 0.06, 0.9); } };
+// finale: slower celebration lullaby — melody on bells over warm pads, rocking kalimba and soft bass
+ARR.finale = {
+  bpm: 76,
+  step(a, tr, s, t) {
+    const pass = s >= LOOP ? 1 : 0, ls = s % LOOP, ch = chordAt(ls), mel = MEL_AT[ls];
+    if (ls % 4 === 0) a._pad(tr, [ch[0] + 12, ch[1] + 12, ch[2] + 12, ch[0] + 24], t, tr.spb * 4, 0.026);
+    if (ls % 4 === 0) a._m(tr, 'bass', ch[0] - 12, t, 0.26, 0.3, 1.8);
+    const arp = [ch[0], ch[1], ch[2], ch[1]][ls % 4] + 24;
+    a._m(tr, 'kalimba', arp, t, ls % 2 ? 0.06 : 0.09, 0.5, 0.9);
+    if (mel) {
+      const [m, l] = mel;
+      a._m(tr, 'bell', m + 24, t, 0.2, 0.75, l > 2 ? 1.6 : 1.1);
+      a._m(tr, 'musicbox', m + 12, t, pass ? 0.16 : 0.1, 0.6, 1.2);
+      if (pass && l > 2) a._m(tr, 'bell', nextChordTone(m + 24, ch), t + tr.spb * 2, 0.07, 0.85);
+    }
+    if (ls % 16 === 12) a._shaker(tr, t, 0.015);
+  },
+};
+
+/** Synthesized cheerful "ya-ay!" made of formant-filtered chirps (no recorded or fake speech). */
+Audio.prototype._yay = function () {
+  if (!this.ready || this.muted) return;
+  try {
+    const c = this.ctx, t0 = c.currentTime + 0.02, out = this._out(this.sfxBus, 0.35);
+    out.gain.value = 0.9;
+    // "ya" (short, rising) + "a-ay" (long, rising) + bright "y" tail: [start, dur, f0, f1, formants]
+    [[0, 0.16, 430, 560, [700, 1150]], [0.2, 0.34, 520, 760, [760, 1250]], [0.42, 0.22, 700, 900, [650, 1900]]].forEach(([dt, dur, f0, f1, fm]) => {
+      const t = t0 + dt, o = c.createOscillator(), g = c.createGain(), mix = c.createGain();
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.7); o.frequency.exponentialRampToValueAtTime(f1 * 0.92, t + dur);
+      const vib = c.createOscillator(), vg = c.createGain(); vib.frequency.value = 7; vg.gain.value = 12; vib.connect(vg).connect(o.frequency);
+      for (const [k, f] of fm.entries()) { const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = 6; const fg = c.createGain(); fg.gain.value = k ? 0.6 : 1; o.connect(bp).connect(fg).connect(mix); }
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.5, t + 0.03); g.gain.setValueAtTime(0.5, t + dur * 0.6); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      mix.connect(g).connect(out); o.start(t); vib.start(t); o.stop(t + dur + 0.05); vib.stop(t + dur + 0.05);
+    });
+    this.sfx('sparkle', { vol: 0.5 });
+  } catch (e) { dbg(e); }
+};
 
 Audio.prototype.voice = function (text) {
   try {
-    if (this.muted || !text || typeof speechSynthesis === 'undefined' || typeof SpeechSynthesisUtterance === 'undefined') return;
+    if (this.muted || !text) return;
+    if (typeof speechSynthesis === 'undefined' || typeof SpeechSynthesisUtterance === 'undefined') { if (/hebat|hore|bagus|pintar|terima kasih/i.test(text)) this._yay(); return; }
     if (!this._voices.length) this._voices = speechSynthesis.getVoices() || [];
     const v = this._voices.find(v => /^id([-_]|$)/i.test(v.lang)) || this._voices.find(v => /indonesia/i.test(v.name));
-    if (!v) return; // no Indonesian voice: silently skip
+    if (!v) { // no Indonesian voice (common on Android): cheerful vowel chirps for short praise, silence otherwise
+      if (/hebat|hore|bagus|pintar|yay|wah|asyik|horee|terima kasih|selamat/i.test(text) && text.split(/\s+/).length <= 6) this._yay();
+      return;
+    }
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.voice = v; u.lang = v.lang || 'id-ID'; u.pitch = 1.3; u.rate = 0.95; u.volume = 1;

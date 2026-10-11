@@ -32,6 +32,11 @@ function W(w, h, inner, { ox = 0, oy = 0, seed = 3 } = {}) {
     <feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.6 1.25" result="ga"/>
     <feComposite in="d" in2="ga" operator="in"/>
   </filter>
+  <filter id="chalk" x="-40%" y="-40%" width="180%" height="180%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.9 0.3" numOctaves="2" seed="${seed + 4}" result="g"/>
+    <feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.4 1.6" result="ga"/>
+    <feComposite in="SourceGraphic" in2="ga" operator="in"/>
+  </filter>
   <filter id="soft" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="6"/></filter>
   <filter id="softL" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="16"/></filter>
 </defs>`;
@@ -95,9 +100,9 @@ const softShadow = (cx, cy, rx, ry, op = 0.22, blur = 'soft') =>
 
 // ------------------------------------------------------------------ palette
 export const COLS = {
-  red: { c: '#e9504f', s: '#c63a3d', d: '#952a2e', l: '#f6a3a0', name: 'merah', cheek: '#ffd0cc' },
-  yellow: { c: '#f9d43c', s: '#eda72a', d: '#c47e1a', l: '#fde89a', name: 'kuning', cheek: '#f7a0b0' },
-  blue: { c: '#4f84df', s: '#3463b8', d: '#264a8e', l: '#a9c6f3', name: 'biru', cheek: '#f7a9b8' },
+  red: { c: '#e5605c', s: '#c44c4b', d: '#9a3b3b', l: '#f6a3a0', name: 'merah', cheek: '#ffd0cc' },
+  yellow: { c: '#f7d34f', s: '#eaad3d', d: '#c68a2c', l: '#fde89a', name: 'kuning', cheek: '#f7a0b0' },
+  blue: { c: '#5b8de0', s: '#4572c4', d: '#36589a', l: '#a9c6f3', name: 'biru', cheek: '#f7a9b8' },
 };
 const R2 = {
   wall: '#fbe4cf', wallTex: '#f6d6bb', stripe: '#f8dcc4', panel: '#d5eadb', panelTex: '#c7e2d0', panelLine: '#a9cdb6',
@@ -124,8 +129,7 @@ const TOY_ART = {
       <path d="M14 69 Q80 108 148 63 M14 84 Q80 124 148 78" ${L(2.2, mix(C.s, PAL.line, 0.4))} opacity="0.7"/>
       ${hatch(d, [26, 39, 108, 108], C.s, { ang: -35, gap: 8, op: 0.3, seed: 4 })}
     </g>
-    <ellipse cx="58" cy="66" rx="13" ry="8" fill="#fff" filter="url(#crayon)" opacity="0.85" transform="rotate(-30 58 66)"/>
-    <circle cx="76" cy="58" r="3.5" fill="#fff" filter="url(#crayon)" opacity="0.8"/>
+<path d="M44 80 Q47 62 64 52" fill="none" stroke="${lighten(C.c, 0.6)}" stroke-width="5" stroke-linecap="round" filter="url(#chalk)" opacity="0.75"/><path d="M54 84 Q57 70 70 62" fill="none" stroke="${lighten(C.c, 0.6)}" stroke-width="3.5" stroke-linecap="round" filter="url(#chalk)" opacity="0.6"/>
     <path d="${d}" ${stroke(3.4)}/>`;
   },
   block(C) {
@@ -136,7 +140,7 @@ const TOY_ART = {
     ${shape(front, C.c)}
     ${hatch(front, [32, 70, 84, 78], C.s, { ang: -50, gap: 9, op: 0.22, seed: 6 })}
     ${shape(softStarD(74, 110, 27, 12, 5), '#fffaf0', { base: '#fffaf0', lw: 2.6, lc: mix(C.s, PAL.line, 0.5) })}
-    <path d="M40 78 L40 96" ${L(4, '#fff')} opacity="0.6"/>`;
+    <path d="M40 80 Q41 92 39 104" fill="none" stroke="${lighten(C.c, 0.6)}" stroke-width="4.5" stroke-linecap="round" filter="url(#chalk)" opacity="0.7"/>`;
   },
   car(C) {
     const body = 'M14 122C12 106 20 97 34 95L52 93C58 74 68 60 86 59L108 59C121 59 129 73 135 91L142 93C152 95 154 108 152 122C140 128 26 128 14 122Z';
@@ -147,10 +151,10 @@ const TOY_ART = {
     ${shape(body, C.c)}
     ${hatch(body, [12, 59, 142, 69], C.s, { ang: -30, gap: 8, op: 0.25, seed: 9 })}
     ${shape(w1, '#eef6ff', { base: '#f7fbff', lw: 2.8 })}${shape(w2, '#eef6ff', { base: '#f7fbff', lw: 2.8 })}
-    <path d="M96 72 L104 72" ${L(3, '#fff')}/>
+    <path d="M95 71 Q100 70 105 72" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" filter="url(#chalk)"/>
     <path d="M86 94 Q87 106 86 118" ${stroke(2.6)}/>
     <path d="M94 100 L102 100" ${stroke(3)}/>
-    <path d="M30 103 Q60 99 80 101" ${L(4, '#fff')} opacity="0.55"/>
+    <path d="M30 104 Q56 98 78 101" fill="none" stroke="${lighten(C.c, 0.6)}" stroke-width="4.5" stroke-linecap="round" filter="url(#chalk)" opacity="0.75"/>
     <circle cx="145" cy="104" r="6" fill="#fffbe8"/><circle cx="145" cy="104" r="6" ${stroke(2.2)}/>
     <path d="M10 114 Q14 118 22 118" ${L(5, '#d7d2dc')}/>
     ${wheel(46)}${wheel(118)}`;
@@ -170,8 +174,8 @@ const TOY_ART = {
     <path d="M70 112 Q80 106 92 112" ${stroke(2)} opacity="0.7"/>
     <circle cx="107" cy="57" r="4.6" fill="${PAL.lineDark}"/><circle cx="108.5" cy="55.5" r="1.4" fill="#fff"/>
     <ellipse cx="98" cy="75" rx="7" ry="4.5" fill="${C.cheek}" filter="url(#blush)"/>
-    <ellipse cx="88" cy="47" rx="8" ry="4.5" fill="#fff" filter="url(#crayon)" opacity="0.75" transform="rotate(-25 88 47)"/>
-    <path d="M36 104 Q46 120 66 128" ${L(4, '#fff')} opacity="0.45"/>`;
+<path d="M80 52 Q86 42 96 40" fill="none" stroke="${lighten(C.c, 0.6)}" stroke-width="4.5" stroke-linecap="round" filter="url(#chalk)" opacity="0.75"/>
+    <path d="M36 104 Q46 120 66 128" fill="none" stroke="${lighten(C.c, 0.6)}" stroke-width="4.5" stroke-linecap="round" filter="url(#chalk)" opacity="0.65"/>`;
   },
   rings(C) {
     const wood = R2.wood;
@@ -184,10 +188,10 @@ const TOY_ART = {
     ${rings.map(([x, y, w, h], i) => {
       const d = rrect(x, y, w, h, h / 2);
       return shape(d, cols[i], { lw: 2.8 }) + hatch(d, [x, y, w, h], C.s, { ang: -60, gap: 7, op: 0.22, seed: 30 + i }) +
-        `<path d="M${x + 10} ${y + 6} Q${x + w / 2} ${y + 3} ${x + w - 14} ${y + 6}" ${L(3, '#fff')} opacity="0.6"/>`;
+        `<path d="M${x + 10} ${y + 7} Q${x + w / 2} ${y + 3} ${x + w - 14} ${y + 6}" fill="none" stroke="${lighten(C.c, 0.6)}" stroke-width="3.5" stroke-linecap="round" filter="url(#chalk)" opacity="0.75"/>`;
     }).join('')}
     ${shape(blobD(80, 44, 13, 13, { seed: 40 }), wood, { lw: 2.6 })}
-    <circle cx="76" cy="40" r="3" fill="#fff" filter="url(#crayon)" opacity="0.8"/>`;
+    <path d="M72 44 Q73 38 79 36" fill="none" stroke="#fff3dc" stroke-width="3" stroke-linecap="round" filter="url(#chalk)"/>`;
   },
 };
 export const TOY_TYPES = Object.keys(TOY_ART);
@@ -294,6 +298,10 @@ function faceSVG(k, mood) {
     <path d="M29 21 Q34 17 39 20 M51 20 Q56 17 61 21" ${L(2.4, ink)}/>
     <ellipse cx="45" cy="48" rx="6" ry="7" fill="#c4505f"/><ellipse cx="45" cy="48" rx="6" ry="7" ${L(2.4, ink)}/>
     <ellipse cx="45" cy="51.5" rx="3.6" ry="2.6" fill="#f58c9d"/>`, { seed: 31 });
+  if (mood === 'hmm') return W(FACE_W, FACE_H, `${cheeks}
+    <circle cx="39" cy="36" r="3.9" fill="${ink}"/><circle cx="59" cy="36" r="3.9" fill="${ink}"/>
+    <path d="M29 28 Q34 26 40 28 M51 25 Q56 21 62 24" ${L(2.4, ink)}/>
+    <path d="M37 49 Q41 46 45 49 Q49 52 53 48" ${L(2.6, ink)}/>`, { seed: 39 });
   if (mood === 'happy') return W(FACE_W, FACE_H, `${cheeks}
     <path d="M29 37 Q35 29 41 37 M49 37 Q55 29 61 37" ${L(3, ink)}/>
     <path d="M35 44 Q45 47 55 44 Q53 57 45 57 Q37 57 35 44Z" fill="#c4505f"/><path d="M35 44 Q45 47 55 44 Q53 57 45 57 Q37 57 35 44Z" ${L(2.4, ink)}/>
@@ -453,10 +461,10 @@ function wallSVG() {
 
 // ------------------------------------------------------------------ ROOM: floor (stage x -400..2000, y 520..1100)
 function floorSVG() {
-  const ox = 400, oy = -520, w = 2400, h = 580;
+  const ox = 400, oy = -520, w = 2400, h = 680;
   const r = rng(12);
   const rowsY = [];
-  for (let k = 0, y = 548; y < 1110; k++) { rowsY.push(y); y += 16 + k * 6.5; }
+  for (let k = 0, y = 548; y < 1210; k++) { rowsY.push(y); y += 16 + k * 6.5; }
   let rows = '', seams = '', grain = '';
   for (let i = 0; i < rowsY.length - 1; i++) {
     const y = rowsY[i], y2 = rowsY[i + 1];
@@ -473,8 +481,8 @@ function floorSVG() {
   const gid = uid('g');
   return W(w, h, `
     <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a5a34" stop-opacity="0.24"/><stop offset="0.3" stop-color="#8a5a34" stop-opacity="0.06"/><stop offset="1" stop-color="#8a5a34" stop-opacity="0"/></linearGradient>
-    <rect x="-400" y="520" width="2400" height="580" fill="${R2.floor}"/>
-    <rect x="-400" y="520" width="2400" height="580" fill="${R2.floorTex}" filter="url(#crayon)" opacity="0.65"/>
+    <rect x="-400" y="520" width="2400" height="680" fill="${R2.floor}"/>
+    <rect x="-400" y="520" width="2400" height="680" fill="${R2.floorTex}" filter="url(#crayon)" opacity="0.65"/>
     <g filter="url(#penU)">
       <path d="${rows}" ${L(2.4, R2.plank)} opacity="0.55"/>
       <path d="${seams}" ${L(2.2, R2.plank)} opacity="0.5"/>
@@ -685,8 +693,8 @@ export const HAND_W = 130, HAND_H = 150, HAND_TIP = [52, 8];
 function handSVG() {
   const d = 'M42 74C42 52 42 30 44 16C46 4 62 4 62 16L62 62C64 54 80 54 82 64C86 58 100 58 100 70C104 66 118 68 116 82L114 108C112 128 98 138 76 138C56 138 40 128 34 112L22 88C18 78 30 70 38 78Z';
   return W(HAND_W, HAND_H, `
-    <path d="${d}" fill="#000" opacity="0.15" transform="translate(5 7)" filter="url(#soft)"/>
-    ${shape(d, '#ffffff', { base: '#ffffff', lw: 3.4 })}
+    <path d="${d}" fill="#3a2a22" opacity="0.28" transform="translate(6 9)" filter="url(#soft)"/>
+    ${shape(d, '#ffffff', { base: '#ffffff', lw: 4.2, lc: PAL.lineDark })}
     <path d="M62 62L62 76 M82 64L82 78 M100 70L100 82" ${stroke(2.4)}/>
     <ellipse cx="52" cy="14" rx="6" ry="4" fill="#f7c9d2" opacity="0.8"/>
     <path d="${rrect(46, 128, 64, 22, 8)}" fill="${R2.mint}" filter="url(#crayon)"/><path d="${rrect(46, 128, 64, 22, 8)}" ${stroke(2.8)}/>`, { seed: 29 });
@@ -700,7 +708,7 @@ function shadowSVG() { return W(200, 60, `<ellipse cx="100" cy="30" rx="80" ry="
 export async function loadLevel2Art(toyList) {
   const S = (fn, w, h, key) => svgSprite(fn(), w, h, 'l2-' + key);
   const jobs = {
-    wall: S(wallSVG, 2400, 880, 'wall2'), floor: S(floorSVG, 2400, 580, 'floor'), rug: S(rugSVG, RUG_W, RUG_H, 'rug'),
+    wall: S(wallSVG, 2400, 880, 'wall2'), floor: S(floorSVG, 2400, 680, 'floor2'), rug: S(rugSVG, RUG_W, RUG_H, 'rug'),
     garden: S(gardenSVG, GARDEN.w, GARDEN.h, 'garden'), crown: S(treeCrownSVG, 280, 240, 'crown'),
     cloud1: S(() => cloudSVG(31), 220, 100, 'cloud1'), cloud2: S(() => cloudSVG(37), 220, 100, 'cloud2'),
     curtain: S(curtainSVG, CURTAIN_W, CURTAIN_H, 'curtain'), leaves: S(plantLeavesSVG, 320, 360, 'leaves'), pot: S(potSVG, 160, 130, 'pot'),
@@ -712,7 +720,7 @@ export async function loadLevel2Art(toyList) {
   for (const k of Object.keys(COLS)) {
     jobs['bk-back-' + k] = S(() => basketBackSVG(k), BASKET_W, BASKET_H, 'bk-back-' + k);
     jobs['bk-front-' + k] = S(() => basketFrontSVG(k), BASKET_W, BASKET_H, 'bk-front-' + k);
-    for (const m of ['idle', 'open', 'happy']) jobs[`bk-face${m}-${k}`] = S(() => faceSVG(k, m), FACE_W, FACE_H, `face-${m}-${k}`);
+    for (const m of ['idle', 'open', 'happy', 'hmm']) jobs[`bk-face${m}-${k}`] = S(() => faceSVG(k, m), FACE_W, FACE_H, `face-${m}-${k}`);
   }
   const need = new Set(toyList.map(t => `${t.type}-${t.col}`));
   for (const key of need) { const [type, col] = key.split('-'); jobs['toy-' + key] = S(() => toySVG(type, col), TOY_W, TOY_H, 'toy-' + key); }

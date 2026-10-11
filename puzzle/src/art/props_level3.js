@@ -321,18 +321,12 @@ export function buildJigsaw(seed = 7) {
   return { cw, ch, pad, SW: cw + 2 * pad, SH: ch + 2 * pad, pieces, ghostD };
 }
 
-// Pencil "cut" filters: stronger wobble + graphite grain, two seeds so the doubled stroke varies in width.
+// Pencil "cut" line: one continuous soft-grey stroke — a gentle low-frequency wobble only (no grain/speckle).
 const cutDefs = seed => `<defs>
-  <filter id="cutA" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="2" seed="${seed}" result="n"/>
-    <feDisplacementMap in="SourceGraphic" in2="n" scale="3.4" xChannelSelector="R" yChannelSelector="G" result="d"/>
-    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="${seed + 3}" result="g"/>
-    <feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.1 1.55" result="ga"/>
-    <feComposite in="d" in2="ga" operator="in"/></filter>
-  <filter id="cutB" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.02 0.09" numOctaves="2" seed="${seed + 9}" result="n"/>
-    <feDisplacementMap in="SourceGraphic" in2="n" scale="4.2" xChannelSelector="R" yChannelSelector="G" result="d"/>
-    <feTurbulence type="fractalNoise" baseFrequency="1.2" numOctaves="1" seed="${seed + 5}" result="g"/>
-    <feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.6 1.7" result="ga"/>
-    <feComposite in="d" in2="ga" operator="in"/></filter></defs>`;
+  <filter id="cutW" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="1" seed="${seed}" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="2.2" xChannelSelector="R" yChannelSelector="G"/></filter>
+  <filter id="cutW2" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.02 0.05" numOctaves="1" seed="${seed + 9}" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="2.8" xChannelSelector="R" yChannelSelector="G"/></filter></defs>`;
 
 // ---------------------------------------------------------------------------------------------
 // Sprites cut from the portrait.
@@ -366,12 +360,12 @@ export async function pieceSprites(portrait, geo) {
     const path = new Path2D(p.d);
     const [line, glowLine] = await Promise.all([
       svgSprite(svg(SW, SH, cutDefs(40 + p.i * 7) +
-        `<path d="${p.d}" fill="none" stroke="#fffaf0" stroke-width="2.6" opacity="0.7" transform="translate(1.4 1.6)"/>` +
-        `<path d="${p.d}" fill="none" stroke="#6b5c52" stroke-width="4.4" opacity="0.45" stroke-linejoin="round" filter="url(#cutB)"/>` +
-        `<path d="${p.d}" fill="none" stroke="#4d423c" stroke-width="2.4" opacity="0.95" stroke-linejoin="round" filter="url(#cutA)"/>`, 41 + p.i), SW, SH, 'l3-pc-line2-' + p.i),
+        `<path d="${p.d}" fill="none" stroke="#fffaf0" stroke-width="2.4" opacity="0.65" transform="translate(1.3 1.5)"/>` +
+        `<path d="${p.d}" fill="none" stroke="#857a73" stroke-width="3.6" opacity="0.35" stroke-linejoin="round" filter="url(#cutW2)"/>` +
+        `<path d="${p.d}" fill="none" stroke="#6c625c" stroke-width="2.6" opacity="0.9" stroke-linejoin="round" stroke-linecap="round" filter="url(#cutW)"/>`, 41 + p.i), SW, SH, 'l3-pc-line3-' + p.i),
       svgSprite(svg(SW, SH, cutDefs(70 + p.i * 5) +
-        `<path d="${p.d}" fill="none" stroke="#f6b81f" stroke-width="9" stroke-linejoin="round" filter="url(#cutB)"/>` +
-        `<path d="${p.d}" fill="none" stroke="#fff6c8" stroke-width="2.6" stroke-linejoin="round" filter="url(#cutA)"/>`, 61 + p.i), SW, SH, 'l3-pc-glowline-' + p.i),
+        `<path d="${p.d}" fill="none" stroke="#f6b81f" stroke-width="9" stroke-linejoin="round" filter="url(#cutW2)"/>` +
+        `<path d="${p.d}" fill="none" stroke="#fff6c8" stroke-width="2.6" stroke-linejoin="round" filter="url(#cutW)"/>`, 61 + p.i), SW, SH, 'l3-pc-glowline2-' + p.i),
     ]);
     const picture = x => { x.fillStyle = '#fdf6ec'; x.fillRect(0, 0, SW, SH); x.drawImage(portrait.img, pad - p.c * cw, pad - p.r * ch, PW, PH); };
     const img = canvasSprite(SW, SH, x => {
@@ -452,4 +446,10 @@ export function photoBackdropSVG(w, h) {
   for (let i = 0; i < 9; i++) { const x = w * (0.06 + r() * 0.88), y = h * (0.3 + r() * 0.4); s += `<path d="${star(x, y, 7 + r() * 5)}" ${fill(PAL.yellow)} opacity="0.9"/>`; }
   s += `<path d="M0 ${h * 0.8} C${w * 0.3} ${h * 0.76} ${w * 0.7} ${h * 0.76} ${w} ${h * 0.8} V${h} H0 Z" ${fill('#bfe3a8')}/>`;
   return svg(w, h, s, 33);
+}
+
+/** Hand-drawn crayon heart (48×46) for the celebration. */
+export function heartSVG() {
+  const d = heart(24, 24, 19);
+  return svg(48, 46, `<path d="${d}" ${fill('#f47a92')}/><path d="M15 17 Q17 13 21 13" stroke="#fff" stroke-width="3" opacity="0.7" fill="none" stroke-linecap="round"/><path d="${d}" ${stroke(2.4, '#b8475e')}/>`, 37);
 }

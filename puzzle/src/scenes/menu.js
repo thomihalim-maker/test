@@ -85,7 +85,7 @@ function cardSprite(level, locked, portrait) {
     x.save(); x.translate(10 + (W - TW) / 2, 26);
     x.save(); x.beginPath(); x.roundRect(0, 0, TW, TH, 18); x.clip();
     [thumbBedtime, thumbBaskets, thumbPhoto][level - 1](x, portrait);
-    if (locked) { x.fillStyle = 'rgba(236,230,248,0.62)'; x.fillRect(0, 0, TW, TH); }
+    if (locked) { x.globalCompositeOperation = 'saturation'; x.fillStyle = '#808080'; x.globalAlpha = 0.85; x.fillRect(0, 0, TW, TH); x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1; x.fillStyle = 'rgba(244,240,250,0.45)'; x.fillRect(0, 0, TW, TH); }
     x.restore();
     pencil(x, roundRectPts(0, 0, TW, TH, 18), { w: 3, seed: 7 + level });
     x.restore();
@@ -94,6 +94,16 @@ function cardSprite(level, locked, portrait) {
   }, { key: `levelcard|${level}|${locked}|${!!portrait}` });
 }
 
+function padlockSprite() {
+  // small flat crayon padlock (reads as "locked", not as a button)
+  return makeSprite(80, 90, (x) => {
+    x.save(); x.filter = 'blur(4px)'; x.fillStyle = 'rgba(40,30,60,0.25)'; x.beginPath(); x.ellipse(40, 82, 26, 5, 0, 0, 7); x.fill(); x.restore();
+    scribble(x, ellipsePts(40, 36, 17, 19, 20, Math.PI).slice(0, 11), '#6f6a86', 7, { seed: 3, passes: 1 });
+    scribble(x, ellipsePts(40, 36, 17, 19, 20, Math.PI).slice(0, 11), '#b9b4cc', 3, { seed: 4, passes: 1 });
+    crayonShape(x, roundRectPts(16, 38, 48, 40, 9), '#f2c66a', { seed: 5, lw: 2.6, lineColor: '#8a6a2e', light: '#ffe3a0', hatchStep: 4 });
+    x.fillStyle = '#7a5a26'; x.beginPath(); x.arc(40, 54, 5, 0, 7); x.fill(); x.fillRect(38, 55, 4, 11);
+  }, { key: 'padlock' });
+}
 function houseSprite() {
   return makeSprite(260, 240, (x) => {
     crayonShape(x, [[30, 110], [230, 110], [230, 232], [30, 232]], '#f6dcc0', { seed: 1, lw: 3, shade: '#e8c39c' });
@@ -142,7 +152,7 @@ export default class MenuScene {
     this.clouds = [];
     for (let i = 0; i < 4; i++) {
       const c = R.add(new Node({ alpha: 0.85 }).setImage(cloudSprite(i + 1, 240 + (i % 3) * 50, 120 + (i % 2) * 16, i % 2 ? '#fff4ea' : '#f4e8f6')));
-      c.speed = 7 + i * 3; c.fy = [0.3, 0.42, 0.22, 0.5][i]; this.clouds.push(c);
+      c.speed = 7 + i * 3; c.fy = [0.36, 0.48, 0.4, 0.53][i]; this.clouds.push(c);
     }
     this.hillFar = R.add(new Node({ ax: 0.5, ay: 1 }).setImage(hillSprite(2300, 380, '#7d86c2', 3, { base: 150, amp: 80, freq: 1.2, line: '#5a5f99' })));
     this.house = R.add(new Node({ ax: 0.5, ay: 1, sx: 0.8, sy: 0.8, interactive: true }).setImage(houseSprite()));
@@ -153,12 +163,13 @@ export default class MenuScene {
 
     // family
     this.fam = R.add(new Node());
-    this.cushion = this.fam.add(new Node().setImage(cushionSprite()));
     this.mom = this.fam.add(await createCharacter('mom'));
     this.dad = this.fam.add(await createCharacter('dad'));
     this.baby = this.fam.add(await createCharacter('baby'));
     this.mom.sx = this.mom.sy = 0.76; this.dad.sx = this.dad.sy = 0.76; this.baby.sx = this.baby.sy = 0.92;
 
+    // grassy foreground lip in front of the family's waistline (no flat body cut-offs)
+    this.lip = R.add(new Node({ ax: 0.5, ay: 1 }).setImage(hillSprite(2300, 170, '#93d396', 12, { base: 48, amp: 14, freq: 1.4, tufts: 70, line: '#62a46c' })));
     // level cards
     let portrait = null; try { portrait = await portraitSprite(390, 280); } catch (_) {}
     this.cardLayer = R.add(new Node());
@@ -173,10 +184,10 @@ export default class MenuScene {
       }, { key: `badge${i}${locked}` })));
       const got = save.stars[i] || 0; c.starNodes = [];
       for (let k = 0; k < 3; k++) {
-        const s = c.add(new Node({ x: -16 + k * 40, y: 84 - (k === 1 ? 6 : 0), rot: (k - 1) * 0.15 }).setImage(k < got ? starSprite(42, PAL.yellow) : starSprite(42, '#efe4d0', { line: '#bba98c' })));
+        const s = c.add(new Node({ x: -16 + k * 40, y: 84 - (k === 1 ? 6 : 0), rot: (k - 1) * 0.15 }).setImage(k < got ? starSprite(42, PAL.yellow) : starSprite(42, '#dccbab', { line: '#7a664a' })));
         c.starNodes.push(s);
       }
-      if (locked) { c.lock = c.add(new Node({ y: -50 }).setImage(buttonSprite('lock', 92, '#9d93c4'))); c.lock.ay = 0.46; }
+      if (locked) { c.lock = c.add(new Node({ y: -50 }).setImage(padlockSprite())); }
       this.cards.push(c);
     }
 
@@ -189,10 +200,13 @@ export default class MenuScene {
     // title
     this.title = R.add(crayonWord('Bintang Kecil', 132, ['#ffe27a', '#ffb3c7', '#9fe0c0', '#a9c8ff', '#ffc98a', '#d2b8ff', '#ffe27a'], { line: '#3c3466', halo: 0.75, track: 4 }));
     this.title.interactive = false;
+    // soft night plate behind the title so drifting clouds never read as smudges behind letters
+    this.plate = R.add(new Node({ alpha: 0.9 }).setImage(makeSprite(1200, 300, x => { const g = x.createRadialGradient(600, 150, 40, 600, 150, 600); g.addColorStop(0, 'rgba(34,40,98,0.55)'); g.addColorStop(0.55, 'rgba(34,40,98,0.3)'); g.addColorStop(1, 'rgba(34,40,98,0)'); x.save(); x.scale(1, 0.25); x.fillStyle = g; x.fillRect(0, 0, 1200, 1200); x.restore(); }, { key: 'titlePlate', ratio: 0.5 })));
+    R.remove(this.plate); R.children.splice(R.children.indexOf(this.title), 0, this.plate); this.plate.parent = R;
     this.titleStar = this.title.add(new Node({ sx: 0.8, sy: 0.8 }).setImage(starSprite(54, PAL.yellow)));
 
     // sound toggle
-    this.sound = R.add(await makeButton({ icon: audio.muted ? 'mute' : 'sound', size: 104, color: PAL.purple }, () => {
+    this.sound = R.add(await makeButton({ icon: audio.muted ? 'mute' : 'sound', size: 128, color: PAL.purple }, () => {
       audio.setMuted(!audio.muted); this.sound.setIcon(audio.muted ? 'mute' : 'sound'); if (!audio.muted) audio.sfx('pop');
     }));
     this.fx = R.add(new Node({ z: 100 }));
@@ -204,10 +218,10 @@ export default class MenuScene {
 
   layout(v) {
     this.v = v;
-    const W = v.w, H = v.h, oy = (H - 900) / 2, si = safeInset(v);
+    const W = v.w, H = v.h, oy = (H - 900) / 2, si = safeInset(v, 'r'), tall = H > 1000;
     this.sky.w = Math.max(W, H * 1.7) + 4; this.sky.h = H + 4; this.sky.x = -2; this.sky.y = -2;
     this.stars.layout(W, H * 0.62); this.shoot.area = { w: W, h: H * 0.5 };
-    this.moon.x = W - 250 - si; this.moon.y = 150 + oy * 0.5; this.moonGlow.x = this.moon.x; this.moonGlow.y = this.moon.y;
+    if (tall) { this.moon.x = 230; this.moon.y = oy + 190; } else { this.moon.x = W - 250 - si; this.moon.y = 150 + oy * 0.5; } this.moonGlow.x = this.moon.x; this.moonGlow.y = this.moon.y;
     this.clouds.forEach((c, i) => { c.x = c.x || (W * (i + 0.5) / this.clouds.length); c.y = H * c.fy + oy * 0.3 + (i === 0 ? 40 : 0); });
     this.hillFar.x = W / 2; this.hillFar.y = H + 6;
     this.hillMid.x = W / 2 + 60; this.hillMid.y = H + 6;
@@ -216,18 +230,19 @@ export default class MenuScene {
     this.tree.x = W - 90; this.tree.y = H - 180;
     this.flies.layout(0, H * 0.45, W, H * 0.45);
     // family cluster
-    const fx = W * 0.265, fy = H - 34;
-    this.fam.x = fx; this.fam.y = fy;
+    const fx = W * (tall ? 0.235 : 0.265), fy = H - 92 - (tall ? (H - 900) * 0.1 : 0);
+    this.fam.x = fx; this.fam.y = fy; this.fam.sx = this.fam.sy = tall ? 1.15 : 1;
+    this.lip.x = W / 2; this.lip.y = H + 10;
     this.mom.x = -175; this.mom.y = 0; this.dad.x = 175; this.dad.y = 2;
-    this.baby.x = 0; this.baby.y = 6; this.cushion.x = 0; this.cushion.y = -6;
+    this.baby.x = 0; this.baby.y = 6;
     // right column
-    const cx = W * 0.705;
+    const cx = W * (tall ? 0.72 : 0.705);
     this.play.x = cx; this.play.y = oy + 372; this.playGlow.x = cx; this.playGlow.y = this.play.y;
     this.cards.forEach((c, i) => { c.bx = cx + (i - 1) * 258; c.by = oy + 690; c.x = c.bx; c.y = c.by; c.baseRot = (i - 1) * 0.035; c.rot = c.baseRot; });
-    this.title.x = W / 2; this.title.y = oy + 124;
-    const last = this.title.letters[this.title.letters.length - 1];
-    this.titleStar.x = last.baseX + 4; this.titleStar.y = -86; this.titleStar.bx = this.titleStar.x;
-    this.sound.x = W - 86 - si; this.sound.y = 82;
+    this.title.x = W / 2; this.title.y = oy + 124; this.plate.x = this.title.x; this.plate.y = this.title.y + 6;
+    const first = this.title.letters[0];
+    this.titleStar.x = first.baseX - 40; this.titleStar.y = -86; this.titleStar.bx = this.titleStar.x;
+    this.sound.x = W - 92 - si; this.sound.y = 90 + safeInset(v, 't') * 0.5;
   }
 
   enter() {

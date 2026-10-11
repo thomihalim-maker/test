@@ -385,6 +385,7 @@ function handArt() {
   return svg(130, 160, `
     <defs><filter id="hs" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter></defs>
     <path d="M44 14 Q57 4 70 14 L72 66 Q100 60 112 76 Q124 92 116 120 Q108 146 80 148 L60 148 Q36 146 34 120 L32 92 Q30 76 44 72 Z" fill="#2a1a14" opacity="0.38" filter="url(#hs)" transform="translate(8 10)"/>
+    <g fill="none" stroke="${L}" stroke-width="9" stroke-linejoin="round" opacity="0.85"><rect x="44" y="10" width="28" height="78" rx="14"/><path d="M36 80 Q34 66 48 66 L100 66 Q122 66 122 90 L120 118 Q118 144 90 146 L66 146 Q38 144 36 118 Z"/><path d="M36 96 Q14 92 14 108 Q16 122 38 120 Z"/><rect x="56" y="138" width="56" height="20" rx="8"/></g>
     ${ol(`<rect x="44" y="10" width="28" height="78" rx="14"/>`, '#ffffff', 4.6, L)}
     ${ol(`<path d="M36 80 Q34 66 48 66 L100 66 Q122 66 122 90 L120 118 Q118 144 90 146 L66 146 Q38 144 36 118 Z"/>`, '#ffffff', 4.6, L)}
     <rect x="46.5" y="40" width="23" height="44" fill="#fff"/>
@@ -393,12 +394,6 @@ function handArt() {
     ${blush(98, 120, 9, 6)}
     ${ol(`<rect x="56" y="138" width="56" height="20" rx="8"/>`, '#7fa6ee', 3.6, L)}
   `, 101);
-}
-
-function pipArt(full) {
-  return svg(84, 84, full
-    ? `${ol(`<path d="${starPath(42, 45, 34, 16)}"/>`, PAL.yellow, 3.2)}${scrib('M28 36 L36 24', '#fff', 5, 0.85)}`
-    : `<path d="${starPath(42, 45, 34, 16)}" fill="#efe3d3" filter="url(#crayon)"/><path d="${starPath(42, 45, 34, 16)}" fill="none" stroke="#9a8a7c" stroke-width="4" stroke-dasharray="0.5 9" stroke-linecap="round" stroke-linejoin="round" filter="url(#pencil)"/>`, full ? 111 : 113);
 }
 
 export const FLOORPROPS = { slippers: [190, 80], blocks: [190, 150], basket: [300, 170] };

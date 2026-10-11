@@ -202,7 +202,7 @@ export function scribble(ctx, pts, color, w = 4, o = {}) { pencil(ctx, pts, { ..
  * cream "sticker" halo. opts: {line, halo, haloColor, weight, hatch}
  */
 export function crayonText(text, size, color, o = {}) {
-  const key = o.key ?? `txt|${text}|${size}|${color}|${o.halo ?? 1}|${o.line ?? PAL.lineDark}`;
+  const key = o.key ?? `txt2|${text}|${size}|${color}|${o.halo ?? 1}|${o.line ?? PAL.lineDark}|${o.haloColor ?? ''}`;
   const weight = o.weight ?? 700, font = `${weight} ${size}px ${FONT}`;
   const mc = document.createElement('canvas').getContext('2d'); mc.font = font;
   const tw = Math.ceil(mc.measureText(text).width), pad = Math.ceil(size * 0.22);
@@ -231,18 +231,30 @@ export function crayonText(text, size, color, o = {}) {
 
 // ---------------------------------------------------------------- paper
 /** Cream paper tile (256 design units) with fibres + tooth, for patterns. */
-export function paperTile(color = PAL.paper) {
+export function paperTile(color = PAL.paper, scribbles = false) {
   const ratio = Math.max(1, Math.round(256 * game.pxRatio)) / 256;
   return makeSprite(256, 256, (x, w, h) => {
     x.fillStyle = color; x.fillRect(-2, -2, w + 4, h + 4);
     const r = rng(11);
     for (let i = 0; i < 220; i++) { x.fillStyle = r() < 0.5 ? 'rgba(160,130,90,0.05)' : 'rgba(255,255,255,0.35)'; const s = 0.6 + r() * 2.2; x.fillRect(r() * w, r() * h, s, s); }
     for (let i = 0; i < 26; i++) { x.strokeStyle = 'rgba(150,120,80,0.06)'; x.lineWidth = 0.8; const px = r() * w, py = r() * h, a = r() * 6.3, l = 6 + r() * 18; x.beginPath(); x.moveTo(px, py); x.quadraticCurveTo(px + Math.cos(a) * l, py + Math.sin(a) * l * 0.4, px + Math.cos(a + 0.4) * l * 1.6, py + Math.sin(a + 0.4) * l); x.stroke(); }
-  }, { key: 'paperTile' + color, ratio });
+    if (scribbles) { // soft crayon hatch clusters, wrapped so the tile stays seamless
+      const cols = ['rgba(246,207,62,0.10)', 'rgba(247,169,184,0.08)', 'rgba(169,200,255,0.08)'];
+      for (let c = 0; c < 3; c++) {
+        const px = r() * w, py = r() * h, col = cols[c % 3], n = 4 + ((r() * 5) | 0), ang = -0.6 + r() * 1.2;
+        const ca = Math.cos(ang), sa = Math.sin(ang);
+        const strokes = []; for (let k = 0; k < n; k++) strokes.push([k * 7 - n * 3.5 + r() * 3, 8 + r() * 14]);
+        for (const [ox, oy] of [[0, 0], [w, 0], [-w, 0], [0, h], [0, -h], [w, h], [-w, -h], [w, -h], [-w, h]]) {
+          x.strokeStyle = col; x.lineWidth = 4 + r() * 2; x.lineCap = 'round';
+          for (const [d, l] of strokes) { const bx = px + ox + ca * d, by = py + oy + sa * d; x.beginPath(); x.moveTo(bx + sa * l, by - ca * l); x.lineTo(bx - sa * l, by + ca * l); x.stroke(); }
+        }
+      }
+    }
+  }, { key: 'paperTile' + color + scribbles, ratio });
 }
 /** Fill a rect on a live (per-frame) context with a paper pattern in design units. */
-export function paperPattern(ctx, color) {
-  const t = paperTile(color), p = ctx.createPattern(t.img, 'repeat');
+export function paperPattern(ctx, color, scribbles = false) {
+  const t = paperTile(color, scribbles), p = ctx.createPattern(t.img, 'repeat');
   try { p.setTransform(new DOMMatrix().scale(256 / Math.floor(t.img.width))); } catch (_) {}
   return p;
 }

@@ -90,7 +90,7 @@ export default class Level1 extends LevelScene {
     // floor props, only visible on tall (4:3) screens; the basket hides Ibu's hem there
     sp('slippers', { x: 470, y: 948, ax: 0.5, ay: 0.5 });
     sp('blocks', { x: 1330, y: 950, ax: 0.5, ay: 0.5 });
-    sp('basket', { x: 250, y: 990, ax: 0.5, ay: 0.5 });
+    sp('basket', { x: 250, y: 978, ax: 0.5, ay: 0.5 });
 
     // full-view dim for the "lights out" moment, then a top stage layer (moonbeam, Zzz, notes, hint hand)
     this.dim = this.world.add(new Node({ drawFn: ctx => this.drawDim(ctx) }));
@@ -145,6 +145,7 @@ export default class Level1 extends LevelScene {
     this.applyCam();
     // Ibu stands inward a bit more on narrow (4:3) screens so her knot never leaves the frame
     if (!this.finaleStarted) this.mom.x = L.mom.x + Math.max(0, 40 - this.ox);
+    this.mom.y = L.mom.y + Math.min(70, Math.max(0, this.oy) * 0.5); // tall screens: hem tucked behind the toy basket
   }
 
   applyCam() {

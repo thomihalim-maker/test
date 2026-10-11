@@ -197,12 +197,12 @@ const question = k => part(`${k}-q`, 60, 80, 30, 40, pencil('M-12 -14 C-12 -30 1
 // ---------------------------------------------------------------- hands (pivot = wrist, fingers point to -y)
 // Each hand = an outline silhouette sprite (-o) and a fill sprite (-f). The arm renderer draws
 // forearm outline → hand outline → forearm fill → hand fill, so hand + forearm read as ONE silhouette.
-function fingersPath(f, start, end) {
+function fingersPath(f, start, end, gap = 0) {
   let d = start;
   f.forEach(([a, b, top], i) => {
     const r = (b - a) / 2;
     d += ` L${a} ${top + r} A${r} ${r} 0 0 1 ${b} ${top + r}`;
-    if (i < f.length - 1) d += ` L${b} ${top + r + (i === 1 ? 9 : 7)}`;
+    if (i < f.length - 1) d += ` L${b} ${top + r + (i === 1 ? 9 : 7) + gap}`;
   });
   return d + end;
 }
@@ -214,14 +214,14 @@ const HANDS = {
     soft: 'M-6 -22 Q2 -18 10 -24',
   },
   rest: { // relaxed hand seen from the back: four little rounded fingers together, thumb peeking at the side
-    d: fingersPath([[-21, -10.5, -55], [-10.5, 0, -61], [0, 10.5, -60], [10.5, 20, -54]], 'M-18 14 L-18 3 C-21 -12 -22 -26 -21 -40',
-      ' L20 -34 C25 -34 29 -28 28 -20 C27 -12 22 -6 19 -1 L19 14 Z'),
-    lines: 'M-10.5 -42 L-10.5 -47 M0 -47 L0 -52 M10.5 -41 L10.5 -46',
-    soft: 'M20 -30 C17 -24 15 -18 14 -12',
+    d: fingersPath([[-21, -10.5, -54], [-10.5, 0, -61], [0, 10.5, -60], [10.5, 20, -53]], 'M-18 14 L-18 3 C-21 -12 -22 -26 -21 -38',
+      ' L20 -32 C24 -36 29 -42 32 -44 C37 -45 39 -40 36 -35 C32 -27 27 -18 23 -12 C21 -6 20 -2 19 3 L19 14 Z', 3),
+    lines: 'M-10.5 -40 L-10.5 -45 M0 -44 L0 -50 M10.5 -40 L10.5 -45',
+    soft: 'M-4 -20 Q3 -17 10 -21',
   },
   point: { // curled fist with the index finger up
-    d: 'M-18 14 L-18 3 C-22 -12 -22 -30 -14 -37 C-11 -39 -9 -40 -7 -40 L-7 -66 A6.5 6.5 0 0 1 6 -66 L6 -40 C11 -40 15 -37 18 -33 C22 -22 22 -8 18 3 L18 14 Z',
-    lines: 'M-16 -26 Q-6 -21 6 -27 M-16 -15 Q-4 -11 10 -16',
+    d: 'M-18 14 L-18 3 C-22 -12 -22 -30 -14 -37 C-12 -38 -10 -39 -8 -39 L-8 -72 A7.5 7.5 0 0 1 7 -72 L7 -39 C11 -40 15 -37 18 -33 C22 -22 22 -8 18 3 L18 14 Z',
+    lines: 'M-16 -26 Q-6 -21 6 -27 M-16 -15 Q-4 -11 10 -16 M-4 -62 Q0 -60 3 -62',
     soft: 'M18 -30 C10 -26 2 -24 -5 -27',
   },
 };
@@ -248,6 +248,10 @@ function lineTex(key, col) {
   const S = 192;
   return { key: 'chr3-tex-' + key, w: S, h: S, ax: 0, ay: 0, svg: `<svg xmlns="${NS}" viewBox="0 0 ${S} ${S}" width="${S}" height="${S}"><filter id="g" x="0" y="0" width="${S}" height="${S}" filterUnits="userSpaceOnUse"><feTurbulence type="fractalNoise" baseFrequency="0.9375" numOctaves="1" stitchTiles="stitch" seed="5" result="g"/><feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.5 1.55" result="ga"/><feComposite in="SourceGraphic" in2="ga" operator="in"/></filter><rect width="${S}" height="${S}" fill="${col}" filter="url(#g)"/></svg>` };
 }
+
+// soft crayon fade at the very bottom of the torsos (so a hem never reads as a hard box edge)
+const FADE = `<linearGradient id="fadeG" x1="0" y1="-300" x2="0" y2="14" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff"/><stop offset="0.93" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0.3"/></linearGradient>
+<mask id="fade" maskUnits="userSpaceOnUse" x="-300" y="-320" width="600" height="360"><rect x="-300" y="-320" width="600" height="360" fill="url(#fadeG)"/></mask>`;
 
 // ---------------------------------------------------------------- MOM
 const MOM_FACE = 'M0 -112 C72 -112 122 -70 124 -6 C127 56 90 113 0 115 C-90 113 -127 56 -124 -6 C-122 -70 -72 -112 0 -112 Z';
@@ -282,13 +286,14 @@ function momParts() {
     blob(band, C.hijab, { shade: C.hijabShade, light: C.hijabLight, line: C.hijabLine, open: 'M-123 2 C-126 -60 -76 -101 0 -101 C76 -101 126 -60 123 2', g: 0.5 });
 
   // shirt: rounded shoulders, slightly tapered sides, soft wavy hem that scenes may crop
-  const shirt = 'M-108 -242 C-150 -238 -178 -208 -182 -160 C-186 -110 -180 -52 -168 -14 C-150 -2 -124 6 -92 2 C-60 -2 -34 6 0 3 C34 0 64 6 96 2 C126 -2 152 4 168 -14 C180 -52 186 -110 182 -160 C178 -208 150 -238 108 -242 C60 -254 -60 -254 -108 -242 Z';
-  const body = `<ellipse cx="0" cy="6" rx="160" ry="10" fill="#7a4f5f" opacity=".12" filter="url(#blr)"/>` +
-    blob(shirt, C.pink, { shade: C.pinkShade, light: '#fff', g: 0.5, l: 0.35, line: C.pinkLine }) +
+  const shirt = 'M-96 -246 C-134 -240 -162 -222 -176 -192 C-190 -160 -194 -116 -192 -76 C-190 -44 -186 -18 -182 6 C-150 12 -120 4 -86 10 C-50 15 -20 6 12 11 C48 16 80 6 112 12 C140 16 162 8 182 4 C186 -18 190 -44 192 -76 C194 -116 190 -160 176 -192 C162 -222 134 -240 96 -246 C56 -256 -56 -256 -96 -246 Z';
+  const body = `<g mask="url(#fade)">` + blob(shirt, C.pink, { shade: C.pinkShade, light: '#fff', g: 0.5, l: 0.35, line: C.pinkLine, open: 'M-182 6 C-186 -18 -190 -44 -192 -76 C-194 -116 -190 -160 -176 -192 C-162 -222 -134 -240 -96 -246 C-56 -256 56 -256 96 -246 C134 -240 162 -222 176 -192 C190 -160 194 -116 192 -76 C190 -44 186 -18 182 4' }) +
+    pencil('M-176 2 C-150 10 -120 3 -86 8 M-40 10 C-10 5 20 8 40 12 M80 8 C120 13 150 6 176 2', 2.2, C.pinkLine, 0.55) + '</g>' +
     pencil('M-150 -52 C-80 -38 70 -40 148 -54', 2.4, C.pinkShade, 0.9) + pencil('M-60 -150 C-50 -110 -54 -80 -64 -60', 2.1, C.pinkShade, 0.6);
+  const fadeDefs = FADE;
 
   return [
-    part('mom-body', 400, 290, 200, 262, body, 21),
+    part('mom-body', 410, 300, 205, 270, body, 21, fadeDefs),
     part('mom-hood', 420, 500, 210, 222, hoodSvg, 17),
     part('mom-knot', 130, 210, 250, 110, knot, 19),
     part('mom-face', 290, 270, 145, 133, blob(MOM_FACE, C.skin, { shade: C.skinGrain, g: 0.14 }), 4),
@@ -356,11 +361,11 @@ function dadParts() {
   const k = 'dad';
   const hair = dadHair();
   const ear = blob('M-8 -26 C16 -34 32 -12 28 8 C24 28 4 32 -8 24 Z', C.skin, { shade: C.skinGrain, g: 0.14, open: 'M-8 -26 C16 -34 32 -12 28 8 C24 28 4 32 -8 24' }) + pencil('M4 -12 C16 -10 18 4 9 11 M9 -2 Q12 2 8 5', 2.3);
-  const shirt = 'M-98 -228 C-140 -226 -170 -206 -178 -166 C-186 -116 -182 -50 -172 -12 C-152 -2 -126 4 -94 1 C-60 -2 -30 5 0 2 C30 -1 62 5 96 1 C128 -2 154 4 172 -12 C182 -50 186 -116 178 -166 C170 -206 140 -226 98 -228 C76 -232 54 -230 42 -226 C22 -212 -22 -212 -42 -226 C-54 -230 -76 -232 -98 -228 Z';
+  const shirt = 'M-94 -230 C-132 -224 -160 -208 -174 -180 C-190 -146 -198 -104 -196 -64 C-194 -36 -190 -14 -184 6 C-152 12 -122 3 -88 9 C-52 15 -22 5 10 11 C46 16 80 5 114 11 C142 15 164 8 184 4 C190 -14 194 -36 196 -64 C198 -104 190 -146 174 -180 C160 -208 132 -224 94 -230 C74 -233 54 -231 42 -226 C22 -212 -22 -212 -42 -226 C-54 -231 -74 -233 -94 -230 Z';
   const neck = 'M-40 -270 L-40 -224 C-22 -208 22 -208 40 -224 L40 -270 Z';
-  const body = `<ellipse cx="0" cy="6" rx="160" ry="10" fill="#2e5a4b" opacity=".13" filter="url(#blr)"/>` +
-    blob(neck, C.skin, { shade: C.skinGrain, g: 0.14, open: 'M-40 -262 L-40 -224 M40 -224 L40 -262' }) +
-    blob(shirt, C.green, { shade: C.greenShade, light: C.greenLight, g: 0.5, l: 0.3, line: C.greenLine }) +
+  const body = blob(neck, C.skin, { shade: C.skinGrain, g: 0.14, open: 'M-40 -262 L-40 -224 M40 -224 L40 -262' }) + `<g mask="url(#fade)">` +
+    blob(shirt, C.green, { shade: C.greenShade, light: C.greenLight, g: 0.5, l: 0.3, line: C.greenLine, open: 'M-184 6 C-190 -14 -194 -36 -196 -64 C-198 -104 -190 -146 -174 -180 C-160 -208 -132 -224 -94 -230 C-74 -233 -54 -231 -42 -226 C-22 -212 22 -212 42 -226 C54 -231 74 -233 94 -230 C132 -224 160 -208 174 -180 C190 -146 198 -104 196 -64 C194 -36 190 -14 184 4' }) +
+    pencil('M-180 2 C-150 10 -122 2 -90 7 M-44 10 C-14 5 18 8 44 12 M84 8 C122 13 152 6 180 2', 2.2, C.greenLine, 0.5) + pencil('M-120 -60 C-80 -50 -40 -48 -10 -52 M30 -40 C70 -44 110 -52 140 -66', 2, C.greenShade, 0.55) + '</g>' +
     pencil('M-46 -224 C-26 -204 26 -204 46 -224', 2.5, C.greenLine, 0.9) + pencil('M-60 -150 C-50 -110 -56 -70 -66 -46 M70 -120 C80 -90 76 -60 70 -40', 2.3, C.greenShade, 0.7) +
     pencil('M-150 -196 C-140 -176 -138 -160 -142 -140 M150 -196 C140 -176 138 -160 142 -140', 2.2, C.greenShade, 0.55);
   const R = rng(19); let stub = '';
@@ -371,7 +376,7 @@ function dadParts() {
     stub += `<circle cx="${n1(x)}" cy="${n1(y)}" r="${n1(1.5 + R() * 0.8)}" fill="#8b8583"/>`;
   }
   return [
-    part('dad-body', 400, 310, 200, 290, body, 23),
+    part('dad-body', 420, 320, 210, 296, body, 23, FADE),
     part('dad-ear', 70, 80, 22, 40, ear, 6),
     part('dad-face', 320, 280, 160, 138, blob(DAD_FACE, C.skin, { shade: C.skinGrain, g: 0.14 }), 8),
     part('dad-hair', 440, 310, 220, 274, hair.svgIn, 31, hair.defs),
@@ -387,9 +392,9 @@ function dadParts() {
 function babyParts() {
   const k = 'baby';
   const R = rng(5);
-  const sw = 'M-96 -100 C-112 -70 -110 -26 -86 -7 C-50 6 50 6 86 -7 C110 -26 112 -70 96 -100 C62 -130 -62 -130 -96 -100 Z';
+  const sw = 'M-66 -124 C-96 -116 -114 -86 -118 -54 C-122 -20 -98 4 -50 7 C-20 9 20 9 50 7 C98 4 122 -20 118 -54 C114 -86 96 -116 66 -124 C36 -132 -36 -132 -66 -124 Z';
   const swdd = polyD(sample(sw, 3));
-  const centres = [[-52, -40, 30], [48, -60, 22], [62, -18, 18], [-8, -16, 15]];
+  const centres = [[-60, -44, 30], [-10, -20, 17], [70, -30, 18], [-80, -86, 14]];
   const scol = [C.swirl, C.swirl2, C.swirl3];
   const swirls = (cs, rings) => {
     let s = '';
@@ -409,17 +414,17 @@ function babyParts() {
   const starSvg = list => list.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r + 5}" fill="none" stroke="${C.starLight}" stroke-width="2" opacity=".55"/>` +
     `<path d="${polyD(sample(ellD(x, y, r, r * 0.92, R() * 40), 2))}" fill="${C.star}"/>` + `<circle cx="${x - r * 0.3}" cy="${y - r * 0.3}" r="${r * 0.35}" fill="${C.starLight}" opacity=".7"/>`).join('');
   // tucked flap: the blanket corner wrapped diagonally across the chest
-  const flap = 'M-100 -94 C-70 -70 -30 -54 20 -52 C56 -50 86 -58 104 -70 C106 -84 104 -96 98 -104 C60 -120 -40 -124 -100 -94 Z';
+  const flap = 'M-30 -128 C-16 -96 -2 -66 22 -36 C40 -14 64 2 92 2 C114 -10 122 -32 118 -56 C114 -88 96 -116 66 -124 C34 -132 0 -132 -30 -128 Z';
   const flapdd = polyD(sample(flap, 3));
   const swDefs = `<clipPath id="sc"><path d="${swdd}"/></clipPath><clipPath id="fc"><path d="${flapdd}"/></clipPath>`;
   const swaddle = `<ellipse cx="0" cy="2" rx="96" ry="8" fill="#1d2b55" opacity=".18" filter="url(#blr)"/><path d="${swdd}" fill="${C.blue}"/>` +
-    `<g clip-path="url(#sc)"><g filter="url(#pen)">${sw2}</g>${starSvg([[-60, -36, 12], [62, -40, 11], [-28, -16, 7], [30, -14, 5], [-88, -50, 5]])}` +
+    `<g clip-path="url(#sc)"><g filter="url(#pen)">${sw2}</g>${starSvg([[-66, -40, 13], [-26, -16, 8], [-92, -76, 6], [-6, -60, 5]])}` +
     grainLayers(swdd, C.blueDeep, null, 0.45, 0, -30, 'nonzero') + '</g>' +
     // flap (slightly lighter, its own swirls + stars) with a soft shadow under its edge
-    `<path d="M-100 -88 C-70 -62 -30 -46 20 -44 C56 -42 86 -50 104 -62" stroke="#14275f" stroke-width="8" fill="none" opacity=".35" filter="url(#blr)"/>` +
-    `<path d="${flapdd}" fill="#3460c2"/><g clip-path="url(#fc)"><g filter="url(#pen)">${swirls([[-40, -92, 22], [52, -80, 18]], 4)}</g>${starSvg([[8, -88, 8], [80, -84, 5]])}</g>` +
-    pencil('M-100 -94 C-70 -70 -30 -54 20 -52 C56 -50 86 -58 104 -70', 2.8, C.blueLine, 0.9) +
-    pencil('M-74 -24 C-44 -12 -6 -10 26 -16 M40 -30 C60 -28 78 -32 92 -40', 2.3, C.blueDeep, 0.85) + pencil(sw, 3, C.blueLine, 0.85);
+    `<path d="M-36 -126 C-22 -94 -8 -64 16 -34 C34 -12 58 4 86 6" stroke="#14275f" stroke-width="9" fill="none" opacity=".4" filter="url(#blr)"/>` +
+    `<path d="${flapdd}" fill="#3460c2"/><g clip-path="url(#fc)"><g filter="url(#pen)">${swirls([[60, -80, 24], [70, -24, 16]], 4)}</g>${starSvg([[40, -100, 9], [94, -50, 6]])}</g>` +
+    pencil('M-30 -128 C-16 -96 -2 -66 22 -36 C40 -14 64 2 92 2', 2.9, C.blueLine, 0.95) +
+    pencil('M-104 -96 C-76 -84 -50 -82 -26 -88 M-100 -62 C-80 -54 -60 -52 -40 -58', 2.3, C.blueDeep, 0.85) + pencil('M30 -116 C44 -104 60 -98 80 -98', 2.1, '#1a3070', 0.7) + pencil(sw, 3, C.blueLine, 0.85);
 
   const head = 'M0 -76 C64 -76 106 -46 106 4 C106 50 62 76 0 76 C-62 76 -106 50 -106 4 C-106 -46 -64 -76 0 -76 Z';
   const earR = 'M96 -10 C114 -16 124 2 116 14 C110 24 98 24 92 18';
@@ -431,7 +436,7 @@ function babyParts() {
     pencil('M-16 -69 Q-10 -60 -3 -55 M-2 -70 Q3 -62 9 -58 M24 -68 Q30 -61 37 -59', 2.3, C.line, 0.9, { gaps: false }) +
     pencil('M106 6 C112 4 113 12 108 14', 2.1, C.line, 0.6);
   return [
-    part('baby-swaddle', 260, 156, 130, 140, swaddle, 41, swDefs),
+    part('baby-swaddle', 270, 160, 135, 146, swaddle, 41, swDefs),
     part('baby-head', 260, 190, 130, 95, headSvg, 3),
     ...eyeParts(k, false, 1.02), ...mouthParts(k, 0.9), brow(k, 2.6), cheek(k, 18, 10.5), question(k),
   ];
@@ -509,6 +514,7 @@ export class Character extends Node {
     this.rig = this.add(new Node());
     if (c.arm) this.back = this.rig.add(new Node({ drawFn: ctx => this._drawBack(ctx) }));
     this.body = this.rig.add(this.node(k === 'baby' ? 'baby-swaddle' : `${k}-body`));
+    if (c.arm) this.mid = this.rig.add(new Node({ drawFn: ctx => this._drawMid(ctx) }));
     this.headPivot = this.rig.add(new Node({ x: c.neck[0], y: c.neck[1] }));
     this.head = this.headPivot.add(new Node({ y: c.face }));
     if (k === 'mom') this.hood = this.head.add(this.node('mom-hood'));
@@ -570,14 +576,14 @@ export class Character extends Node {
         const cs = c.facing >= 0 ? 1 : -1;
         const p = this._headXY(c.facing + cs * 4, c.faceR[1] * 0.97 + 64 * c.handS);
         const ey = p.y + c.L2 * 0.97, ex = p.x + cs * 10;
-        if (side === cs) return { x: p.x, y: p.y, hand: 'point', rot: this.headPivot.rot, abs: true, elbow: [ex, ey / (this._breath || 1)] };
-        return { x: ex + cs * 26, y: ey + 6, hand: 'rest', rot: cs * Math.PI / 2, abs: true, low: true };
+        if (side === cs) return { x: p.x, y: p.y, hand: 'point', rot: this.headPivot.rot, abs: true, elbow: [ex, ey / (this._breath || 1)], mode: this.kind === 'dad' ? 'whole' : 'split' };
+        return { x: ex + cs * 26, y: ey + 6, hand: 'rest', rot: cs * Math.PI / 2, abs: true, low: true, mode: 'whole' };
       }
-      case 'clap': { const g = 6 + 34 * (0.5 + 0.5 * Math.cos(t * 14)); return { x: side * (g + 14), y: sy + 6, hand: 'open', rot: side * 0.15, abs: true, elbow: [side * (c.elbow[0] - 22), c.elbow[1] + 40] }; }
+      case 'clap': { const g = 6 + 34 * (0.5 + 0.5 * Math.cos(t * 14)); return this.kind === 'dad' ? { x: side * (g + 14), y: sy + 2, hand: 'open', rot: side * 0.15, abs: true, low: true, mode: 'whole' } : { x: side * (g + 14), y: sy + 6, hand: 'open', rot: side * 0.15, abs: true, elbow: [side * (c.elbow[0] - 22), c.elbow[1] + 40] }; }
       case 'up': { const w = Math.sin(t * 6 + side) * 12; return { x: side * (sx + 78) + w, y: sy - reach * 0.84, hand: 'open', rot: side * 0.18 + Math.sin(t * 6 + side) * 0.2, abs: true }; }
-      case 'chest': return { x: side * 20, y: sy + 40, hand: 'rest', rot: -side * 0.35, low: true };
-      case 'clasp': return { x: side * 18, y: sy + reach * 0.64, hand: 'rest', rot: -side * 0.2, low: true };
-      default: return { x: side * (sx * 0.5), y: sy + reach * 0.7, hand: 'rest', rot: -side * 0.3, low: true };
+      case 'chest': return this.kind === 'mom' ? { x: side * 16, y: -86, hand: 'rest', rot: -side * 0.5, low: true, mode: 'whole' } : { x: side * 20, y: sy + 40, hand: 'rest', rot: -side * 0.35, low: true, mode: 'whole' };
+      case 'clasp': return { x: side * 18, y: sy + reach * 0.64, hand: 'rest', rot: -side * 0.2, low: true, mode: 'whole' };
+      default: return { x: side * (sx * 0.5), y: sy + reach * 0.7, hand: 'rest', rot: -side * 0.3, low: true, mode: 'whole' };
     }
   }
   _set(nd, key) { if (nd._key !== key) { nd._key = key; nd.setImage(this.S[key]); nd.ax = this.S[key].ax; nd.ay = this.S[key].ay; } }
@@ -668,7 +674,7 @@ export class Character extends Node {
 
     // eyes
     let eye = face.eye;
-    if (this._blink > 0 && (eye === 'open' || eye === 'wide')) eye = 'blink';
+    if (this._blink > 0 && (eye === 'open' || eye === 'wide') && mood !== 'think') eye = 'blink';
     if (talking && eye === 'open' && Math.sin(t * 2) > 0.92) eye = 'happy';
     this._set(this.eyeL, `${k}-eye-${eye}`); this._set(this.eyeR, `${k}-eye-${eye}`);
     const pupil = eye === 'open' || eye === 'wide';
@@ -705,7 +711,7 @@ export class Character extends Node {
           a.x += a.vx * dt; a.y += a.vy * dt;
         }
         a.hr = this.frozen ? tg.rot : damp(a.hr, tg.rot, 12, dt);
-        a.type = tg.hand;
+        a.type = tg.hand; a.mode = tg.mode || 'split';
         this._solve(a, tg, breath);
       }
       // layering: in "think" the vertical (chin) forearm sits in front of the horizontal one
@@ -743,62 +749,112 @@ export class Character extends Node {
     }
     return m[name];
   }
-  _capsule(ctx, A, B, rA, rB, style) {
-    const dx = B[0] - A[0], dy = B[1] - A[1], L = Math.hypot(dx, dy) || 0.001, a = Math.atan2(dy, dx);
-    const k = clamp((rA - rB) / L, -0.95, 0.95), phi = Math.acos(k);
-    ctx.fillStyle = style; ctx.beginPath();
-    ctx.arc(A[0], A[1], rA, a + phi, a - phi + Math.PI * 2);
-    ctx.arc(B[0], B[1], rB, a - phi, a + phi);
-    ctx.closePath(); ctx.fill();
+  // wobbly centreline: stable along the arm (param = arc length), so the line "breathes" like a hand-drawn stroke
+  _wob(pts, ph) {
+    const out = [];
+    let s0 = 0;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const A = pts[i], B = pts[i + 1], dx = B[0] - A[0], dy = B[1] - A[1], L = Math.hypot(dx, dy) || 0.001, nx = -dy / L, ny = dx / L;
+      const n = Math.max(1, Math.ceil(L / 7));
+      for (let j = i ? 1 : 0; j <= n; j++) {
+        const u = j / n, s = s0 + L * u, w = (u > 0.02 && u < 0.98) || (i === 0 && j === 0) ? 1.1 * Math.sin(s * 0.075 + ph) + 0.55 * Math.sin(s * 0.19 + ph * 1.7) : 0;
+        out.push([A[0] + dx * u + nx * w, A[1] + dy * u + ny * w]);
+      }
+      s0 += L;
+    }
+    return out;
+  }
+  _poly(ctx, pts, width, style, alpha = 1) {
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = style; ctx.lineWidth = width;
+    const ga = ctx.globalAlpha; ctx.globalAlpha = ga * alpha;
+    ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    if (pts.length === 1) ctx.lineTo(pts[0][0] + 0.01, pts[0][1]);
+    ctx.stroke(); ctx.globalAlpha = ga;
+  }
+  /** A limb as one silhouette: varied-weight pencil outline (two offset passes) under a crayon fill + a few gaps. */
+  _limb(ctx, pts, r, linePat, fillPat, lineA = 1, seed = 0) {
+    const t = 3.1, P = this._wob(pts, seed), Q = this._wob(pts, seed + 2.3);
+    this._poly(ctx, P, 2 * (r + t), linePat, lineA);
+    this._poly(ctx, Q, 2 * (r + t) + 1.6, linePat, 0.35 * lineA);
+    this._poly(ctx, P, 2 * r, fillPat);
+    // tiny gaps: fill dabs breaking the outline at fixed spots along the limb
+    ctx.fillStyle = fillPat;
+    for (const f of [0.28, 0.67]) {
+      const i = Math.min(P.length - 2, Math.floor(P.length * f)), A = P[i], B = P[i + 1];
+      const dx = B[0] - A[0], dy = B[1] - A[1], L = Math.hypot(dx, dy) || 1, sd = (i + seed * 7) % 2 ? 1 : -1;
+      ctx.beginPath(); ctx.arc(A[0] - dy / L * (r + 1.3) * sd, A[1] + dx / L * (r + 1.3) * sd, 1.7, 0, Math.PI * 2); ctx.fill();
+    }
   }
   _sprite(ctx, key, x, y, rot, sx, sy) {
     const sp = this.S[key]; ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(sx, sy);
     ctx.drawImage(sp.img, -sp.ax * sp.w, -sp.ay * sp.h, sp.w, sp.h); ctx.restore();
   }
+  /** Short t-shirt sleeve along the upper arm. open=true: no outline on the shoulder side (blends into the shirt). */
+  _sleeve(ctx, a, open) {
+    const sl = this.cfg.arm.sleeve, dx = a.E[0] - a.S[0], dy = a.E[1] - a.S[1], L = Math.hypot(dx, dy) || 1;
+    const ux = dx / L, uy = dy / L, nx = -uy, ny = ux, len = Math.min(L + 4, this.cfg.L1 * sl.len), r0 = sl.w / 2 - 2, r1 = sl.w / 2 + 3, s0 = -12;
+    const P = (s, o) => [a.S[0] + ux * s + nx * o, a.S[1] + uy * s + ny * o];
+    const shape = pad => {
+      ctx.beginPath(); const an = Math.atan2(ny, nx), sh = open ? 18 : 0; // open: keep the cap tucked inside the shoulder
+      ctx.arc(a.S[0] + ux * sh, a.S[1] + uy * sh, r0 + pad, an, an + Math.PI, false);
+      for (const q of [P(len + pad * 0.6, -(r1 + pad)), P(len + 3 + pad * 0.6, 0), P(len + pad * 0.6, r1 + pad), P(open ? 18 : s0, r0 + pad)]) ctx.lineTo(q[0], q[1]);
+      ctx.closePath();
+    };
+    const line = this._pat(ctx, sl.line), fill = this._pat(ctx, sl.fill);
+    if (!open) { ctx.fillStyle = line; shape(3.1); ctx.fill(); }
+    ctx.fillStyle = fill; shape(0); ctx.fill();
+    if (open) { // outline only the two sides + hem, with varied weight
+      const side = this._wob([P(22, -r0 - 1.5), P(len, -r1 - 1.5), P(len + 3, 0), P(len, r1 + 1.5), P(22, r0 + 1.5)], a.side * 3);
+      this._poly(ctx, side, 3, line, 0.9);
+      this._poly(ctx, this._wob([P(len - 2, -r1), P(len + 1, 0), P(len - 2, r1)], 1.3), 4.4, line, 0.3);
+    }
+    const h0 = P(len - 8, -r1 + 5), h1 = P(len - 6, r1 - 5);
+    this._poly(ctx, [h0, h1], 2, line, 0.5);
+  }
+  _hand(ctx, a, layer) {
+    const hs = this.cfg.handS;
+    this._sprite(ctx, `${this.kind}-hand-${a.type}-${layer}`, a.W[0], a.W[1], a.rot, -a.side * hs, hs);
+  }
+  /** Whole arm shoulder→elbow→hand as ONE continuous silhouette (no end caps on the shirt). */
+  _drawWhole(ctx, a) {
+    const A = this.cfg.arm, line = this._pat(ctx, A.line), fill = this._pat(ctx, A.fill), r = A.foreW / 2, soft = this.kind === 'mom' ? 0.6 : 1;
+    this._hand(ctx, a, 'o');
+    if (A.toWrist) this._hand(ctx, a, 'f');
+    let S = a.S;
+    if (A.sleeve) { const dx = a.E[0] - a.S[0], dy = a.E[1] - a.S[1], L = Math.hypot(dx, dy) || 1, k = Math.min(22, L * 0.45) / L; S = [a.S[0] + dx * k, a.S[1] + dy * k]; }
+    this._limb(ctx, [S, a.E, a.W], r, line, fill, soft, a.side < 0 ? 0.4 : 2.9);
+    if (A.toWrist) this._cuff(ctx, a, r, line, fill); else this._hand(ctx, a, 'f');
+    if (A.sleeve) this._sleeve(ctx, a, true);
+  }
+  _cuff(ctx, a, r, line, fill) { // sleeve tapers into a little cuff over the wrist
+    const dir = Math.atan2(a.W[1] - a.E[1], a.W[0] - a.E[0]), cx = a.W[0] - Math.cos(dir) * 4, cy = a.W[1] - Math.sin(dir) * 4;
+    ctx.fillStyle = fill; ctx.beginPath(); ctx.ellipse(cx, cy, 7, r + 1.5, dir, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = line; ctx.lineCap = 'round'; ctx.lineWidth = 2.4;
+    ctx.beginPath(); ctx.arc(a.W[0], a.W[1], r - 2, dir - 1.2, dir + 1.2); ctx.stroke();
+    const ga = ctx.globalAlpha; ctx.globalAlpha = ga * 0.45; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.arc(cx - Math.cos(dir) * 8, cy - Math.sin(dir) * 8, r - 6, dir - 0.9, dir + 0.9); ctx.stroke(); ctx.globalAlpha = ga;
+  }
   _drawBack(ctx) {
-    const A = this.cfg.arm, t = 3.1, line = this._pat(ctx, A.line), fill = this._pat(ctx, A.fill), rU = A.upperW / 2;
+    const A = this.cfg.arm, line = this._pat(ctx, A.line), fill = this._pat(ctx, A.fill);
     for (const a of this.arms) {
-      if (!a.S) continue;
-      this._capsule(ctx, a.S, a.E, rU + t, rU * 0.94 + t, line);
-      this._capsule(ctx, a.S, a.E, rU, rU * 0.94, fill);
-      if (A.sleeve) { // short t-shirt sleeve, flaring a little toward the hem
-        const sl = A.sleeve, dx = a.E[0] - a.S[0], dy = a.E[1] - a.S[1], L = Math.hypot(dx, dy) || 1;
-        const ux = dx / L, uy = dy / L, nx = -uy, ny = ux, len = Math.min(L + 6, this.cfg.L1 * sl.len), r0 = sl.w / 2 - 2, r1 = sl.w / 2 + 3;
-        const P = (s, o) => [a.S[0] + ux * s + nx * o, a.S[1] + uy * s + ny * o];
-        const poly = (pad, style) => {
-          ctx.fillStyle = style; ctx.beginPath();
-          const s0 = -8;
-          const an = Math.atan2(ny, nx); ctx.arc(a.S[0], a.S[1], r0 + pad, an, an + Math.PI, false);
-          let q = P(len + pad * 0.6, -(r1 + pad)); ctx.lineTo(q[0], q[1]);
-          q = P(len + 4 + pad * 0.6, 0); ctx.lineTo(q[0], q[1]);
-          q = P(len + pad * 0.6, r1 + pad); ctx.lineTo(q[0], q[1]);
-          q = P(s0, r0 + pad); ctx.lineTo(q[0], q[1]);
-          ctx.closePath(); ctx.fill();
-        };
-        poly(t, this._pat(ctx, sl.line)); poly(0, this._pat(ctx, sl.fill));
-        // hem crease
-        const h0 = P(len - 7, -r1 + 4), h1 = P(len - 5, r1 - 4);
-        ctx.strokeStyle = this._pat(ctx, sl.line); ctx.lineWidth = 2; ctx.globalAlpha *= 0.6; ctx.beginPath(); ctx.moveTo(h0[0], h0[1]); ctx.lineTo(h1[0], h1[1]); ctx.stroke(); ctx.globalAlpha /= 0.6;
-      }
+      if (!a.S || a.mode !== 'split') continue;
+      this._limb(ctx, [a.S, a.E], A.upperW / 2, line, fill, 1, a.side < 0 ? 1.1 : 3.7);
+      if (A.sleeve) this._sleeve(ctx, a, false);
     }
   }
+  _drawMid(ctx) { // Ibu: resting arms live under the hijab drape, only forearm + cuff + hand emerge below the hem
+    if (this.kind !== 'mom') return;
+    for (const i of this._order) { const a = this.arms[i]; if (a.S && a.mode === 'whole') this._drawWhole(ctx, a); }
+  }
   _drawFront(ctx) {
-    const c = this.cfg, A = c.arm, t = 3.1, line = this._pat(ctx, A.line), fill = this._pat(ctx, A.fill), rE = A.foreW / 2, rW = rE * 0.86, hs = c.handS, k = this.kind;
+    const c = this.cfg, A = c.arm, line = this._pat(ctx, A.line), fill = this._pat(ctx, A.fill), rE = A.foreW / 2;
     for (const i of this._order) {
       const a = this.arms[i]; if (!a.E) continue;
-      const hx = a.W[0], hy = a.W[1], sx = -a.side * hs;
-      this._capsule(ctx, a.E, a.W, rE + t, rW + t, line);
-      this._sprite(ctx, `${k}-hand-${a.type}-o`, hx, hy, a.rot, sx, hs);
-      if (A.toWrist) { // sleeve to the wrist: hand tucks into the cuff
-        this._sprite(ctx, `${k}-hand-${a.type}-f`, hx, hy, a.rot, sx, hs);
-        this._capsule(ctx, a.E, a.W, rE, rW, fill);
-        const dir = Math.atan2(a.W[1] - a.E[1], a.W[0] - a.E[0]);
-        ctx.strokeStyle = line; ctx.lineWidth = 2.6; ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.arc(hx, hy, rW - 1, dir - 1.25, dir + 1.25); ctx.stroke();
-      } else {
-        this._capsule(ctx, a.E, a.W, rE, rW, fill);
-        this._sprite(ctx, `${k}-hand-${a.type}-f`, hx, hy, a.rot, sx, hs);
-      }
+      if (a.mode === 'whole') { if (this.kind !== 'mom') this._drawWhole(ctx, a); continue; }
+      this._hand(ctx, a, 'o');
+      if (A.toWrist) { this._hand(ctx, a, 'f'); this._limb(ctx, [a.E, a.W], rE, line, fill, 1, a.side < 0 ? 5.1 : 6.6); this._cuff(ctx, a, rE, line, fill); }
+      else { this._limb(ctx, [a.E, a.W], rE, line, fill, 1, a.side < 0 ? 5.1 : 6.6); this._hand(ctx, a, 'f'); }
     }
   }
   /** Render only part of the character (used by the portrait to slip the baby between bodies and hands). */
@@ -840,9 +896,9 @@ export async function createCharacter(kind, opts = {}) {
  * tiltOverride. Use applyPortraitPose(ch, kind, w, h) to place a live character exactly like the picture.
  */
 export const PORTRAIT_LAYOUT = {
-  mom: { x: 0.185, y: 0.965, scale: 0.99, rot: 0.1, mood: 'adore', gaze: [0.75, 0.55], tilt: 0.1 },
-  dad: { x: 0.815, y: 1.0, scale: 0.95, rot: -0.1, mood: 'adore', gaze: [-0.75, 0.55], tilt: -0.1 },
-  baby: { x: 0.5, y: 0.735, scale: 1.15, rot: 0, mood: 'adore', gaze: [0, 0], tilt: 0.04 },
+  mom: { x: 0.163, y: 0.70, scale: 0.72, rot: 0.05, mood: 'adore', gaze: [0.7, 0.35], tilt: 0.08 },
+  dad: { x: 0.835, y: 0.71, scale: 0.665, rot: -0.05, mood: 'adore', gaze: [-0.7, 0.35], tilt: -0.08 },
+  baby: { x: 0.5, y: 0.565, scale: 1.13, rot: 0, mood: 'adore', gaze: [0, 0], tilt: 0.03 },
 };
 export function applyPortraitPose(ch, kind, w = 900, h = 600, ox = 0, oy = 0) {
   const L = PORTRAIT_LAYOUT[kind], s = h / 600;
@@ -864,19 +920,52 @@ function backdropPart(w, h) {
   };
   const heart = (x, y, sc, col) => blob(`M${x} ${y + 10 * sc} C${x - 26 * sc} ${y - 8 * sc} ${x - 14 * sc} ${y - 30 * sc} ${x} ${y - 16 * sc} C${x + 14 * sc} ${y - 30 * sc} ${x + 26 * sc} ${y - 8 * sc} ${x} ${y + 10 * sc} Z`, col, { shade: '#d0607a', g: 0.35, light: '#fff', l: 0.3, line: '#c25a72', lw: 2.4 });
   const wallD = `M0 0 H${w} V${h} H0 Z`;
-  const floorD = `M0 ${h * 0.74} C${w * 0.3} ${h * 0.7} ${w * 0.7} ${h * 0.7} ${w} ${h * 0.74} V${h} H0 Z`;
+  const sofaBack = `M${w * 0.03} ${h * 0.78} C${w * 0.02} ${h * 0.6} ${w * 0.06} ${h * 0.5} ${w * 0.16} ${h * 0.49} C${w * 0.36} ${h * 0.47} ${w * 0.64} ${h * 0.47} ${w * 0.84} ${h * 0.49} C${w * 0.94} ${h * 0.5} ${w * 0.98} ${h * 0.6} ${w * 0.97} ${h * 0.78} Z`;
   let stars = '';
-  for (const [u, v, r] of [[0.05, 0.12, 11], [0.36, 0.08, 8], [0.66, 0.1, 9], [0.95, 0.14, 10], [0.04, 0.55, 8], [0.96, 0.5, 9], [0.3, 0.22, 6], [0.71, 0.24, 6]]) stars += star(u * w, v * h, r * (0.9 + R() * 0.3));
+  for (const [u, v, r] of [[0.04, 0.07, 10], [0.37, 0.2, 7], [0.63, 0.22, 8], [0.96, 0.07, 10], [0.36, 0.41, 7], [0.64, 0.4, 7], [0.31, 0.06, 6], [0.69, 0.05, 6]]) stars += star(u * w, v * h, r * (0.9 + R() * 0.3));
   const inner = `<defs><radialGradient id="glow" cx="50%" cy="45%" r="62%"><stop offset="0" stop-color="#f4fbf8"/><stop offset="0.55" stop-color="#d6f0ec"/><stop offset="1" stop-color="#a9d8dc"/></radialGradient>
     <radialGradient id="vig" cx="50%" cy="48%" r="72%"><stop offset="0.62" stop-color="#5a8f9e" stop-opacity="0"/><stop offset="1" stop-color="#5a8f9e" stop-opacity=".38"/></radialGradient></defs>
     <rect width="${w}" height="${h}" fill="url(#glow)"/>` +
     `<g transform="rotate(-32)"><g filter="url(#grn)" opacity=".2"><path transform="rotate(32)" d="${wallD}" fill="#7fb8c4"/></g></g>` +
     `<g transform="rotate(-24)"><g filter="url(#hil)" opacity=".4"><path transform="rotate(24)" d="${wallD}" fill="#fff"/></g></g>` +
-    cloud(w * 0.13, h * 0.3, 0.9) + cloud(w * 0.86, h * 0.33, 0.85) + cloud(w * 0.5, h * 0.06, 0.55) +
-    blob(floorD, '#cfeadf', { shade: '#8fc7b3', g: 0.35, light: '#fff', l: 0.3, line: '#8fbfae', lw: 2.4 }) + stars +
-    heart(w * 0.5, h * 0.105, 1.15, '#f590a8') + heart(w * 0.41, h * 0.17, 0.7, '#f9b2c3') + heart(w * 0.59, h * 0.165, 0.75, '#f7a0b6') +
+    cloud(w * 0.06, h * 0.47, 0.6) + cloud(w * 0.94, h * 0.45, 0.6) +
+    blob(sofaBack, '#c9b2e8', { shade: '#9c80c9', g: 0.42, light: '#fff', l: 0.3, line: '#8a70b4', lw: 2.6 }) +
+    pencil(`M${w * 0.36} ${h * 0.52} C${w * 0.35} ${h * 0.6} ${w * 0.35} ${h * 0.68} ${w * 0.36} ${h * 0.76} M${w * 0.64} ${h * 0.52} C${w * 0.65} ${h * 0.6} ${w * 0.65} ${h * 0.68} ${w * 0.64} ${h * 0.76}`, 2.2, '#8a70b4', 0.6) + stars +
+    heart(w * 0.5, h * 0.075, 1.0, '#f590a8') + heart(w * 0.42, h * 0.06, 0.6, '#f9b2c3') + heart(w * 0.58, h * 0.055, 0.65, '#f7a0b6') +
     `<rect width="${w}" height="${h}" fill="url(#vig)"/>`;
   return part(`portrait-bd-${w}x${h}`, w, h, 0, 0, inner, 61);
+}
+function propsParts(w, h) {
+  const k = `${w}x${h}`;
+  const seat = `M${w * 0.0} ${h * 0.72} C${w * 0.0} ${h * 0.69} ${w * 0.03} ${h * 0.68} ${w * 0.08} ${h * 0.68} C${w * 0.35} ${h * 0.67} ${w * 0.65} ${h * 0.67} ${w * 0.92} ${h * 0.68} C${w * 0.97} ${h * 0.68} ${w} ${h * 0.69} ${w} ${h * 0.72} L${w} ${h} L0 ${h} Z`;
+  const armL = `M${-w * 0.02} ${h * 0.64} C${w * 0.03} ${h * 0.6} ${w * 0.1} ${h * 0.63} ${w * 0.1} ${h * 0.7} L${w * 0.1} ${h} L${-w * 0.02} ${h} Z`;
+  const armR = `M${w * 1.02} ${h * 0.64} C${w * 0.97} ${h * 0.6} ${w * 0.9} ${h * 0.63} ${w * 0.9} ${h * 0.7} L${w * 0.9} ${h} L${w * 1.02} ${h} Z`;
+  const patch = (x, y, inner) => `<g transform="translate(${x} ${y})">${inner}</g>`;
+  let star = ''; for (let j = 0; j < 10; j++) { const a = -Math.PI / 2 + j * Math.PI / 5, rr = j % 2 ? 13 : 27; star += (j ? 'L' : 'M') + n1(Math.cos(a) * rr) + ' ' + n1(Math.sin(a) * rr); }
+  const seatSvg = blob(seat, '#d8c4f0', { shade: '#a58bd0', g: 0.42, light: '#fff', l: 0.32, line: '#8a70b4', lw: 2.8 }) +
+    pencil(`M${w * 0.04} ${h * 0.74} C${w * 0.35} ${h * 0.73} ${w * 0.65} ${h * 0.73} ${w * 0.96} ${h * 0.74}`, 2.2, '#8a70b4', 0.55) +
+    patch(w * 0.2, h * 0.86, blob(star + 'Z', C.star, { shade: '#d9a520', g: 0.3, line: '#c99a2a', lw: 2.4 })) +
+    patch(w * 0.8, h * 0.87, blob('M0 14 C-34 -8 -18 -38 0 -20 C18 -38 34 -8 0 14 Z', '#f590a8', { shade: '#d0607a', g: 0.35, line: '#c25a72', lw: 2.4 })) +
+    blob(armL, '#c9b2e8', { shade: '#9c80c9', g: 0.42, light: '#fff', l: 0.3, line: '#8a70b4', lw: 2.6 }) + blob(armR, '#c9b2e8', { shade: '#9c80c9', g: 0.42, light: '#fff', l: 0.3, line: '#8a70b4', lw: 2.6 });
+  // little woven basket for Bintang
+  const bx = w * 0.5, by = h * 0.555, bw = w * 0.17;
+  const back = blob(`M${bx - bw} ${by} C${bx - bw} ${by - 26} ${bx + bw} ${by - 26} ${bx + bw} ${by} Z`, '#c98f55', { shade: '#8f5a2c', g: 0.45, line: '#8a5a32', lw: 2.6 });
+  const front = `M${bx - bw - 6} ${by} C${bx - bw * 0.7} ${by + 12} ${bx + bw * 0.7} ${by + 12} ${bx + bw + 6} ${by} L${bx + bw * 0.86} ${by + h * 0.3} C${bx + bw * 0.4} ${by + h * 0.33} ${bx - bw * 0.4} ${by + h * 0.33} ${bx - bw * 0.86} ${by + h * 0.3} Z`;
+  let weave = '';
+  for (let i = 1; i < 7; i++) weave += `M${n1(bx - bw * (1 - i * 0.02))} ${n1(by + i * h * 0.043)} C${n1(bx - bw * 0.4)} ${n1(by + i * h * 0.043 + 10)} ${n1(bx + bw * 0.4)} ${n1(by + i * h * 0.043 + 10)} ${n1(bx + bw * (1 - i * 0.02))} ${n1(by + i * h * 0.043)} `;
+  for (let i = -3; i <= 3; i++) weave += `M${n1(bx + i * bw * 0.27)} ${n1(by + 10)} L${n1(bx + i * bw * 0.24)} ${n1(by + h * 0.3)} `;
+  const bow = blob(`M${bx} ${by + 26} C${bx - 30} ${by + 6} ${bx - 40} ${by + 46} ${bx} ${by + 30} C${bx + 40} ${by + 46} ${bx + 30} ${by + 6} ${bx} ${by + 26} Z`, '#f590a8', { shade: '#d0607a', g: 0.35, line: '#c25a72', lw: 2.4 });
+  const frontSvg = blob(front, '#dca46a', { shade: '#a26a36', g: 0.45, light: '#fff', l: 0.25, line: '#8a5a32', lw: 2.8 }) + pencil(weave, 2, '#9a6436', 0.7) +
+    pencil(`M${bx - bw - 6} ${by + 2} C${bx - bw * 0.7} ${by + 14} ${bx + bw * 0.7} ${by + 14} ${bx + bw + 6} ${by + 2}`, 5, '#b77f48', 0.9) + bow;
+  return { seat: part(`portrait-seat-${k}`, w, h, 0, 0, seatSvg, 71), basketBack: part(`portrait-bb-${k}`, w, h, 0, 0, back, 72), basketFront: part(`portrait-bf-${k}`, w, h, 0, 0, frontSvg, 73) };
+}
+/** Foreground props of the portrait → {seat, basketBack, basketFront} sprites (each w×h, draw at 0,0).
+ *  Draw order: backdrop → parents (renderLayer 'base') → seat → basketBack → baby → basketFront → parents ('front') → frame. */
+export async function portraitPropsSprites(w = 900, h = 600) {
+  PR = rng(5151);
+  const P = propsParts(w, h), out = {};
+  for (const [n, p] of Object.entries(P)) out[n] = await svgSprite(p.svg, w, h, p.key);
+  return out;
 }
 /** Soft mint "photo studio" backdrop (clouds, stars, hearts, vignette) — no frame. → sprite {img,w,h}. */
 export function portraitBackdropSprite(w = 900, h = 600) {
@@ -898,17 +987,18 @@ export function drawPortraitFrame(ctx, w, h) {
 
 export async function portraitSprite(w = 900, h = 600) {
   const [mom, dad, baby] = await Promise.all(['mom', 'dad', 'baby'].map(k => createCharacter(k, { frozen: true })));
-  const bd = await portraitBackdropSprite(w, h);
+  const bd = await portraitBackdropSprite(w, h), pr = await portraitPropsSprites(w, h);
   applyPortraitPose(mom, 'mom', w, h); applyPortraitPose(dad, 'dad', w, h); applyPortraitPose(baby, 'baby', w, h);
   mom._t = dad._t = baby._t = 0.2;
   for (let i = 0; i < 90; i++) { mom.update(1 / 30); dad.update(1 / 30); baby.update(1 / 30); }
-  const s = h / 600, B = PORTRAIT_LAYOUT.baby;
   return canvasSprite(w, h, (x) => {
     x.save(); x.beginPath(); x.rect(0, 0, w, h); x.clip();
     x.drawImage(bd.img, 0, 0, w, h);
     mom.renderLayer(x, 'base'); dad.renderLayer(x, 'base');
-    x.save(); x.globalAlpha = 0.16; x.fillStyle = '#2f5a5a'; x.beginPath(); x.ellipse(B.x * w, B.y * h + 2 * s, 120 * s, 12 * s, 0, 0, Math.PI * 2); x.fill(); x.restore();
+    x.drawImage(pr.seat.img, 0, 0, w, h);
+    x.drawImage(pr.basketBack.img, 0, 0, w, h);
     baby.render(x);
+    x.drawImage(pr.basketFront.img, 0, 0, w, h);
     mom.renderLayer(x, 'front'); dad.renderLayer(x, 'front');
     x.restore();
     drawPortraitFrame(x, w, h);

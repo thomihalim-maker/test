@@ -1,7 +1,7 @@
 // Particles (owned by the UI/juice builder).
 // API: burst(parentNode, x, y, kind = 'sparkle', opts) -> Node (self-removing emitter)
 // kinds: sparkle, stars, confetti, hearts, dust, zzz.
-// opts: { spinK (spin multiplier), count, spread (speed multiplier), scale, colors:[hex], angle (rad, centre of emission), cone (rad width),
+// opts: { even (evenly spaced ring at uniform speed), spinK (spin multiplier), count, spread (speed multiplier), scale, colors:[hex], angle (rad, centre of emission), cone (rad width),
 //         gravity, life (seconds multiplier), delay (sec), z }
 // Particles are crayon sprites rasterized once (lazily), simulated with gravity, drag and spin; sparkles glow
 // additively. Emitters are children of parentNode and remove themselves when done. Coordinates are parent-local.
@@ -57,8 +57,8 @@ export function burst(parent, x, y, kind = 'sparkle', opts = {}) {
   const cone = opts.cone ?? preset.cone ?? Math.PI * 2, ang = opts.angle ?? preset.angle ?? 0;
   const ps = [];
   for (let i = 0; i < n; i++) {
-    const p = preset.make(i), a = cone >= Math.PI * 2 ? Math.random() * Math.PI * 2 : ang + (Math.random() - 0.5) * cone;
-    const v = p.v * spread;
+    const p = preset.make(i), a = opts.even ? ang + (i / n) * Math.PI * 2 : cone >= Math.PI * 2 ? Math.random() * Math.PI * 2 : ang + (Math.random() - 0.5) * cone;
+    const v = (opts.even ? (p.v * 0.15 + 520 * 0.85) : p.v) * spread;
     Object.assign(p, { x: (opts.jitter ? R(-opts.jitter, opts.jitter) : 0), y: 0, vx: Math.cos(a) * v, vy: Math.sin(a) * v, age: -(opts.delay || 0) - (preset.stagger ? i * preset.stagger : 0),
       rot: p.rot0 ?? R(0, 6.3), spin: (p.spin || 0) * (opts.spinK ?? 1), s: p.s * scale, life: p.life * lifeK, ph: Math.random() * 7, g: opts.gravity ?? p.g });
     ps.push(p);

@@ -92,7 +92,11 @@ export function release(b) {
 export function tapButton(b, fn) { press(b); setTimeout(() => { release(b); setTimeout(() => fn?.(), 90); }, 80); }
 
 /** Extra horizontal inset (design units) so corner buttons clear notches on wide phones. */
-export function safeInset(v = game.view) { return v.w > 1700 ? Math.min(70, (v.w - 1700) * 0.3) : 0; }
+export function safeInset(v = game.view, side = 'max') {
+  const legacy = v.w > 1700 ? Math.min(70, (v.w - 1700) * 0.3) : 0, sf = v.safe || {};
+  const l = Math.max(legacy, sf.l || 0), r = Math.max(legacy, sf.r || 0);
+  return side === 'l' ? l : side === 'r' ? r : side === 't' ? (sf.t || 0) : Math.max(l, r);
+}
 
 // ------------------------------------------------------------------ transition curtain (paper sheet + star iris)
 let patCache = null;
@@ -103,7 +107,7 @@ export const curtain = {
     const e = Math.pow(1 - k, 1.35), R = e * diag * 1.08, r = R * 0.5, rot = -Math.PI / 2 + (1 - k) * 0.9;
     const pts = starPts(cx, cy, R, r, 5, rot);
     const rp = roundCorners(pts, R * 0.08, 3);
-    if (!patCache || patCache.ctx !== ctx) patCache = { ctx, p: paperPattern(ctx, '#fbf0de') };
+    if (!patCache || patCache.ctx !== ctx) patCache = { ctx, p: paperPattern(ctx, '#fbf0de', true) };
     ctx.save();
     ctx.beginPath(); ctx.rect(-10, -10, W + 20, H + 20);
     if (R > 1) { ctx.moveTo(rp[0][0], rp[0][1]); for (const p of rp) ctx.lineTo(p[0], p[1]); ctx.closePath(); }
@@ -125,21 +129,34 @@ export const curtain = {
       ctx.strokeStyle = rgba(PAL.line, 0.8); ctx.lineWidth = 3.5; ctx.translate(1.5, 1.5); ctx.stroke();
       ctx.restore();
     }
-    // loader star while fully covered
+    // sleepy star mascot while covered, with a squash when the iris snaps shut
+    if (k >= 0.995) { if (curtain._shutAt == null) curtain._shutAt = game.time; } else if (k < 0.9) curtain._shutAt = null;
     if (k > 0.82) {
-      const a = (k - 0.82) / 0.18, big = starSprite(150, PAL.yellow), sc = a * (1 + Math.sin(game.time * 6) * 0.05);
-      ctx.save(); ctx.globalAlpha = a; ctx.translate(cx, cy + Math.sin(game.time * 4) * 8); ctx.rotate(Math.sin(game.time * 2) * 0.15);
-      const g = glowSprite(64, '#fff1b0'); ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(g.img, -170 * sc, -170 * sc, 340 * sc, 340 * sc); ctx.globalCompositeOperation = 'source-over';
-      ctx.drawImage(big.img, -big.w / 2 * sc, -big.h / 2 * sc, big.w * sc, big.h * sc); ctx.restore();
+      const a = (k - 0.82) / 0.18, big = mascotSprite(), since = curtain._shutAt == null ? 0 : game.time - curtain._shutAt;
+      const sq = curtain._shutAt == null ? 0 : 0.24 * Math.exp(-since * 7) * Math.cos(since * 22);
+      const sc = a * (1 + Math.sin(game.time * 6) * 0.04);
+      ctx.save(); ctx.globalAlpha = a; ctx.translate(cx, cy + Math.sin(game.time * 4) * 8); ctx.rotate(Math.sin(game.time * 2) * 0.12);
+      const g = glowSprite(64, '#fff1b0'); ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(g.img, -180 * sc, -180 * sc, 360 * sc, 360 * sc); ctx.globalCompositeOperation = 'source-over';
+      ctx.scale(sc * (1 + sq), sc * (1 - sq));
+      ctx.drawImage(big.img, -big.w / 2, -big.h / 2, big.w, big.h); ctx.restore();
     }
   },
 };
+function mascotSprite() {
+  return makeSprite(190, 190, (x) => {
+    const st = starSprite(170, PAL.yellow, { line: '#b8892a' }); x.drawImage(st.img, 95 - st.w / 2, 95 - st.h / 2, st.w, st.h);
+    scribble(x, [[64, 96], [74, 104], [84, 96]], PAL.lineDark, 3.6, { seed: 2 });
+    scribble(x, [[106, 96], [116, 104], [126, 96]], PAL.lineDark, 3.6, { seed: 3 });
+    scribble(x, [[86, 116], [95, 122], [104, 116]], PAL.lineDark, 3.2, { seed: 4 });
+    x.save(); x.filter = 'blur(3px)'; x.fillStyle = rgba(PAL.cheek, 0.9); x.beginPath(); x.ellipse(60, 114, 10, 6, 0, 0, 7); x.ellipse(130, 114, 10, 6, 0, 0, 7); x.fill(); x.restore();
+  }, { key: 'curtainMascot' });
+}
 game.transition = curtain;
 
 // ------------------------------------------------------------------ HUD
 export async function createHud(scene) {
   try { warmFx(); } catch (_) {}
-  const home = await makeButton({ icon: 'home', size: 118, color: PAL.blue }, () => game.go('menu'));
+  const home = await makeButton({ icon: 'home', size: 128, color: PAL.blue }, () => game.go('menu'));
   scene.uiLayer.add(home);
   const prog = new Node({ visible: false });
   scene.uiLayer.add(prog);
@@ -149,7 +166,7 @@ export async function createHud(scene) {
   home.sx = home.sy = 0; tween(home, { sx: 1, sy: 1 }, { dur: 0.5, delay: 0.35, ease: 'outBack' });
   const hud = {
     home, progress: prog,
-    layout(v) { const si = safeInset(v); home.x = 92 + si; home.y = 88; prog.x = v.w / 2; prog.y = 70; },
+    layout(v) { const si = safeInset(v, 'l'); home.x = 96 + si; home.y = 92 + safeInset(v, 't') * 0.5; prog.x = v.w / 2; prog.y = 70; },
     pointerDown(p) { if (!home.visible) return false; if (home.hitTest(p.x, p.y)) { pressed = home; press(home); return true; } return false; },
     pointerUp(p) {
       if (!pressed) return false; const n = pressed; pressed = null; release(n);
@@ -209,9 +226,9 @@ function cardSprite(w, h) {
     for (const [px, py, s] of [[52, h / 2 + 15, 16], [w - 22, h / 2 + 15, 16]]) crayonShape(x, starPts(px, py, s, s * 0.47, 5, -Math.PI / 2, 2), '#f8dc86', { seed: px, lw: 1.8, lineColor: '#c9a548', wobble: 0.6, hatchStep: 4 });
   }, { key: `wincard|${w}|${h}` });
 }
-function bannerSprite(w = 760, h = 190) {
+function bannerSprite(w = 760, h = 190, calm = false) {
   return makeSprite(w, h, (x) => {
-    const col = '#ef7d6c', dark = shade(col, -0.3), mid = h * 0.5;
+    const col = calm ? '#55609e' : '#ef7d6c', dark = shade(col, -0.3), mid = h * 0.5;
     // tails
     for (const sgn of [-1, 1]) {
       const ex = sgn < 0 ? 10 : w - 10, ix = sgn < 0 ? 150 : w - 150;
@@ -222,12 +239,16 @@ function bannerSprite(w = 760, h = 190) {
     const pts = []; const n = 20;
     for (let i = 0; i <= n; i++) { const t = i / n; pts.push([110 + t * (w - 220), mid - 62 + Math.sin(t * Math.PI) * -14]); }
     for (let i = n; i >= 0; i--) { const t = i / n; pts.push([110 + t * (w - 220), mid + 44 + Math.sin(t * Math.PI) * -14]); }
-    crayonShape(x, pts, col, { seed: 31, lw: 3.6, light: '#ffa999', hatchStep: 7 });
+    crayonShape(x, pts, col, { seed: 31, lw: 3.6, light: calm ? '#8a90c8' : '#ffa999', hatchStep: 7 });
+    if (calm) { // a few tiny moon-yellow stars instead of stitching
+      for (const [px, py] of [[150, mid - 30], [w - 150, mid - 30], [175, mid + 22], [w - 175, mid + 22]]) crayonShape(x, starPts(px, py, 9, 4.2, 5, -Math.PI / 2, 1.5), '#ffe9a0', { seed: px, lw: 1.2, hatch: false, wobble: 0.4, lineColor: '#c9a548' });
+      return;
+    }
     // stitch line
     const st = []; for (let i = 0; i <= n; i++) { const t = i / n; st.push([126 + t * (w - 252), mid - 48 + Math.sin(t * Math.PI) * -14]); }
     x.save(); x.setLineDash([10, 9]); scribble(x, st, 'rgba(255,240,220,0.8)', 2.6, { seed: 5, passes: 1 }); x.restore();
     const sb = st.map(([a, b]) => [a, b + 78]); x.save(); x.setLineDash([10, 9]); scribble(x, sb, 'rgba(255,240,220,0.8)', 2.6, { seed: 6, passes: 1 }); x.restore();
-  }, { key: `banner|${w}|${h}` });
+  }, { key: `banner|${w}|${h}|${calm}` });
 }
 /** Crayon word made of per-letter nodes (for wobble/bounce). Returns container with .letters */
 export function crayonWord(text, size, colors, o = {}) {
@@ -239,7 +260,7 @@ export function crayonWord(text, size, colors, o = {}) {
     const cw = mc.measureText(ch).width;
     if (ch !== ' ') {
       const col = Array.isArray(colors) ? colors[i % colors.length] : colors;
-      const L = new Node({ x: xx + cw / 2, y: 0, rot: ((i * 7919) % 9 - 4) * 0.012 }).setImage(crayonText(ch, size, col, { halo: o.halo ?? 1, line: o.line }));
+      const L = new Node({ x: xx + cw / 2, y: 0, rot: ((i * 7919) % 9 - 4) * 0.012 }).setImage(crayonText(ch, size, col, { halo: o.halo ?? 1, line: o.line, haloColor: o.haloColor }));
       L.baseX = L.x; L.baseRot = L.rot; L.i = i; box.add(L); box.letters.push(L);
     }
     xx += cw + track;
@@ -248,7 +269,8 @@ export function crayonWord(text, size, colors, o = {}) {
   return box;
 }
 
-export async function showWin(scene, { stars = 3, next, calm = false } = {}) {
+export async function showWin(scene, { stars = 3, next, calm = false, bannerY: bannerYOpt, offsetY = 0, bannerScale = 0.84, starsY } = {}) {
+  // winOpts: calm, bannerY (design y of the banner centre), offsetY (shifts the whole top group), bannerScale, starsY
   // calm: quiet bedtime variant (soft falling stars + glow, music-box chime, no confetti/sunburst, gentle motion)
   const v = game.view, ui = scene.uiLayer, alive = () => game.scene === scene;
   try { warmFx(); } catch (_) {}
@@ -268,7 +290,7 @@ export async function showWin(scene, { stars = 3, next, calm = false } = {}) {
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
   } }));
   tween(dim, { alpha: 1 }, { dur: 0.45 });
-  const topY = Math.min(oy, 60) * 0.5;
+  const topY = Math.min(oy, 60) * 0.5 + offsetY;
   if (calm) {
     // soft moonlight glow instead of a sunburst
     const glow = root.add(new Node({ x: cx, y: topY + 150, alpha: 0, composite: 'lighter' }).setImage(glowSprite(64, '#fff1c8')));
@@ -282,16 +304,17 @@ export async function showWin(scene, { stars = 3, next, calm = false } = {}) {
     game.onUpdate((dt) => { rays.rot += dt * 0.12; });
   }
 
-  const cardY = topY + 196;
+  const bannerY = bannerYOpt ?? topY + 84;
+  const cardY = starsY ?? bannerY + 112 * (bannerScale / 0.84);
+  const back = root.add(new Node()); // confetti / falling stars live below the banner and stars
 
   // banner with per-letter "Hebat!"
-  const banner = root.add(new Node({ x: cx, y: -260, sx: 0.86, sy: 0.86 }));
-  banner.add(new Node().setImage(bannerSprite()));
-  const word = banner.add(crayonWord('Hebat!', 118, ['#fff3b0', '#ffe27a', '#fff3b0', '#ffe27a', '#fff3b0', '#ffffff'], { line: '#7a3b2e', halo: 0.5 }));
+  const banner = root.add(new Node({ x: cx, y: -260, sx: bannerScale, sy: bannerScale }));
+  banner.add(new Node().setImage(bannerSprite(760, 190, calm)));
+  const word = banner.add(crayonWord('Hebat!', 118, calm ? ['#ffe9a0', '#fff3c4', '#ffe9a0', '#fff3c4', '#ffe9a0', '#fff6d8'] : ['#fff3b0', '#ffe27a', '#fff3b0', '#ffe27a', '#fff3b0', '#ffffff'], { line: calm ? '#2e3566' : '#7a3b2e', halo: calm ? 0.35 : 0.5, haloColor: calm ? '#f4ecd6' : undefined }));
   word.y = -12;
-  const bannerY = topY + 84;
   tween(banner, { y: bannerY }, { dur: calm ? 1.2 : 0.75, delay: 0.35, ease: calm ? 'outBack' : 'outBounce' }).then(() => {
-    if (!alive() || calm) return; banner.sy = 0.78; banner.sx = 0.92; tween(banner, { sx: 0.86, sy: 0.86 }, { dur: 0.5, ease: 'outElastic' });
+    if (!alive() || calm) return; banner.sy = bannerScale * 0.9; banner.sx = bannerScale * 1.07; tween(banner, { sx: bannerScale, sy: bannerScale }, { dur: 0.5, ease: 'outElastic' });
   });
   game.onUpdate((dt, t) => {
     const sp = calm ? 0.4 : 1;
@@ -310,10 +333,10 @@ export async function showWin(scene, { stars = 3, next, calm = false } = {}) {
   }
   const btns = [];
   (async () => {
-    await wait(calm ? 1.3 : 1.0); if (!alive()) return;
+    await wait(1.0); if (!alive()) return;
     if (calm) {
       // soft falling stars drifting down across the whole scene
-      const fall = () => { if (!alive()) return; burst(root, W() * (0.05 + Math.random() * 0.9), -30, 'stars', { count: 1, angle: Math.PI / 2, cone: 0.5, spread: 0.12, gravity: 110, life: 4.5, scale: 0.45 + Math.random() * 0.35, spinK: 0.15, colors: [PAL.yellow, '#fff1a8', '#ffe58a'] }); };
+      const fall = () => { if (!alive()) return; burst(back, W() * (0.05 + Math.random() * 0.9), -30, 'stars', { count: 1, angle: Math.PI / 2, cone: 0.5, spread: 0.12, gravity: 110, life: 4.5, scale: 0.45 + Math.random() * 0.35, spinK: 0.15, colors: [PAL.yellow, '#fff1a8', '#ffe58a'] }); };
       for (let k = 0; k < 40; k++) setTimeout(fall, k * 380 + Math.random() * 200);
     }
     for (let i = 0; i < 3; i++) {
@@ -329,16 +352,16 @@ export async function showWin(scene, { stars = 3, next, calm = false } = {}) {
         const gl = new Node({ x: s.x, y: s.y, alpha: 0.9, sx: 0.5, sy: 0.5, composite: 'lighter' }).setImage(glowSprite(64, '#fff0a0'));
         gl.w = gl.h = 190; gl.parent = root; root.children.splice(root.children.indexOf(s), 0, gl);
         tween(gl, { sx: 1.3, sy: 1.3, alpha: 0.35 }, { dur: 0.6, ease: 'outCubic' });
-        await wait(calm ? 0.6 : 0.38); if (!alive()) return;
+        await wait(calm ? 0.45 : 0.38); if (!alive()) return;
       }
     }
     // confetti from the top corners, then a gentle rain
     if (!calm) {
     audio.sfx('cheer');
-    burst(root, 40, -20, 'confetti', { angle: Math.PI * 0.3, cone: 0.9, count: 40, spread: 1.15 });
-    burst(root, W() - 40, -20, 'confetti', { angle: Math.PI * 0.7, cone: 0.9, count: 40, spread: 1.15 });
+    burst(back, 40, -20, 'confetti', { angle: Math.PI * 0.3, cone: 0.9, count: 40, spread: 1.15 });
+    burst(back, W() - 40, -20, 'confetti', { angle: Math.PI * 0.7, cone: 0.9, count: 40, spread: 1.15 });
     }
-    if (!calm) for (let k = 0; k < 5; k++) setTimeout(() => { if (alive()) burst(root, W() * (0.15 + Math.random() * 0.7), -30, 'confetti', { angle: Math.PI / 2, cone: 1.2, count: 14, spread: 0.5 }); }, 350 + k * 420);
+    if (!calm) for (let k = 0; k < 5; k++) setTimeout(() => { if (alive()) burst(back, W() * (0.15 + Math.random() * 0.7), -30, 'confetti', { angle: Math.PI / 2, cone: 1.2, count: 14, spread: 0.5 }); }, 350 + k * 420);
     // buttons
     const defs = [['replay', PAL.green, 140, () => game.go(game.sceneName)], ['home', PAL.blue, 140, () => game.go('menu')]];
     if (next) defs.push(['next', PAL.orange, 178, () => game.go(next)]);

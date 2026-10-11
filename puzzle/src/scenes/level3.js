@@ -30,7 +30,7 @@ export default class Level3 extends LevelScene {
     await super.load();
     const geo = (this.geo = A.buildJigsaw(11));
     const { PW, PH } = L3;
-    const [wall, garland, table, back, front, plant, lamp, hand, star, portrait, mom, dad, lmom, ldad, lbaby, backdrop] = await Promise.all([
+    const [wall, garland, table, back, front, plant, lamp, hand, star, portrait, mom, dad, lmom, ldad, lbaby, backdrop, heart, props] = await Promise.all([
       svgSprite(A.wallSVG(PHOTO_CY), A.WALL_W, A.WALL_H, 'l3-wall'),
       svgSprite(A.garlandSVG(), A.GARLAND_W, A.GARLAND_H, 'l3-garland2'),
       svgSprite(A.tableSVG(), A.TABLE_W, A.TABLE_H, 'l3-table2'),
@@ -44,8 +44,10 @@ export default class Level3 extends LevelScene {
       createCharacter('mom'), createCharacter('dad'),
       createCharacter('mom'), createCharacter('dad'), createCharacter('baby'),
       this.loadBackdrop(PW, PH),
+      svgSprite(A.heartSVG(), 48, 46, 'l3-heart'),
+      (typeof CH.portraitPropsSprites === 'function' ? CH.portraitPropsSprites(PW, PH).catch(() => null) : Promise.resolve(null)),
     ]);
-    this.portrait = portrait; this.starSp = star;
+    this.portrait = portrait; this.starSp = star; this.heartSp = heart; this.props = props;
     const [ghost, pcs] = await Promise.all([A.ghostSprite(portrait, geo), A.pieceSprites(portrait, geo)]);
 
     const W = this.world;
@@ -124,20 +126,22 @@ export default class Level3 extends LevelScene {
     const { PW, PH } = L3;
     this.live = { mom, dad, baby };
     for (const k of ['mom', 'dad', 'baby']) this.posePortrait(this.live[k], k, PW, PH);
-    const layer = (c, l) => (c.renderLayer ? c.renderLayer.bind(c) : (x, ly) => { if (ly !== 'front') c.render(x); });
-    const B = CH.PORTRAIT_LAYOUT?.baby;
-    // Same layering as portraitSprite: parents' bodies, baby, then the parents' front arms — clipped to the photo.
-    // The live characters are not children (they are drawn here); their rigs still update every frame.
+    const layer = c => (c.renderLayer ? c.renderLayer.bind(c) : (x, ly) => { if (ly !== 'front') c.render(x); });
+    const img = sp => sp && sp.img;
+    // Same draw order as portraitSprite: backdrop → parents' bodies → seat → basket back → baby → basket front →
+    // parents' front arms → photo border, clipped to the photo. The live rigs are drawn here (not children).
     return new Node({ x: this.photoX, y: this.photoY, visible: false, drawFn: ctx => {
+      const P = this.props || {};
       ctx.beginPath(); ctx.rect(0, 0, PW, PH); ctx.clip();
       ctx.drawImage(backdrop.img, 0, 0, PW, PH);
       layer(mom)(ctx, 'base'); layer(dad)(ctx, 'base');
-      const s = PH / 600, bx = baby.x, by = B ? B.y * PH + 2 * s : baby.y;
-      ctx.save(); ctx.globalAlpha *= 0.16; ctx.fillStyle = '#2f5a5a'; ctx.beginPath(); ctx.ellipse(bx, by, 120 * s, 12 * s, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      if (img(P.seat)) ctx.drawImage(P.seat.img, 0, 0, PW, PH);
+      if (img(P.basketBack)) ctx.drawImage(P.basketBack.img, 0, 0, PW, PH);
       baby.render(ctx);
+      if (img(P.basketFront)) ctx.drawImage(P.basketFront.img, 0, 0, PW, PH);
       layer(mom)(ctx, 'front'); layer(dad)(ctx, 'front');
       if (typeof CH.drawPortraitFrame === 'function') CH.drawPortraitFrame(ctx, PW, PH);
-      else { ctx.strokeStyle = '#fffaf0'; ctx.lineWidth = 18 * s; ctx.strokeRect(0, 0, PW, PH); }
+      else { ctx.strokeStyle = '#fffaf0'; ctx.lineWidth = 18 * PH / 600; ctx.strokeRect(0, 0, PW, PH); }
     } });
   }
 
@@ -165,7 +169,7 @@ export default class Level3 extends LevelScene {
     const side = Math.min(860, v.w / 2 - 175);
     for (const c of [this.mom, this.dad]) { c.sx = c.sy = cs; }
     this.mom.x = cx - side; this.dad.x = cx + side;
-    this.charBase = this.tableY + 72 * cs / CHAR_S;
+    this.charBase = this.tableY + 72 * cs / CHAR_S + (fy - 1) * 220;   // tall views: parents sink a bit, freeing wall
     this.placeChars();
 
     // props on the counter only where they cannot touch the characters
@@ -178,10 +182,27 @@ export default class Level3 extends LevelScene {
     // scatter homes (world), then into pieceLayer-local
     const inner = cx - (L3.OW / 2) * k - 40 - (this.geo.cw / 2 + 50) * k;
     const spots = [
-      { x: inner + 6, y: Y(228) }, { x: inner - 4, y: Y(432) },
+      { x: inner + 6, y: Y(232) }, { x: inner - 4, y: Y(440) },
       { x: cx - 150 * k, y: this.tableY - 74 * k }, { x: cx + 150 * k, y: this.tableY - 72 * k },
-      { x: 2 * cx - inner - 4, y: Y(236) }, { x: 2 * cx - inner + 4, y: Y(440) },
+      { x: 2 * cx - inner - 4, y: Y(266) }, { x: 2 * cx - inner + 4, y: Y(456) },
     ];
+    // Real vertical extents of the piece that rests on each spot (tabs included), so the side stacks never touch
+    // each other, the garland, or the parents' heads.
+    const ext = []; this.pieces.forEach((n, i) => {
+      const ys = n.data.edge.map(p => p[1] - this.geo.SH / 2);
+      ext[HOME_OF[i]] = { top: Math.min(...ys) * k, bot: Math.max(...ys) * k, halfW: Math.max(...n.data.edge.map(p => Math.abs(p[0] - this.geo.SW / 2))) * k };
+    });
+    const garlandBottom = 150 * fy;
+    for (const [t, l, c, hgt] of [[0, 1, this.mom, 560], [4, 5, this.dad, 600]]) {
+      const T = spots[t], Lw = spots[l];
+      T.y = Math.max(T.y, garlandBottom - ext[t].top + 8);
+      Lw.y = Math.max(Lw.y, T.y + ext[t].bot - ext[l].top + 16);
+      const headTop = this.charBase - hgt * cs, charHalfW = 165 * cs / CHAR_S;
+      if (Math.abs(Lw.x - c.x) < ext[l].halfW + charHalfW) {
+        Lw.y = Math.min(Lw.y, headTop - ext[l].bot - 20);
+        T.y = Math.max(garlandBottom - ext[t].top, Math.min(T.y, Lw.y + ext[l].top - ext[t].bot - 16));
+      }
+    }
     this.pieces.forEach((n, i) => {
       const h = spots[HOME_OF[i]];
       n.home = { x: h.x / k, y: h.y / k, rot: HOME_ROT[i], sx: 1, sy: 1 };
@@ -194,11 +215,12 @@ export default class Level3 extends LevelScene {
     this.frameG.x = p.x; this.frameG.y = p.cy - C * p.s; this.frameG.sx = this.frameG.sy = p.s;
   }
   winPoseFor(v) {
-    // showWin: banner + stars in a top band, buttons in a bottom band → park the frame in the clear wall between
+    // showWin: banner + stars in a top band (stars bottom ≈ topY + 252), buttons in a bottom band (top ≈ h − 200)
     const topY = Math.min((v.h - 900) / 2, 60) * 0.5;
-    const top = topY + 262, bottom = v.h - 112 - 100;
-    const s = Math.min(0.85 * (this.k || 1), (bottom - top - 24) / L3.OH);
-    return { x: v.w / 2, cy: (top + bottom) / 2 + 6, s };
+    const top = topY + 262, bottom = v.h - 206, avail = bottom - top, box = L3.STRING + L3.OH;
+    const s = Math.min(v.h > 950 ? 1.15 : 0.9, (avail - 8) / box);
+    const nailY = top + (avail - box * s) / 2 + 4;
+    return { x: v.w / 2, cy: nailY + L3.CENTER_FROM_NAIL * s, s };
   }
   placeChars() {
     if (this.charBase == null) return;
@@ -243,7 +265,7 @@ export default class Level3 extends LevelScene {
       Object.assign(n, { x: sx, y: sy, rot: 0, alpha: 1, sx: 1, sy: 1, lift: 0.6 });
       // spread arcs: each piece rises to its own height and bows outward before landing
       const outward = h.x < sx ? -1 : 1;
-      const ctlx = (sx + h.x) / 2 + outward * (60 + (i % 3) * 40), ctly = Math.min(sy, h.y) - 150 - (i % 3) * 70;
+      const ctlx = (sx + h.x) / 2 + outward * (60 + (i % 3) * 40), ctly = Math.max(Math.min(sy, h.y) - 150 - (i % 3) * 70, (230 * this.fy) / L);
       const spin = outward * Math.PI * 2;
       const o = { k: 0 };
       tween(o, { k: 1 }, {
@@ -257,7 +279,7 @@ export default class Level3 extends LevelScene {
           n.lift = 0.6 + Math.sin(e * Math.PI) * 0.4 - e * 0.6;
         },
       }).then(() => { if (!alive()) return; tween(n, { sx: 1.08, sy: 0.92 }, { dur: 0.06 }).then(() => tween(n, { sx: 1, sy: 1 }, { dur: 0.35, ease: 'outElastic' })); });
-      if (i % 2 === 0) setTimeout(() => alive() && audio.sfx('whoosh'), 60 + i * 100);
+      if (i % 2 === 0) wait(0.06 + i * 0.1).then(() => alive() && audio.sfx('whoosh'));
     });
     await wait(0.04 + 5 * 0.1 + 0.8); if (!alive()) return;
     this.finishIntro();
@@ -296,7 +318,10 @@ export default class Level3 extends LevelScene {
         n.art.y = n.art.x = 0; n.art.rot = 0;
         const sw = this.slotWorld(n), pw = this.pieceWorld(n), d = Math.hypot(pw.x - sw.x, pw.y - sw.y);
         n.glowMag = lerp(n.glowMag, d < SNAP_R * 1.6 ? 0.95 : 0, Math.min(1, dt * 10));
-        if (n.glowMag > 0.3) magnet = n;
+        if (n.glowMag > 0.3) {
+          magnet = n;
+          if (!n._oohed) { n._oohed = true; const who = pw.x < this.cx ? this.mom : this.dad; who.react?.('surprised', 0.8); who.lookAt?.(sw.x, sw.y); audio.sfx('pop'); }
+        }
       } else {
         n.glowMag = lerp(n.glowMag, 0, Math.min(1, dt * 8));
         if (n !== this.hintPiece) { n.art.y = Math.sin(t * 1.7 + n.data.i * 1.3) * 2.5; n.art.rot = 0; }
@@ -341,6 +366,8 @@ export default class Level3 extends LevelScene {
   startHint() {
     const cand = this.pieces.filter(p => !p.placed);
     if (!cand.length) return;
+    const d = p => { const a = this.pieceWorld(p), b = this.slotWorld(p); return Math.hypot(a.x - b.x, a.y - b.y); };
+    cand.sort((a, b) => d(a) - d(b));
     const n = cand[this.hintIdx++ % cand.length];
     this.hintPiece = n; this.hintDur = this.hintT = 4.6;
     this.lastAct = game.time + 4.6;
@@ -433,7 +460,7 @@ export default class Level3 extends LevelScene {
   onPick(n) {
     if (n.placed) return;
     killTweensOf(n); killTweensOf(n, 'drag'); killTweensOf(n, 'ret'); killTweensOf(n, 'hint');
-    this.dragging = n; n._px = n.x; n.vx = 0;
+    this.dragging = n; n._px = n.x; n.vx = 0; n._oohed = false;
     if (this.hintPiece) this.endHint();
     this.lastAct = game.time;
     audio.sfx('pick');
@@ -493,7 +520,7 @@ export default class Level3 extends LevelScene {
         tween(n.flat, { alpha: 1 }, { dur: 0.45, delay: 0.15 }); tween(n.art, { alpha: 0.25 }, { dur: 0.45, delay: 0.15 });
       });
       audio.sfx('snap');
-      setTimeout(() => audio.sfx('sparkle'), 90);
+      wait(0.09).then(() => audio.sfx('sparkle'));
       const w = this.frameG.toWorld(s.x, s.y);
       burst(this.fxLayer, w.x, w.y, 'sparkle', { count: 28, spread: 1.1 });
       this.crayonStars(w.x, w.y, 5, 1);
@@ -505,7 +532,7 @@ export default class Level3 extends LevelScene {
       (left ? this.mom : this.dad).react?.('cheer', 1.4);
       (left ? this.dad : this.mom).react?.('happy', 1.1);
       this.mom.lookAt?.(w.x, w.y); this.dad.lookAt?.(w.x, w.y);
-      setTimeout(() => { this.mom.lookAt?.(null); this.dad.lookAt?.(null); }, 900);
+      wait(0.9).then(() => { if (!this.dragging) { this.mom.lookAt?.(null); this.dad.lookAt?.(null); } });
     }
     if (this.pieces.every(p => p.placed)) this.celebrate(instant);
   }
@@ -561,7 +588,7 @@ export default class Level3 extends LevelScene {
     this.glossK = 0; tween(this, { glossK: 1.01 }, { dur: 0.9, delay: 0.25, ease: 'inOutSine' });
     audio.sfx('cheer');
     this.mom.setMood?.('cheer'); this.mom.react?.('cheer', 3);
-    setTimeout(() => { this.dad.setMood?.('cheer'); this.dad.react?.('cheer', 3); }, 120);
+    wait(0.12).then(() => { this.dad.setMood?.('cheer'); this.dad.react?.('cheer', 3); });
     for (const c of [this.mom, this.dad]) { const y0 = c.y; tween(c, { y: y0 - 30 }, { dur: 0.25, ease: 'outQuad' }).then(() => tween(c, { y: y0 }, { dur: 0.5, ease: 'outBounce' })); }
     const v = this.v;
     burst(this.fxLayer, 30, -20, 'confetti', { angle: Math.PI * 0.3, cone: 0.9, count: 34, spread: 1.1 });
@@ -574,33 +601,62 @@ export default class Level3 extends LevelScene {
     this.mom.setMood?.('happy'); this.dad.setMood?.('happy');
     this.complete();
   }
+  /** three hand-drawn hearts per parent, staggered, rising and swaying above the heads */
   heartsOverHeads() {
-    const top = c => c.y - 560 * c.sy - 30;
-    burst(this.fxLayer, this.mom.x, top(this.mom), 'hearts', { count: 6 });
-    burst(this.fxLayer, this.dad.x, top(this.dad), 'hearts', { count: 6 });
+    for (const [c, hgt] of [[this.mom, 560], [this.dad, 600]]) {
+      const top = c.y - hgt * c.sy - 24;
+      for (let i = 0; i < 3; i++) {
+        wait(i * 0.15).then(() => {
+          const x0 = c.x + (i - 1) * 62 + (Math.random() - 0.5) * 20, ph = Math.random() * 6, rise = 170 + Math.random() * 60;
+          const h = this.fxLayer.add(new Node({ x: x0, y: top, sx: 0.2, sy: 0.2, rot: (i - 1) * 0.18 }).setImage(this.heartSp));
+          audio.sfx('pop');
+          tween(h, { sx: 0.95, sy: 0.95 }, { dur: 0.3, ease: 'outBack' });
+          const o = { k: 0 };
+          tween(o, { k: 1 }, { dur: 1.7, ease: 'outSine', onUpdate: e => {
+            h.y = top - rise * e; h.x = x0 + Math.sin(e * 7 + ph) * 16; h.rot = (i - 1) * 0.18 + Math.sin(e * 6 + ph) * 0.12;
+            h.alpha = e > 0.7 ? 1 - (e - 0.7) / 0.3 : 1;
+          } }).then(() => h.removeSelf());
+        });
+      }
+    }
   }
-  /** the photo comes alive: live characters drop their portrait pose, cheer, baby wakes and giggles; loops forever */
-  comeAlive() {
+  /** The photo comes alive. Inside the photo the family only uses low-arm moods (adore / soft / surprised) so no
+   *  arm ever crosses the baby: they lean and tilt toward him, chat, and the baby wakes, giggles and wiggles. */
+  async comeAlive() {
     const { mom, dad, baby } = this.live;
-    for (const c of [mom, dad, baby]) { c.gazeOverride = null; c.tiltOverride = null; }
-    mom.setMood?.('happy'); dad.setMood?.('happy'); baby.setMood?.('sleep');
-    mom.react?.('cheer', 1.8);
-    setTimeout(() => dad.react?.('cheer', 1.8), 150);
-    setTimeout(() => { baby.react?.('surprised', 0.6); audio.sfx('giggle'); }, 700);
-    setTimeout(() => { baby.setMood?.('happy'); baby.react?.('cheer', 1.4); }, 1300);
-    const wp = c => this.livePhoto.toWorld(c.x, c.y - 200 * c.sy);
-    let next = 2.4, i = 0;
+    const L = CH.PORTRAIT_LAYOUT || {};
+    const tilt0 = { mom: L.mom?.tilt ?? 0.1, dad: L.dad?.tilt ?? -0.1, baby: L.baby?.tilt ?? 0.04 };
+    for (const c of [mom, dad, baby]) c.gazeOverride = null;
+    mom.setMood?.('adore'); dad.setMood?.('adore'); baby.setMood?.('soft');
+    const babyW = () => this.livePhoto.toWorld(baby.x, baby.y - 110 * baby.sy);
+    { const p = babyW(); mom.lookAt?.(p.x, p.y); dad.lookAt?.(p.x, p.y); }
+    mom.talk?.(1.0);
+    // lean/tilt toward the baby, driven on the game clock
+    let t = 0;
     game.onUpdate(dt => {
-      next -= dt; if (next > 0) return;
-      next = 1.8 + Math.random() * 1.4; i++;
-      const pick = i % 4;
-      if (pick === 0) { mom.react?.('cheer', 1.2); mom.talk?.(0.8); }
-      else if (pick === 1) { dad.react?.('cheer', 1.2); const p = wp(baby); dad.lookAt?.(p.x, p.y); }
-      else if (pick === 2) { baby.react?.('cheer', 1.0); audio.sfx('giggle'); const p = wp(baby); mom.lookAt?.(p.x, p.y); }
-      else { mom.lookAt?.(null); dad.lookAt?.(null); mom.react?.('happy', 1); dad.talk?.(0.8); }
-      // keep the outer parents alive too
-      if (Math.random() < 0.4) (Math.random() < 0.5 ? this.mom : this.dad).react?.('happy', 1);
+      t += dt;
+      mom.tiltOverride = tilt0.mom + 0.06 + Math.sin(t * 1.7) * 0.05;
+      dad.tiltOverride = tilt0.dad - 0.06 - Math.sin(t * 1.5 + 1) * 0.05;
+      baby.tiltOverride = tilt0.baby + Math.sin(t * 2.4) * 0.08;
     });
+    await wait(0.6);
+    baby.react?.('surprised', 0.6); audio.sfx('giggle');
+    await wait(0.7);
+    baby.setMood?.('adore'); baby.talk?.(0.8); dad.talk?.(0.9);
+    // forever: gentle family chatter (all low-arm poses)
+    let i = 0;
+    while (game.scene === this) {
+      await wait(1.6 + Math.random() * 1.2);
+      if (game.scene !== this) return;
+      const p = babyW();
+      switch (i++ % 4) {
+        case 0: mom.setMood?.('soft'); mom.talk?.(0.9); dad.lookAt?.(p.x, p.y); break;
+        case 1: dad.setMood?.('soft'); dad.talk?.(0.8); mom.setMood?.('adore'); break;
+        case 2: baby.react?.('surprised', 0.5); audio.sfx('giggle'); mom.lookAt?.(p.x, p.y); dad.lookAt?.(p.x, p.y); break;
+        default: dad.setMood?.('adore'); baby.talk?.(0.6); mom.lookAt?.(null);
+      }
+      if (Math.random() < 0.4) (Math.random() < 0.5 ? this.mom : this.dad).react?.('happy', 1);
+    }
   }
 
   async complete() {
@@ -609,6 +665,8 @@ export default class Level3 extends LevelScene {
     const p = this.winPoseFor(this.v || game.view), C = L3.CENTER_FROM_NAIL;
     this.frameK = p.s;
     tween(this.frameG, { x: p.x, y: p.cy - C * p.s, sx: p.s, sy: p.s }, { dur: 0.8, ease: 'inOutCubic' });
+    // keep the photo the brightest thing: lift the frame above the win dim + rays (same coordinate space)
+    this.frameG.z = 1001; this.uiLayer.add(this.frameG);
     return super.complete();
   }
 
