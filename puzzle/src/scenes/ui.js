@@ -8,12 +8,12 @@
 import { Node } from '../engine/node.js';
 import { game } from '../engine/game.js';
 import { audio } from '../engine/audio.js';
-import { tween, wait, Ease, killTweensOf } from '../engine/tween.js';
+import { tween, wait, Ease, killTweensOf, rng } from '../engine/tween.js';
 import { PAL } from '../art/style.js';
 import { burst, warmFx } from '../art/fx.js';
 import {
   makeSprite, crayonShape, crayonFill, pencil, scribble, circlePts, ellipsePts, roundRectPts, starPts, roundCorners,
-  crayonText, shade, rgba, paperPattern, starSprite, glowSprite, tracePath, FONT,
+  crayonText, shade, rgba, paperPattern, paperTile, densify, starSprite, glowSprite, tracePath, FONT,
 } from '../art/backgrounds.js';
 
 // ------------------------------------------------------------------ icons (drawn in a ±50 box)
@@ -110,7 +110,9 @@ export const curtain = {
     const e = Math.pow(1 - k, 1.35), R = e * diag * 1.08, r = R * 0.5, rot = -Math.PI / 2 + (1 - k) * 0.9;
     const pts = starPts(cx, cy, R, r, 5, rot);
     const rp = roundCorners(pts, R * 0.08, 3);
-    if (!patCache || patCache.ctx !== ctx) patCache = { ctx, p: paperPattern(ctx, '#fbf0de', true) };
+    // hand-drawn wobble for the rim (two passes with different jitter, like a crayon going round twice)
+    const wob = (seed, amp) => densify(rp, 26).map(([x, y], i) => { const a = i * 0.37 + seed; return [x + Math.sin(a * 1.7) * amp + Math.sin(a * 4.3) * amp * 0.4, y + Math.cos(a * 1.3) * amp + Math.cos(a * 3.9) * amp * 0.4]; });
+    if (!patCache || patCache.ctx !== ctx) patCache = { ctx, p: bigPaperPattern(ctx) };
     ctx.save();
     ctx.beginPath(); ctx.rect(-10, -10, W + 20, H + 20);
     if (R > 1) { ctx.moveTo(rp[0][0], rp[0][1]); for (const p of rp) ctx.lineTo(p[0], p[1]); ctx.closePath(); }
@@ -126,10 +128,12 @@ export const curtain = {
     if (R > 150) {
       // crayon rim around the iris
       ctx.save(); ctx.lineJoin = 'round'; ctx.globalAlpha = Math.min(1, (R - 150) / 200);
-      ctx.beginPath(); ctx.moveTo(rp[0][0], rp[0][1]); for (const p of rp) ctx.lineTo(p[0], p[1]); ctx.closePath();
-      ctx.strokeStyle = 'rgba(246,207,62,0.85)'; ctx.lineWidth = 22; ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,240,180,0.9)'; ctx.lineWidth = 8; ctx.stroke();
-      ctx.strokeStyle = rgba(PAL.line, 0.8); ctx.lineWidth = 3.5; ctx.translate(1.5, 1.5); ctx.stroke();
+      const path = (pp) => { tracePath(ctx, pp); };
+      path(wob(0.3, 5)); ctx.strokeStyle = 'rgba(246,207,62,0.8)'; ctx.lineWidth = 20; ctx.stroke();
+      path(wob(2.1, 6)); ctx.strokeStyle = 'rgba(255,226,120,0.55)'; ctx.lineWidth = 12; ctx.stroke();
+      path(wob(4.7, 3)); ctx.strokeStyle = 'rgba(255,244,200,0.8)'; ctx.lineWidth = 5; ctx.stroke();
+      path(wob(1.2, 2.5)); ctx.strokeStyle = rgba(PAL.line, 0.75); ctx.lineWidth = 3.2; ctx.stroke();
+      path(wob(5.9, 3.5)); ctx.strokeStyle = rgba(PAL.line, 0.35); ctx.lineWidth = 2; ctx.stroke();
       ctx.restore();
     }
     // sleepy star mascot while covered, with a squash when the iris snaps shut
@@ -139,12 +143,30 @@ export const curtain = {
       const sq = curtain._shutAt == null ? 0 : 0.24 * Math.exp(-since * 7) * Math.cos(since * 22);
       const sc = a * (1 + Math.sin(game.time * 6) * 0.04);
       ctx.save(); ctx.globalAlpha = a; ctx.translate(cx, cy + Math.sin(game.time * 4) * 8); ctx.rotate(Math.sin(game.time * 2) * 0.12);
-      const g = glowSprite(64, '#fff1b0'); ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(g.img, -180 * sc, -180 * sc, 360 * sc, 360 * sc); ctx.globalCompositeOperation = 'source-over';
-      ctx.scale(sc * (1 + sq), sc * (1 - sq));
+      const g = glowSprite(64, '#fff1b0'); ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(g.img, -270 * sc, -270 * sc, 540 * sc, 540 * sc); ctx.globalCompositeOperation = 'source-over';
+      ctx.scale(1.5 * sc * (1 + sq), 1.5 * sc * (1 - sq));
       ctx.drawImage(big.img, -big.w / 2, -big.h / 2, big.w, big.h); ctx.restore();
     }
   },
 };
+/** Large (1100-unit) cream paper with random fibres + scattered crayon hatch clusters, laid at a slight angle
+ *  so no repeat grid is visible across a phone screen. */
+function bigPaperPattern(ctx) {
+  const S = 1100, sp = makeSprite(S, S, (x) => {
+    x.drawImage(paperTile('#fbf0de').img, 0, 0, 256, 256); // tile the fine fibres at 4 offsets
+    const t = paperTile('#fbf0de').img;
+    for (let yy = 0; yy < S; yy += 256) for (let xx = 0; xx < S; xx += 256) { x.save(); x.translate(xx + 128, yy + 128); x.rotate(((xx * 7 + yy * 3) % 4) * Math.PI / 2); x.drawImage(t, -129, -129, 258, 258); x.restore(); }
+    const r = rng(91), cols = ['rgba(246,207,62,0.11)', 'rgba(247,169,184,0.09)', 'rgba(169,200,255,0.09)'];
+    for (let c = 0; c < 26; c++) {
+      const px = r() * S, py = r() * S, n = 4 + ((r() * 5) | 0), ang = -0.8 + r() * 1.6, ca = Math.cos(ang), sa = Math.sin(ang);
+      x.strokeStyle = cols[c % 3]; x.lineCap = 'round';
+      for (let k = 0; k < n; k++) { const d = k * 7 - n * 3.5 + r() * 3, l = 8 + r() * 16, bx = px + ca * d, by = py + sa * d; x.lineWidth = 4 + r() * 2; x.beginPath(); x.moveTo(bx + sa * l, by - ca * l); x.lineTo(bx - sa * l, by + ca * l); x.stroke(); }
+    }
+  }, { key: 'curtainPaper', ratio: Math.min(1.2, game.pxRatio) });
+  const p = ctx.createPattern(sp.img, 'repeat');
+  try { p.setTransform(new DOMMatrix().rotate(7).scale(S / sp.img.width)); } catch (_) {}
+  return p;
+}
 function mascotSprite() {
   return makeSprite(190, 190, (x) => {
     const st = starSprite(170, PAL.yellow, { line: '#b8892a' }); x.drawImage(st.img, 95 - st.w / 2, 95 - st.h / 2, st.w, st.h);
@@ -344,8 +366,9 @@ export async function showWin(scene, { stars = 3, next, calm = false, bannerY: b
     await wait(1.0); if (!alive()) return;
     if (calm) {
       // soft falling stars drifting down across the whole scene
-      const fall = () => { if (!alive()) return; burst(back, W() * (0.05 + Math.random() * 0.9), -30, 'stars', { count: 1, angle: Math.PI / 2, cone: 0.5, spread: 0.12, gravity: 110, life: 4.5, scale: 0.45 + Math.random() * 0.35, spinK: 0.15, colors: [PAL.yellow, '#fff1a8', '#ffe58a'] }); };
-      for (let k = 0; k < 40; k++) setTimeout(fall, k * 380 + Math.random() * 200);
+      const fall = () => { if (!alive()) return; const side = Math.random() < 0.5 ? 0.03 + Math.random() * 0.25 : 0.72 + Math.random() * 0.25; // keep the sleeping centre clear
+        burst(back, W() * side, -30, 'stars', { count: 1, angle: Math.PI / 2, cone: 0.15, spread: 0.12, gravity: 110, life: 4.5, scale: 0.45 + Math.random() * 0.35, spinK: 0.15, colors: [PAL.yellow, '#fff1a8', '#ffe58a'] }); };
+      for (let k = 0; k < 24; k++) setTimeout(fall, k * 600 + Math.random() * 150); // ~4.5 s life / 0.6 s ≈ 8 on screen
     }
     for (let i = 0; i < 3; i++) {
       if (i < stars) {

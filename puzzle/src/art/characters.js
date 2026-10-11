@@ -26,7 +26,7 @@ import { game } from '../engine/game.js';
 import { svgSprite, canvasSprite } from '../engine/raster.js';
 import { rng } from '../engine/tween.js';
 
-export const MOODS = ['idle', 'happy', 'cheer', 'surprised', 'think', 'sad', 'sleep', 'adore', 'soft'];
+export const MOODS = ['idle', 'happy', 'cheer', 'surprised', 'think', 'sad', 'sleep', 'adore', 'soft', 'shh'];
 
 // ---------------------------------------------------------------- palette (sampled from the reference)
 const C = {
@@ -219,10 +219,10 @@ const HANDS = {
     lines: 'M-11 -39 L-11 -42 M0 -42 L0 -46 M11 -39 L11 -42',
     soft: 'M-6 -16 Q2 -12 10 -16',
   },
-  point: { // curled fist with the index finger up
-    d: 'M-18 14 L-18 3 C-22 -12 -22 -30 -14 -37 C-12 -38 -10 -39 -8 -39 L-8 -72 A7.5 7.5 0 0 1 7 -72 L7 -39 C11 -40 15 -37 18 -33 C22 -22 22 -8 18 3 L18 14 Z',
-    lines: 'M-16 -26 Q-6 -21 6 -27 M-16 -15 Q-4 -11 10 -16 M-4 -62 Q0 -60 3 -62',
-    soft: 'M18 -30 C10 -26 2 -24 -5 -27',
+  point: { // "shh" hand: smooth rounded fist with the index finger rising from its thumb-side EDGE (never centred)
+    d: 'M-19 14 L-19 2 C-23 -12 -23 -26 -16 -33 C-10 -38 0 -38 5 -36 L5 -68 A6.5 6.5 0 0 1 18 -68 L18 -30 C22 -20 22 -6 18 2 L18 14 Z',
+    lines: 'M18 -20 C8 -13 -4 -13 -13 -18 M7 -66 Q11.5 -64 16 -66',
+    soft: 'M-14 -28 Q-6 -24 2 -27',
   },
 };
 function handParts(k) {
@@ -461,6 +461,7 @@ const FACE = {
   surprised: { eye: 'wide', mouth: 'o', brow: [-13, 0.22], cheek: 1.05 },
   adore: { eye: 'happy', mouth: 'smile', brow: [-6, 0.2], cheek: 1.25 },
   soft: { eye: 'happy', mouth: 'smile', brow: [-3, 0.16], cheek: 1.15 },
+  shh: { eye: 'content', mouth: 'closed', brow: [-4, 0.18], cheek: 1.1, gaze: [0, 0.3] },
   think: { eye: 'open', mouth: 'wavy', brow: [-4, 0], browR: [-12, -0.12], cheek: 0.9, gaze: [0.55, -0.75] },
   sad: { eye: 'open', mouth: 'frown', brow: [-4, 0.35], cheek: 0.8, gaze: [0, 0.7] },
   sleep: { eye: 'closed', mouth: 'closed', brow: [3, -0.05], cheek: 1 },
@@ -472,6 +473,7 @@ const BABY_FACE = {
   surprised: { eye: 'wide', mouth: 'o', brow: [-6, 0.1], cheek: 1 },
   adore: { eye: 'content', mouth: 'smile', cheek: 1.15 },
   soft: { eye: 'content', mouth: 'smile', cheek: 1.1 },
+  shh: { eye: 'content', mouth: 'closed', cheek: 1.05 },
   think: { eye: 'open', mouth: 'wavy', brow: [-3, -0.1], cheek: 0.9, gaze: [0.5, -0.8] },
   sad: { eye: 'open', mouth: 'frown', brow: [-2, 0.4], cheek: 0.8, gaze: [0, 0.6] },
   sleep: { eye: 'content', mouth: 'closed', cheek: 1.05 },
@@ -483,6 +485,7 @@ const POSE = { // arm pose per side (viewer-left, viewer-right) + head tilt + bo
   surprised: { arms: ['cheek', 'cheek'], tilt: 0, lean: -0.02 },
   adore: { arms: ['cheek', 'cheek'], tilt: 0.07, lean: 0.02 },
   soft: { arms: ['chest', 'chest'], tilt: 0.09, lean: 0 },
+  shh: { arms: ['shh', 'shh'], tilt: 0.08, lean: 0.03 },
   think: { arms: ['think', 'think'], tilt: 0.1, lean: 0 },
   sad: { arms: ['clasp', 'clasp'], tilt: 0.08, lean: 0 },
   sleep: { arms: ['clasp', 'clasp'], tilt: 0.13, lean: 0 },
@@ -554,7 +557,7 @@ export class Character extends Node {
   react(m, sec = 1.6) {
     if (!FACE[m]) m = 'idle';
     this.mood = m; this._react = Math.max(0.2, sec);
-    this._sqv += m === 'sad' || m === 'think' || m === 'soft' ? -1.2 : -2.4; // anticipation squash → springs into a stretch
+    this._sqv += m === 'sad' || m === 'think' || m === 'soft' || m === 'shh' ? -1.2 : -2.4; // anticipation squash → springs into a stretch
     if (m === 'surprised') this._hop = Math.max(this._hop, 1);
     return this;
   }
@@ -575,6 +578,13 @@ export class Character extends Node {
         const cs = c.facing >= 0 ? 1 : -1;
         if (side === cs) { const p = this._headXY(side * c.faceR[0] * 0.8 + c.facing * 0.4, c.faceR[1] * 0.86); return { x: p.x, y: p.y, hand: 'open', rot: -side * 0.32 + this.headPivot.rot, abs: true, elbow: [side * (c.elbow[0] - 30), c.elbow[1] + 30] }; }
         return this._target(side, 'rest');
+      }
+      case 'shh': { // index finger to the lips (fist visible below the mouth), the other arm resting
+        const cs = c.facing >= 0 ? 1 : -1;
+        if (side !== cs) return this._target(side, 'rest');
+        const hs = c.handS, rot = this.headPivot.rot - side * 0.42, m = this._headXY(c.facing + c.mouth[0], c.mouth[1] - 4);
+        const tx = 11.5 * (-side * hs), ty = -75 * hs, cr = Math.cos(rot), sr = Math.sin(rot);
+        return { x: m.x - (tx * cr - ty * sr), y: m.y - (tx * sr + ty * cr), hand: 'point', rot, abs: true, elbow: [side * (c.elbow[0] - 40), c.elbow[1] + 30] };
       }
       case 'clap': { const g = 6 + 34 * (0.5 + 0.5 * Math.cos(t * 14)); return this.kind === 'dad' ? { x: side * (g + 14), y: sy + 2, hand: 'open', rot: side * 0.15, abs: true, low: true, mode: 'whole' } : { x: side * (g + 14), y: sy + 6, hand: 'open', rot: side * 0.15, abs: true, elbow: [side * (c.elbow[0] - 22), c.elbow[1] + 40] }; }
       case 'up': { const w = Math.sin(t * 6 + side) * 12; return { x: side * (sx + 78) + w, y: sy - reach * 0.84, hand: 'open', rot: side * 0.18 + Math.sin(t * 6 + side) * 0.2, abs: true }; }
@@ -649,7 +659,7 @@ export class Character extends Node {
     this.rig.rot = this._lean + this._wig;
 
     // head
-    let tilt = (mood === 'think' ? (c.facing >= 0 ? 1 : -1) * pose.tilt : pose.tilt) + Math.sin(t * 0.85) * 0.022 + this._gaze.x * 0.05;
+    let tilt = (mood === 'think' || mood === 'shh' ? (c.facing >= 0 ? 1 : -1) * pose.tilt : pose.tilt) + Math.sin(t * 0.85) * 0.022 + this._gaze.x * 0.05;
     if (baby && (mood === 'happy' || mood === 'cheer')) tilt += Math.sin(t * 9) * 0.06;
     if (this.tiltOverride != null) tilt = this.tiltOverride;
     this._tilt = damp(this._tilt, tilt, 5, dt);
@@ -854,7 +864,7 @@ export class Character extends Node {
       const a = this.arms[i]; if (!a.E) continue;
       if (a.mode === 'whole') { if (this.kind !== 'mom') this._drawWhole(ctx, a); continue; }
       this._hand(ctx, a, 'o');
-      if (A.toWrist) { this._hand(ctx, a, 'f'); this._limb(ctx, [a.E, a.W], rE, line, fill, 1, a.side < 0 ? 5.1 : 6.6); this._cuff(ctx, a, rE, line, fill); }
+      if (A.toWrist) { this._hand(ctx, a, 'f'); this._limb(ctx, [a.E, a.W], rE, line, fill, 1, a.side < 0 ? 5.1 : 6.6); this._cuff(ctx, a, rE, line, fill); if (a.type === 'point') { this._hand(ctx, a, 'o'); this._hand(ctx, a, 'f'); } }
       else { this._limb(ctx, [a.E, a.W], rE, line, fill, 1, a.side < 0 ? 5.1 : 6.6); this._hand(ctx, a, 'f'); }
     }
   }
