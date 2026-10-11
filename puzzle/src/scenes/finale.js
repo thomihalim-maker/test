@@ -109,7 +109,7 @@ export default class Finale {
     const zones = [];
     if (top[1] - top[0] > 40) zones.push({ y: top, x: [0.12, 0.88] });
     if (mid[1] - mid[0] > 40) zones.push({ y: mid, x: [0.2, 0.8] });
-    zones.push({ y: [ty + 90, Math.min(H * 0.55, ty + 300)], x: Math.random() < 0.5 ? [0.05, 0.5 - 480 / W] : [0.5 + 480 / W, 0.95] });
+    zones.push({ y: [ty + 90, Math.min(H * 0.55, ty + 300)], x: Math.random() < 0.5 ? [0.04, Math.max(0.08, 0.5 - 600 / W)] : [Math.min(0.92, 0.5 + 600 / W), 0.96] });
     const z = zones[(Math.random() * zones.length) | 0], x0 = W * (z.x[0] + Math.random() * (z.x[1] - z.x[0])), y1 = z.y[0] + Math.random() * (z.y[1] - z.y[0]);
     const col = FW_COLS[(Math.random() * FW_COLS.length) | 0];
     const r = { size: 1.0 + Math.random() * 0.4, x: x0 + (Math.random() - 0.5) * 120, y: H + 20, x1: x0, y1, t: 0, dur: 0.85 + Math.random() * 0.3, col, trail: [] };
