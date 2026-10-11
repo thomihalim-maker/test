@@ -166,7 +166,7 @@ export default class MenuScene {
     this.mom = this.fam.add(await createCharacter('mom'));
     this.dad = this.fam.add(await createCharacter('dad'));
     this.baby = this.fam.add(await createCharacter('baby'));
-    this.mom.sx = this.mom.sy = 0.76; this.dad.sx = this.dad.sy = 0.76; this.baby.sx = this.baby.sy = 0.92;
+    this.mom.sx = this.mom.sy = 0.76; this.dad.sx = this.dad.sy = 0.76; this.baby.sx = this.baby.sy = 0.74; // a newborn: clearly smaller than Ibu's face
 
     // grassy foreground lip in front of the family's waistline (no flat body cut-offs)
     this.lip = R.add(new Node({ ax: 0.5, ay: 1 }).setImage(hillSprite(2300, 170, '#93d396', 12, { base: 48, amp: 14, freq: 1.4, tufts: 70, line: '#62a46c' })));
@@ -201,7 +201,7 @@ export default class MenuScene {
     this.title = R.add(crayonWord('Bintang Kecil', 132, ['#ffe27a', '#ffb3c7', '#9fe0c0', '#a9c8ff', '#ffc98a', '#d2b8ff', '#ffe27a'], { line: '#3c3466', halo: 0.75, track: 4 }));
     this.title.interactive = false;
     // soft night plate behind the title so drifting clouds never read as smudges behind letters
-    this.plate = R.add(new Node({ alpha: 0.9 }).setImage(makeSprite(1200, 300, x => { const g = x.createRadialGradient(600, 150, 40, 600, 150, 600); g.addColorStop(0, 'rgba(34,40,98,0.55)'); g.addColorStop(0.55, 'rgba(34,40,98,0.3)'); g.addColorStop(1, 'rgba(34,40,98,0)'); x.save(); x.scale(1, 0.25); x.fillStyle = g; x.fillRect(0, 0, 1200, 1200); x.restore(); }, { key: 'titlePlate', ratio: 0.5 })));
+    this.plate = R.add(new Node({ alpha: 0.9 }).setImage(makeSprite(1200, 300, x => { x.save(); x.scale(1, 0.25); const g = x.createRadialGradient(600, 600, 40, 600, 600, 600); g.addColorStop(0, 'rgba(34,40,98,0.55)'); g.addColorStop(0.55, 'rgba(34,40,98,0.3)'); g.addColorStop(1, 'rgba(34,40,98,0)'); x.fillStyle = g; x.fillRect(0, 0, 1200, 1200); x.restore(); }, { key: 'titlePlate2', ratio: 0.5 })));
     R.remove(this.plate); R.children.splice(R.children.indexOf(this.title), 0, this.plate); this.plate.parent = R;
     this.titleStar = this.title.add(new Node({ sx: 0.8, sy: 0.8 }).setImage(starSprite(54, PAL.yellow)));
 
@@ -227,18 +227,19 @@ export default class MenuScene {
     this.hillMid.x = W / 2 + 60; this.hillMid.y = H + 6;
     this.hillNear.x = W / 2; this.hillNear.y = H + 8;
     this.house.x = W * 0.475; this.house.y = H - 214; this.house.visible = W > 1800;
-    this.tree.x = W - 90; this.tree.y = H - 180;
+    this.tree.x = W - 90; this.tree.y = H - 180; this.tree.visible = W >= 1700;
     this.flies.layout(0, H * 0.45, W, H * 0.45);
     // family cluster
-    const fx = W * (tall ? 0.235 : 0.265), fy = H - 92 - (tall ? (H - 900) * 0.1 : 0);
-    this.fam.x = fx; this.fam.y = fy; this.fam.sx = this.fam.sy = tall ? 1.15 : 1;
-    this.lip.x = W / 2; this.lip.y = H + 10;
+    const narrow = W < 1700, fsc = tall ? 1.1 : narrow ? 0.95 : 1, sl = safeInset(v, 'l');
+    const fx = Math.max(W * 0.265, 345 * fsc + 40 + sl), fy = H - 92 - (tall ? (H - 900) * 0.1 : 0);
+    this.fam.x = fx; this.fam.y = fy; this.fam.sx = this.fam.sy = fsc;
+    this.lip.x = W / 2; this.lip.y = H + 40; // lower lip: hides the body cut, not the chest
     this.mom.x = -175; this.mom.y = 0; this.dad.x = 175; this.dad.y = 2;
     this.baby.x = 0; this.baby.y = 6;
     // right column
-    const cx = W * (tall ? 0.72 : 0.705);
+    const cx = W * (tall ? 0.72 : 0.705), csc = W < 1700 ? 0.9 : 1, cgap = 258 * csc;
     this.play.x = cx; this.play.y = oy + 372; this.playGlow.x = cx; this.playGlow.y = this.play.y;
-    this.cards.forEach((c, i) => { c.bx = cx + (i - 1) * 258; c.by = oy + 690; c.x = c.bx; c.y = c.by; c.baseRot = (i - 1) * 0.035; c.rot = c.baseRot; });
+    this.cards.forEach((c, i) => { c.baseScale = csc; if (c.ready) c.sx = c.sy = csc; c.bx = Math.min(cx, W - 30 - cgap - 130 * csc - safeInset(v, 'r')) + (i - 1) * cgap; c.by = oy + 690; c.x = c.bx; c.y = c.by; c.baseRot = (i - 1) * 0.035; c.rot = c.baseRot; });
     this.title.x = W / 2; this.title.y = oy + 124; this.plate.x = this.title.x; this.plate.y = this.title.y + 6;
     const first = this.title.letters[0];
     this.titleStar.x = first.baseX - 40; this.titleStar.y = -86; this.titleStar.bx = this.titleStar.x;
@@ -253,8 +254,9 @@ export default class MenuScene {
     this.titleStar.sx = this.titleStar.sy = 0; tween(this.titleStar, { sx: 0.8, sy: 0.8 }, { dur: 0.6, delay: 1.0, ease: 'outBack' });
     const fy = this.fam.y; this.fam.y = fy + 120; tween(this.fam, { y: fy }, { dur: 0.8, delay: 0.1, ease: 'outBack' });
     this.play.sx = this.play.sy = 0; tween(this.play, { sx: 1, sy: 1 }, { dur: 0.6, delay: 0.55, ease: 'outBack' }).then(() => { this.play.ready = true; });
-    this.cards.forEach((c, i) => { c.sx = c.sy = 0; tween(c, { sx: 1, sy: 1 }, { dur: 0.55, delay: 0.7 + i * 0.1, ease: 'outBack' }).then(() => { c.ready = true; }); });
+    this.cards.forEach((c, i) => { c.sx = c.sy = 0; tween(c, { sx: c.baseScale || 1, sy: c.baseScale || 1 }, { dur: 0.55, delay: 0.7 + i * 0.1, ease: 'outBack' }).then(() => { c.ready = true; }); });
     this.sound.sx = this.sound.sy = 0; tween(this.sound, { sx: this.sound.baseScale || 1, sy: this.sound.baseScale || 1 }, { dur: 0.5, delay: 0.9, ease: 'outBack' });
+    this.mom.setMood?.('adore'); // hands up to her cheeks, adoring the baby
     this.mom.lookAt?.(this.baby.toWorld(0, -120).x, this.baby.toWorld(0, -120).y);
     this.dad.lookAt?.(this.baby.toWorld(0, -120).x, this.baby.toWorld(0, -120).y);
     this.idleT = 3;
