@@ -72,3 +72,5 @@ Each level may keep its props' SVG in its own file `src/art/props_levelN.js`.
 `node tools/shot.mjs shots/x.png "scene=level1&unlock" 2500` (844×390 @3x phone landscape). Also check
 `... 2500 932 430 3` (wide phone) and `... 2500 1024 768 2` (tablet). Read the PNG. Zero console errors required.
 Use `--js "__game.scene.debugSolve(2)"` to stage mid-puzzle states. URL params: scene=, unlock, mute, speed=.
+- `game.view.safe = {l, r, t, b}`: notch / rounded-corner insets from CSS `env(safe-area-inset-*)`, in design units,
+  already mapped to the landscape game orientation. Keep corner buttons at least this far in.

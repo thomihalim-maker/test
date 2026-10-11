@@ -423,6 +423,39 @@ function basketArt() {
   `, 155);
 }
 
+export const TIDY = 150;
+function clothesArt() {
+  return svg(150, 150, `
+    ${ol(`<rect x="22" y="104" width="108" height="34" rx="10"/>`, '#9bbcf0', 2.8)}${line('M30 116 H120', 2, '#fff')}
+    ${ol(`<rect x="28" y="72" width="98" height="34" rx="10"/>`, C.pink, 2.8)}${line('M36 84 H116', 2, '#fff')}
+    ${ol(`<rect x="24" y="40" width="104" height="34" rx="10"/>`, C.mint, 2.8)}
+    ${star(76, 57, 8, C.butter, 1)}
+  `, 161);
+}
+function bunnyArt() {
+  return svg(150, 150, `
+    ${ol(`<ellipse cx="58" cy="34" rx="12" ry="30" transform="rotate(-10 58 34)"/><ellipse cx="92" cy="34" rx="12" ry="30" transform="rotate(10 92 34)"/>`, '#f4f0f6', 2.8)}
+    ${tone(`<ellipse cx="58" cy="36" rx="5" ry="20" transform="rotate(-10 58 36)"/><ellipse cx="92" cy="36" rx="5" ry="20" transform="rotate(10 92 36)"/>`, C.pink, 0.9)}
+    ${ol(`<ellipse cx="75" cy="118" rx="42" ry="30"/>`, '#f4f0f6')}
+    ${ol(`<circle cx="75" cy="78" r="32"/>`, '#f4f0f6')}
+    <circle cx="64" cy="76" r="3.4" fill="${PAL.lineDark}"/><circle cx="86" cy="76" r="3.4" fill="${PAL.lineDark}"/>
+    ${line('M70 88 Q75 93 80 88', 2.2)}${blush(56, 88, 7, 5)}${blush(94, 88, 7, 5)}
+    ${ol(`<path d="M75 108 L60 100 L60 116 Z M75 108 L90 100 L90 116 Z"/>`, C.coral, 2.2)}
+  `, 163);
+}
+function socksArt() {
+  const sock = (x, col, r) => `<g transform="rotate(${r} ${x} 60)">${ol(`<path d="M${x - 14} 24 L${x + 14} 24 L${x + 14} 96 Q${x + 14} 112 ${x + 30} 114 Q${x + 44} 118 ${x + 40} 132 Q${x + 34} 142 ${x + 14} 140 L${x - 4} 138 Q${x - 16} 134 ${x - 14} 116 Z"/>`, col, 2.6)}${line(`M${x - 14} 36 H${x + 14} M${x - 14} 46 H${x + 14}`, 2, '#fff')}</g>`;
+  return svg(150, 150, sock(48, C.butter, -6) + sock(92, '#9ad3b9', 6), 165);
+}
+function ballArt() {
+  return svg(150, 150, `
+    ${ol(`<circle cx="75" cy="88" r="52"/>`, PAL.red)}
+    ${tone(`<path d="M24 88 Q75 60 126 88 Q75 116 24 88 Z"/>`, PAL.yellow, 1)}
+    ${tone(`<path d="M75 36 Q60 88 75 140 Q90 88 75 36 Z"/>`, '#9bbcf0', 1)}
+    ${scrib('M44 60 Q54 46 70 42', '#fff', 6, 0.8)}
+  `, 167);
+}
+
 function zArt() {
   return svg(60, 60, `<path d="M14 14 H46 L14 46 H46" fill="none" stroke="#a9b7f0" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" filter="url(#crayon)"/><path d="M14 14 H46 L14 46 H46" ${stroke(2.6, '#6b6fa8')}/>`, 121);
 }
@@ -474,6 +507,7 @@ export async function loadLevel1Art() {
   const jobs = {
     wallpaper: [wallpaperTile(), 180, 180],
     window: [windowArt(true), WINDOW.w, WINDOW.h], windowDusk: [windowArt(false), WINDOW.w, WINDOW.h],
+    tidy_clothes: [clothesArt(), 150, 150], tidy_bunny: [bunnyArt(), 150, 150], tidy_socks: [socksArt(), 150, 150], tidy_ball: [ballArt(), 150, 150],
     slippers: [slippersArt(), 190, 80], blocks: [blocksArt(), 190, 150], basket: [basketArt(), 300, 170],
     lamp: [lampArt(), LAMP.w, LAMP.h],
     shelf: [shelfArt(), SHELF.w, SHELF.h],

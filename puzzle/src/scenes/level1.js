@@ -24,8 +24,8 @@ const L = {
   rug: { x: 820, y: 868 },
   mom: { x: 238, y: 912, s: 0.95 },
   baby: { x: 832, y: 618, s: 0.8, rot: -0.1 },
-  babySleep: { x: 878, y: 560, rot: -1.2 },
-  blanketSleep: { x: 858, y: 600, rot: -0.04, s: 0.74 },
+  babySleep: { x: 806, y: 566, rot: -1.2 },
+  blanketSleep: { x: 846, y: 586, rot: -0.14, s: 0.82 },
   mobile: { x: 826, y: 0, ring: 148, R: 112 },
 };
 // The five items: slot = where it belongs (centre) at placed scale ps; home = shelf cubby (col,row); foot = local y of its base.
@@ -67,6 +67,7 @@ export default class Level1 extends LevelScene {
     sp('shelf', L.shelf);
     sp('shelfTop', L.shelfTop);
     this.lamp = sp('lamp', { x: L.lamp.x, y: L.lamp.y, ax: 0.5, ay: 1 });
+    this.shelfTidy = st.add(new Node());
     this.glow = st.add(new Node({ drawFn: ctx => this.drawLampGlow(ctx) }));
     sp('rug', { x: L.rug.x, y: L.rug.y, ax: 0.5, ay: 0.5 });
 
@@ -443,6 +444,7 @@ export default class Level1 extends LevelScene {
     this.mom.react('cheer', 1.6); this.mom.talk(1.8); audio.sfx('cheer');
     audio.voice('Selamat tidur, Bintang!');
     burst(this.fxLayer, L.baby.x, L.baby.y - 160, 'hearts', { count: 8 });
+    this.tidyUp();
     await wait(1.2);
     // dusk -> night: the sky darkens, the room cools to blue, the lamp settles into a warm night-light
     tween(this, { nightK: 1 }, { dur: 3.0, ease: 'inOutSine' });
@@ -456,7 +458,7 @@ export default class Level1 extends LevelScene {
     const mom = this.mom;
     mom.setMood(MOODS.includes('soft') ? 'soft' : 'idle');
     mom.lookAt(...this.w(L.babySleep.x - 120, L.babySleep.y - 30));
-    tween(mom, { x: mom.x + 70, rot: 0.07 }, { dur: 1.6, ease: 'inOutSine' });
+    tween(mom, { x: mom.x + 22, rot: 0.06 }, { dur: 1.6, ease: 'inOutSine' });
     await wait(0.8);
     // Bintang lies down with the head on the pillow
     this.baby.setMood('sleep');
@@ -473,6 +475,16 @@ export default class Level1 extends LevelScene {
     tween(this.cam, { s: 1.12, fx: 650, fy: 560, dx: 150 }, { dur: 3.2, ease: 'inOutSine' });
     await wait(3.4);
     this.complete();
+  }
+
+  /** Ibu's little tidy-up: soft toys and folded clothes hop into the now-empty cubbies. */
+  tidyUp() {
+    const T = [['tidy_clothes', 0, 0], ['tidy_bunny', 1, 0], ['tidy_ball', 0, 1], ['tidy_socks', 1, 1], ['tidy_clothes', 0, 2]];
+    T.forEach(([key, col, row], i) => {
+      const x = L.shelf.x + SHELF.cols[col], floor = L.shelf.y + SHELF.floors[row], s = 0.92;
+      const n = this.shelfTidy.add(new Node({ x, y: floor - 75 * s - 60, sx: 0, sy: 0, rot: (i % 2 ? 0.06 : -0.05), alpha: 1 }).setImage(this.S[key]));
+      tween(n, { sx: s, sy: s, y: floor - 75 * s }, { dur: 0.5, delay: 0.15 + i * 0.12, ease: 'outBack' }).then(() => audio.sfx('pop', { volume: 0.4 }));
+    });
   }
 
   complete() {

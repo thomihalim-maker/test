@@ -52,9 +52,26 @@ class Game {
     const LW = this.rotated ? H : W, LH = this.rotated ? W : H;
     this.scale = LW / LH >= DESIGN_W / DESIGN_H ? LH / DESIGN_H : LW / DESIGN_W;
     this.view = { w: LW / this.scale, h: LH / this.scale };
+    // Notch / rounded-corner insets (CSS env safe-area-inset-*), in design units, in landscape game orientation.
+    const si = this._safeInsets();
+    const L = this.rotated ? si.b : si.l, R = this.rotated ? si.t : si.r, T = this.rotated ? si.l : si.t, B = this.rotated ? si.r : si.b;
+    this.view.safe = { l: L / this.scale, r: R / this.scale, t: T / this.scale, b: B / this.scale };
     this.cssW = W; this.cssH = H;
     if (this.scene && this.scene.layout) this.scene.layout(this.view);
     if (this.overlayLayout) this.overlayLayout(this.view);
+  }
+
+  _safeInsets() {
+    try {
+      if (!this._probe) {
+        const p = document.createElement('div');
+        p.style.cssText = 'position:fixed;left:0;top:0;visibility:hidden;pointer-events:none;' +
+          'padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)';
+        document.body.appendChild(p); this._probe = p;
+      }
+      const cs = getComputedStyle(this._probe);
+      return { t: parseFloat(cs.paddingTop) || 0, r: parseFloat(cs.paddingRight) || 0, b: parseFloat(cs.paddingBottom) || 0, l: parseFloat(cs.paddingLeft) || 0 };
+    } catch (_) { return { t: 0, r: 0, b: 0, l: 0 }; }
   }
 
   // Screen (client css px) -> design space.
