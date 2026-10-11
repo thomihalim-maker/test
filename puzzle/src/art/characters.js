@@ -336,7 +336,7 @@ function dadHair() {
   }
   for (let i = 0; i < 7; i++) {
     const ang = Math.PI * (1.0 - R() * 1.0), v = 0.4 + 0.5 * R();
-    tex += loop(rx * 0.85 * v * Math.cos(ang), -60 - ry * v * Math.sin(ang), 0.8 + R() * 0.6, R() * 360, '#c9c8c6', 1.8, 0.75);
+    tex += loop(rx * 0.85 * v * Math.cos(ang), -60 - ry * v * Math.sin(ang), 0.8 + R() * 0.6, R() * 360, '#c9c8c6', 1.6, 0.45);
   }
   // broken silhouette: short dark strokes + curls riding the edge (half outside the shape)
   let edge = '';
@@ -840,9 +840,9 @@ export async function createCharacter(kind, opts = {}) {
  * tiltOverride. Use applyPortraitPose(ch, kind, w, h) to place a live character exactly like the picture.
  */
 export const PORTRAIT_LAYOUT = {
-  mom: { x: 0.185, y: 1.0, scale: 0.99, rot: 0.1, mood: 'adore', gaze: [0.75, 0.55], tilt: 0.1 },
-  dad: { x: 0.815, y: 1.03, scale: 0.99, rot: -0.1, mood: 'adore', gaze: [-0.75, 0.55], tilt: -0.1 },
-  baby: { x: 0.5, y: 0.765, scale: 1.15, rot: 0, mood: 'adore', gaze: [0, 0], tilt: 0.04 },
+  mom: { x: 0.185, y: 0.965, scale: 0.99, rot: 0.1, mood: 'adore', gaze: [0.75, 0.55], tilt: 0.1 },
+  dad: { x: 0.815, y: 0.99, scale: 0.97, rot: -0.1, mood: 'adore', gaze: [-0.75, 0.55], tilt: -0.1 },
+  baby: { x: 0.5, y: 0.735, scale: 1.15, rot: 0, mood: 'adore', gaze: [0, 0], tilt: 0.04 },
 };
 export function applyPortraitPose(ch, kind, w = 900, h = 600, ox = 0, oy = 0) {
   const L = PORTRAIT_LAYOUT[kind], s = h / 600;
