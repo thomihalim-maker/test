@@ -10,7 +10,7 @@ import { save } from './save.js';
 const dbg = e => { try { if (window.__audioDebug) console.error('audio:', e && e.stack || e); } catch (_) {} };
 const MASTER = 0.7;
 // per-sfx loudness trim so everything sits within ~8 dB RMS (measured offline)
-const LEVEL = { tap: 2, pick: 2, drop: 1.8, giggle: 1.8, pop: 1.7, whoosh: 1.3, sparkle: 1.1, wrong: 1.2, snap: 0.6, star: 0.58, cheer: 0.6, win: 0.55, unlock: 0.58, chime: 1 };
+const LEVEL = { tap: 4, pick: 2.8, drop: 2.6, giggle: 2.8, pop: 7, whoosh: 1.9, sparkle: 1.7, wrong: 1.4, snap: 0.5, star: 0.45, cheer: 0.48, win: 0.36, unlock: 0.45, chime: 0.65 };
 const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 const R = (a, b) => a + Math.random() * (b - a);
 
