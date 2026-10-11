@@ -570,7 +570,7 @@ export class Character extends Node {
         const cs = c.facing >= 0 ? 1 : -1;
         const p = this._headXY(c.facing + cs * 4, c.faceR[1] * 0.97 + 64 * c.handS);
         const ey = p.y + c.L2 * 0.97, ex = p.x + cs * 10;
-        if (side === cs) return { x: p.x, y: p.y, hand: 'point', rot: this.headPivot.rot, abs: true, down: true };
+        if (side === cs) return { x: p.x, y: p.y, hand: 'point', rot: this.headPivot.rot, abs: true, elbow: [ex, ey / (this._breath || 1)] };
         return { x: ex + cs * 26, y: ey + 6, hand: 'rest', rot: cs * Math.PI / 2, abs: true, low: true };
       }
       case 'clap': { const g = 6 + 34 * (0.5 + 0.5 * Math.cos(t * 14)); return { x: side * (g + 14), y: sy + 6, hand: 'open', rot: side * 0.15, abs: true, elbow: [side * (c.elbow[0] - 22), c.elbow[1] + 40] }; }
