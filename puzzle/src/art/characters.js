@@ -214,10 +214,10 @@ const HANDS = {
     soft: 'M-6 -22 Q2 -18 10 -24',
   },
   rest: { // relaxed hand seen from the back: four little rounded fingers together, thumb peeking at the side
-    d: fingersPath([[-21, -10.5, -54], [-10.5, 0, -61], [0, 10.5, -60], [10.5, 20, -53]], 'M-18 14 L-18 3 C-21 -12 -22 -26 -21 -38',
-      ' L20 -32 C24 -36 29 -42 32 -44 C37 -45 39 -40 36 -35 C32 -27 27 -18 23 -12 C21 -6 20 -2 19 3 L19 14 Z', 3),
-    lines: 'M-10.5 -40 L-10.5 -45 M0 -44 L0 -50 M10.5 -40 L10.5 -45',
-    soft: 'M-4 -20 Q3 -17 10 -21',
+    d: fingersPath([[-22, -11, -50], [-11, 0, -55], [0, 11, -55], [11, 21.5, -49]], 'M-18 14 L-18 4 C-23 -8 -24 -22 -22 -36',
+      ' L21.5 -30 C25 -34 30 -38 34 -38 C39 -38 40 -32 37 -27 C33 -20 27 -13 23 -8 C21 -4 20 0 19 4 L19 14 Z', 0),
+    lines: 'M-11 -39 L-11 -42 M0 -42 L0 -46 M11 -39 L11 -42',
+    soft: 'M-6 -16 Q2 -12 10 -16',
   },
   point: { // curled fist with the index finger up
     d: 'M-18 14 L-18 3 C-22 -12 -22 -30 -14 -37 C-12 -38 -10 -39 -8 -39 L-8 -72 A7.5 7.5 0 0 1 7 -72 L7 -39 C11 -40 15 -37 18 -33 C22 -22 22 -8 18 3 L18 14 Z',
@@ -286,9 +286,9 @@ function momParts() {
     blob(band, C.hijab, { shade: C.hijabShade, light: C.hijabLight, line: C.hijabLine, open: 'M-123 2 C-126 -60 -76 -101 0 -101 C76 -101 126 -60 123 2', g: 0.5 });
 
   // shirt: rounded shoulders, slightly tapered sides, soft wavy hem that scenes may crop
-  const shirt = 'M-96 -246 C-134 -240 -162 -222 -176 -192 C-190 -160 -194 -116 -192 -76 C-190 -44 -186 -18 -182 6 C-150 12 -120 4 -86 10 C-50 15 -20 6 12 11 C48 16 80 6 112 12 C140 16 162 8 182 4 C186 -18 190 -44 192 -76 C194 -116 190 -160 176 -192 C162 -222 134 -240 96 -246 C56 -256 -56 -256 -96 -246 Z';
-  const body = `<g mask="url(#fade)">` + blob(shirt, C.pink, { shade: C.pinkShade, light: '#fff', g: 0.5, l: 0.35, line: C.pinkLine, open: 'M-182 6 C-186 -18 -190 -44 -192 -76 C-194 -116 -190 -160 -176 -192 C-162 -222 -134 -240 -96 -246 C-56 -256 56 -256 96 -246 C134 -240 162 -222 176 -192 C190 -160 194 -116 192 -76 C190 -44 186 -18 182 4' }) +
-    pencil('M-176 2 C-150 10 -120 3 -86 8 M-40 10 C-10 5 20 8 40 12 M80 8 C120 13 150 6 176 2', 2.2, C.pinkLine, 0.55) + '</g>' +
+  const shirt = 'M-96 -246 C-134 -240 -162 -222 -176 -192 C-188 -164 -186 -130 -178 -102 C-172 -78 -175 -44 -179 -8 C-146 4 -100 11 -50 12 C0 14 50 12 100 10 C140 8 164 2 179 -8 C175 -44 172 -78 178 -102 C186 -130 188 -164 176 -192 C162 -222 134 -240 96 -246 C56 -256 -56 -256 -96 -246 Z';
+  const body = `<g mask="url(#fade)">` + blob(shirt, C.pink, { shade: C.pinkShade, light: '#fff', g: 0.5, l: 0.35, line: C.pinkLine, open: 'M-179 -8 C-175 -44 -172 -78 -178 -102 C-186 -130 -188 -164 -176 -192 C-162 -222 -134 -240 -96 -246 C-56 -256 56 -256 96 -246 C134 -240 162 -222 176 -192 C188 -164 186 -130 178 -102 C172 -78 175 -44 179 -8' }) +
+    pencil('M-178 -8 C-146 4 -100 11 -60 12 M-20 13 C20 13 60 12 100 10 M130 7 C150 4 166 0 178 -8', 2.4, C.pinkLine, 0.7) + pencil('M-170 -96 C-150 -90 -132 -92 -118 -98 M170 -96 C150 -90 132 -92 118 -98', 2, C.pinkShade, 0.7) + '</g>' +
     pencil('M-150 -52 C-80 -38 70 -40 148 -54', 2.4, C.pinkShade, 0.9) + pencil('M-60 -150 C-50 -110 -54 -80 -64 -60', 2.1, C.pinkShade, 0.6);
   const fadeDefs = FADE;
 
@@ -361,13 +361,12 @@ function dadParts() {
   const k = 'dad';
   const hair = dadHair();
   const ear = blob('M-8 -26 C16 -34 32 -12 28 8 C24 28 4 32 -8 24 Z', C.skin, { shade: C.skinGrain, g: 0.14, open: 'M-8 -26 C16 -34 32 -12 28 8 C24 28 4 32 -8 24' }) + pencil('M4 -12 C16 -10 18 4 9 11 M9 -2 Q12 2 8 5', 2.3);
-  const shirt = 'M-94 -230 C-132 -224 -160 -208 -174 -180 C-190 -146 -198 -104 -196 -64 C-194 -36 -190 -14 -184 6 C-152 12 -122 3 -88 9 C-52 15 -22 5 10 11 C46 16 80 5 114 11 C142 15 164 8 184 4 C190 -14 194 -36 196 -64 C198 -104 190 -146 174 -180 C160 -208 132 -224 94 -230 C74 -233 54 -231 42 -226 C22 -212 -22 -212 -42 -226 C-54 -231 -74 -233 -94 -230 Z';
+  const shirt = 'M-94 -230 C-134 -224 -162 -206 -176 -176 C-186 -150 -184 -112 -178 -76 C-174 -48 -172 -26 -170 -4 C-150 0 -134 -6 -116 2 C-80 10 -40 8 0 10 C40 12 90 8 130 6 C150 5 160 2 170 -2 C172 -26 174 -48 178 -76 C184 -112 186 -150 176 -176 C162 -206 134 -224 94 -230 C74 -233 54 -231 42 -226 C22 -212 -22 -212 -42 -226 C-54 -231 -74 -233 -94 -230 Z';
   const neck = 'M-40 -270 L-40 -224 C-22 -208 22 -208 40 -224 L40 -270 Z';
   const body = blob(neck, C.skin, { shade: C.skinGrain, g: 0.14, open: 'M-40 -262 L-40 -224 M40 -224 L40 -262' }) + `<g mask="url(#fade)">` +
-    blob(shirt, C.green, { shade: C.greenShade, light: C.greenLight, g: 0.5, l: 0.3, line: C.greenLine, open: 'M-184 6 C-190 -14 -194 -36 -196 -64 C-198 -104 -190 -146 -174 -180 C-160 -208 -132 -224 -94 -230 C-74 -233 -54 -231 -42 -226 C-22 -212 22 -212 42 -226 C54 -231 74 -233 94 -230 C132 -224 160 -208 174 -180 C190 -146 198 -104 196 -64 C194 -36 190 -14 184 4' }) +
-    pencil('M-180 2 C-150 10 -122 2 -90 7 M-44 10 C-14 5 18 8 44 12 M84 8 C122 13 152 6 180 2', 2.2, C.greenLine, 0.5) + pencil('M-120 -60 C-80 -50 -40 -48 -10 -52 M30 -40 C70 -44 110 -52 140 -66', 2, C.greenShade, 0.55) + '</g>' +
-    pencil('M-46 -224 C-26 -204 26 -204 46 -224', 2.5, C.greenLine, 0.9) + pencil('M-60 -150 C-50 -110 -56 -70 -66 -46 M70 -120 C80 -90 76 -60 70 -40', 2.3, C.greenShade, 0.7) +
-    pencil('M-150 -196 C-140 -176 -138 -160 -142 -140 M150 -196 C140 -176 138 -160 142 -140', 2.2, C.greenShade, 0.55);
+    blob(shirt, C.green, { shade: C.greenShade, light: C.greenLight, g: 0.5, l: 0.3, line: C.greenLine, open: 'M-170 -4 C-172 -26 -174 -48 -178 -76 C-184 -112 -186 -150 -176 -176 C-162 -206 -134 -224 -94 -230 C-74 -233 -54 -231 -42 -226 C-22 -212 22 -212 42 -226 C54 -231 74 -233 94 -230 C134 -224 162 -206 176 -176 C186 -150 184 -112 178 -76 C174 -48 172 -26 170 -2' }) +
+    pencil('M-170 -4 C-150 0 -134 -6 -116 2 C-80 10 -40 8 -6 10 M30 11 C70 10 104 8 130 6 C150 5 160 2 170 -2', 2.4, C.greenLine, 0.7) + pencil('M-158 -150 C-142 -136 -132 -120 -128 -100 M158 -150 C142 -136 132 -120 128 -100 M-150 -4 C-140 -14 -124 -16 -112 -10', 2.1, C.greenShade, 0.7) + '</g>' +
+    pencil('M-46 -224 C-26 -204 26 -204 46 -224', 2.5, C.greenLine, 0.9) +     pencil('M-40 -150 C-30 -110 -36 -70 -46 -46', 2.1, C.greenShade, 0.5);
   const R = rng(19); let stub = '';
   for (let i = 0; i < 26; i++) {
     const a = Math.PI * (0.05 + R() * 0.9) * (R() < 0.42 ? -1 : 1), rr = 0.78 + R() * 0.32;
@@ -383,7 +382,7 @@ function dadParts() {
     part('dad-nose', 40, 40, 20, 20, pencil('M5 -9 C-6 -11 -9 4 3 5', 2.8, C.inkSoft, 1, { gaps: false })),
     part('dad-stubble', 130, 90, 65, 40, `<g filter="url(#pgr)">${stub}</g>`),
     ...eyeParts(k, false), ...mouthParts(k, 1.08), brow(k, 3.7), cheek(k, 22, 12), question(k), ...handParts(k),
-    texPart('skin', '#ffffff', C.skinGrain, null, 0.16), texPart('green', C.green, C.greenShade, C.greenLight, 0.5, 0.3),
+    texPart('skin', '#ffffff', '#ddd2cc', null, 0.3), texPart('green', C.green, C.greenShade, C.greenLight, 0.5, 0.3),
     lineTex('line', C.line), lineTex('greenLine', C.greenLine),
   ];
 }
@@ -446,10 +445,10 @@ function babyParts() {
 const CFG = {
   mom: { parts: momParts, h: 560, w: 370, neck: [0, -232], face: -118, shoulder: [136, -200], L1: 92, L2: 88, handS: 1, facing: 13, faceR: [124, 114], elbow: [186, -146],
     eye: [37, 4], brow: [41, -30], cheek: [80, 36], mouth: [3, 56], nose: [8, 27],
-    arm: { upperW: 54, foreW: 50, fill: 'pink', line: 'pinkLine', toWrist: true } },
+    arm: { upperW: 54, foreW: 50, fill: 'pink', line: 'pinkLine', toWrist: true, shadow: 'rgba(226,138,178,0.55)' } },
   dad: { parts: dadParts, h: 600, w: 380, neck: [0, -236], face: -128, shoulder: [144, -198], L1: 96, L2: 92, handS: 1.1, facing: -13, faceR: [147, 126], elbow: [190, -146],
     eye: [42, 2], brow: [45, -34], cheek: [92, 34], mouth: [0, 64], nose: [-3, 28], stubble: [0, 58], ears: 146,
-    arm: { upperW: 42, foreW: 40, fill: 'skin', line: 'line', sleeve: { w: 66, len: 0.62, fill: 'green', line: 'greenLine' } } },
+    arm: { upperW: 42, foreW: 40, fill: 'skin', line: 'line', shadow: 'rgba(236,206,196,0.7)', sleeve: { w: 66, len: 0.62, fill: 'green', line: 'greenLine' } } },
   baby: { parts: babyParts, h: 230, w: 230, neck: [0, -92], face: -58, facing: 0, faceR: [106, 76],
     eye: [33, 6], brow: [33, -16], cheek: [62, 24], mouth: [0, 27] },
 };
@@ -467,7 +466,7 @@ const FACE = {
   sleep: { eye: 'closed', mouth: 'closed', brow: [3, -0.05], cheek: 1 },
 };
 const BABY_FACE = {
-  idle: { eye: 'open', mouth: 'smile', cheek: 1 },
+  idle: { eye: 'content', mouth: 'smile', cheek: 1.05 },
   happy: { eye: 'happy', mouth: 'grin', cheek: 1.2 },
   cheer: { eye: 'happy', mouth: 'laugh', cheek: 1.3 },
   surprised: { eye: 'wide', mouth: 'o', brow: [-6, 0.1], cheek: 1 },
@@ -484,7 +483,7 @@ const POSE = { // arm pose per side (viewer-left, viewer-right) + head tilt + bo
   surprised: { arms: ['cheek', 'cheek'], tilt: 0, lean: -0.02 },
   adore: { arms: ['cheek', 'cheek'], tilt: 0.07, lean: 0.02 },
   soft: { arms: ['chest', 'chest'], tilt: 0.09, lean: 0 },
-  think: { arms: ['think', 'think'], tilt: -0.08, lean: 0 },
+  think: { arms: ['think', 'think'], tilt: 0.1, lean: 0 },
   sad: { arms: ['clasp', 'clasp'], tilt: 0.08, lean: 0 },
   sleep: { arms: ['clasp', 'clasp'], tilt: 0.13, lean: 0 },
 };
@@ -572,12 +571,10 @@ export class Character extends Node {
     const c = this.cfg, [sx, sy] = c.shoulder, reach = c.L1 + c.L2, t = this._t;
     switch (type) {
       case 'cheek': { const p = this._headXY(side * c.faceR[0] * 0.84 + c.facing * 0.4, c.faceR[1] * 0.92); return { x: p.x, y: p.y, hand: 'open', rot: -side * 0.2 + this.headPivot.rot, abs: true, elbow: [side * c.elbow[0], c.elbow[1]] }; }
-      case 'think': {
+      case 'think': { // palm on one cheek (head tilts into it), the other arm resting
         const cs = c.facing >= 0 ? 1 : -1;
-        const p = this._headXY(c.facing + cs * 4, c.faceR[1] * 0.97 + 64 * c.handS);
-        const ey = p.y + c.L2 * 0.97, ex = p.x + cs * 10;
-        if (side === cs) return { x: p.x, y: p.y, hand: 'point', rot: this.headPivot.rot, abs: true, elbow: [ex, ey / (this._breath || 1)], mode: this.kind === 'dad' ? 'whole' : 'split' };
-        return { x: ex + cs * 26, y: ey + 6, hand: 'rest', rot: cs * Math.PI / 2, abs: true, low: true, mode: 'whole' };
+        if (side === cs) { const p = this._headXY(side * c.faceR[0] * 0.8 + c.facing * 0.4, c.faceR[1] * 0.86); return { x: p.x, y: p.y, hand: 'open', rot: -side * 0.32 + this.headPivot.rot, abs: true, elbow: [side * (c.elbow[0] - 30), c.elbow[1] + 30] }; }
+        return this._target(side, 'rest');
       }
       case 'clap': { const g = 6 + 34 * (0.5 + 0.5 * Math.cos(t * 14)); return this.kind === 'dad' ? { x: side * (g + 14), y: sy + 2, hand: 'open', rot: side * 0.15, abs: true, low: true, mode: 'whole' } : { x: side * (g + 14), y: sy + 6, hand: 'open', rot: side * 0.15, abs: true, elbow: [side * (c.elbow[0] - 22), c.elbow[1] + 40] }; }
       case 'up': { const w = Math.sin(t * 6 + side) * 12; return { x: side * (sx + 78) + w, y: sy - reach * 0.84, hand: 'open', rot: side * 0.18 + Math.sin(t * 6 + side) * 0.2, abs: true }; }
@@ -604,7 +601,7 @@ export class Character extends Node {
       const lp = this.toLocal(this.look.x, this.look.y);
       const hx = c.neck[0], hy = c.neck[1] + c.face;
       gx = clamp((lp.x - hx) / 260, -1, 1); gy = clamp((lp.y - hy) / 260, -1, 1);
-    } else if (face.gaze) { [gx, gy] = face.gaze; }
+    } else if (face.gaze) { [gx, gy] = face.gaze; if (mood === 'think' && !baby) gx = -(c.facing >= 0 ? 1 : -1) * 0.45; }
     else {
       if (!this.frozen && (this._nextWander -= dt) <= 0) {
         this._nextWander = 1.4 + Math.random() * 2.6;
@@ -652,7 +649,7 @@ export class Character extends Node {
     this.rig.rot = this._lean + this._wig;
 
     // head
-    let tilt = pose.tilt + Math.sin(t * 0.85) * 0.022 + this._gaze.x * 0.05;
+    let tilt = (mood === 'think' ? (c.facing >= 0 ? 1 : -1) * pose.tilt : pose.tilt) + Math.sin(t * 0.85) * 0.022 + this._gaze.x * 0.05;
     if (baby && (mood === 'happy' || mood === 'cheer')) tilt += Math.sin(t * 9) * 0.06;
     if (this.tiltOverride != null) tilt = this.tiltOverride;
     this._tilt = damp(this._tilt, tilt, 5, dt);
@@ -711,7 +708,7 @@ export class Character extends Node {
           a.x += a.vx * dt; a.y += a.vy * dt;
         }
         a.hr = this.frozen ? tg.rot : damp(a.hr, tg.rot, 12, dt);
-        a.type = tg.hand; a.mode = tg.mode || 'split';
+        a.type = tg.hand; a.mode = this.kind === 'dad' ? 'whole' : (tg.mode || 'split');
         this._solve(a, tg, breath);
       }
       // layering: in "think" the vertical (chin) forearm sits in front of the horizontal one
@@ -778,12 +775,16 @@ export class Character extends Node {
     this._poly(ctx, P, 2 * (r + t), linePat, lineA);
     this._poly(ctx, Q, 2 * (r + t) + 1.6, linePat, 0.35 * lineA);
     this._poly(ctx, P, 2 * r, fillPat);
-    // tiny gaps: fill dabs breaking the outline at fixed spots along the limb
-    ctx.fillStyle = fillPat;
-    for (const f of [0.28, 0.67]) {
-      const i = Math.min(P.length - 2, Math.floor(P.length * f)), A = P[i], B = P[i + 1];
-      const dx = B[0] - A[0], dy = B[1] - A[1], L = Math.hypot(dx, dy) || 1, sd = (i + seed * 7) % 2 ? 1 : -1;
-      ctx.beginPath(); ctx.arc(A[0] - dy / L * (r + 1.3) * sd, A[1] + dx / L * (r + 1.3) * sd, 1.7, 0, Math.PI * 2); ctx.fill();
+    // soft warm shadow on the underside of the limb (like the faces' crayon shading)
+    const sh = this.cfg.arm.shadow;
+    if (sh) {
+      const U = [];
+      for (let i = 0; i < P.length; i++) {
+        const A = P[Math.max(0, i - 1)], B = P[Math.min(P.length - 1, i + 1)], dx = B[0] - A[0], dy = B[1] - A[1], L = Math.hypot(dx, dy) || 1;
+        let nx = -dy / L, ny = dx / L; if (ny < 0 || (Math.abs(ny) < 0.05 && nx < 0)) { nx = -nx; ny = -ny; }
+        U.push([P[i][0] + nx * r * 0.5, P[i][1] + ny * r * 0.5]);
+      }
+      this._poly(ctx, U, r * 0.6, sh, 0.5);
     }
   }
   _sprite(ctx, key, x, y, rot, sx, sy) {
@@ -818,7 +819,7 @@ export class Character extends Node {
   }
   /** Whole arm shoulder→elbow→hand as ONE continuous silhouette (no end caps on the shirt). */
   _drawWhole(ctx, a) {
-    const A = this.cfg.arm, line = this._pat(ctx, A.line), fill = this._pat(ctx, A.fill), r = A.foreW / 2, soft = this.kind === 'mom' ? 0.6 : 1;
+    const A = this.cfg.arm, line = this._pat(ctx, A.line), fill = this._pat(ctx, A.fill), r = A.foreW / 2, soft = this.kind === 'mom' ? 0.85 : 1;
     this._hand(ctx, a, 'o');
     if (A.toWrist) this._hand(ctx, a, 'f');
     let S = a.S;
@@ -896,9 +897,9 @@ export async function createCharacter(kind, opts = {}) {
  * tiltOverride. Use applyPortraitPose(ch, kind, w, h) to place a live character exactly like the picture.
  */
 export const PORTRAIT_LAYOUT = {
-  mom: { x: 0.163, y: 0.70, scale: 0.72, rot: 0.05, mood: 'adore', gaze: [0.7, 0.35], tilt: 0.08 },
-  dad: { x: 0.835, y: 0.71, scale: 0.665, rot: -0.05, mood: 'adore', gaze: [-0.7, 0.35], tilt: -0.08 },
-  baby: { x: 0.5, y: 0.565, scale: 1.13, rot: 0, mood: 'adore', gaze: [0, 0], tilt: 0.03 },
+  mom: { x: 0.172, y: 0.63, scale: 0.62, rot: 0.0, mood: 'adore', gaze: [0.7, 0.35], tilt: 0.07 },
+  dad: { x: 0.842, y: 0.612, scale: 0.56, rot: 0.0, mood: 'adore', gaze: [-0.7, 0.35], tilt: -0.07 },
+  baby: { x: 0.5, y: 0.44, scale: 0.6, rot: 0, mood: 'adore', gaze: [0, 0], tilt: 0.03 },
 };
 export function applyPortraitPose(ch, kind, w = 900, h = 600, ox = 0, oy = 0) {
   const L = PORTRAIT_LAYOUT[kind], s = h / 600;
@@ -920,40 +921,42 @@ function backdropPart(w, h) {
   };
   const heart = (x, y, sc, col) => blob(`M${x} ${y + 10 * sc} C${x - 26 * sc} ${y - 8 * sc} ${x - 14 * sc} ${y - 30 * sc} ${x} ${y - 16 * sc} C${x + 14 * sc} ${y - 30 * sc} ${x + 26 * sc} ${y - 8 * sc} ${x} ${y + 10 * sc} Z`, col, { shade: '#d0607a', g: 0.35, light: '#fff', l: 0.3, line: '#c25a72', lw: 2.4 });
   const wallD = `M0 0 H${w} V${h} H0 Z`;
-  const sofaBack = `M${w * 0.03} ${h * 0.78} C${w * 0.02} ${h * 0.6} ${w * 0.06} ${h * 0.5} ${w * 0.16} ${h * 0.49} C${w * 0.36} ${h * 0.47} ${w * 0.64} ${h * 0.47} ${w * 0.84} ${h * 0.49} C${w * 0.94} ${h * 0.5} ${w * 0.98} ${h * 0.6} ${w * 0.97} ${h * 0.78} Z`;
+  const sofaBack = `M${w * 0.03} ${h * 0.7} C${w * 0.02} ${h * 0.54} ${w * 0.06} ${h * 0.44} ${w * 0.16} ${h * 0.43} C${w * 0.36} ${h * 0.41} ${w * 0.64} ${h * 0.41} ${w * 0.84} ${h * 0.43} C${w * 0.94} ${h * 0.44} ${w * 0.98} ${h * 0.54} ${w * 0.97} ${h * 0.7} Z`;
   let stars = '';
-  for (const [u, v, r] of [[0.04, 0.07, 10], [0.37, 0.2, 7], [0.63, 0.22, 8], [0.96, 0.07, 10], [0.36, 0.41, 7], [0.64, 0.4, 7], [0.31, 0.06, 6], [0.69, 0.05, 6]]) stars += star(u * w, v * h, r * (0.9 + R() * 0.3));
+  for (const [u, v, r] of [[0.04, 0.07, 10], [0.39, 0.25, 8], [0.61, 0.27, 9], [0.96, 0.07, 10], [0.37, 0.07, 6], [0.63, 0.06, 6], [0.04, 0.38, 7], [0.96, 0.36, 7]]) stars += star(u * w, v * h, r * (0.9 + R() * 0.3));
   const inner = `<defs><radialGradient id="glow" cx="50%" cy="45%" r="62%"><stop offset="0" stop-color="#f4fbf8"/><stop offset="0.55" stop-color="#d6f0ec"/><stop offset="1" stop-color="#a9d8dc"/></radialGradient>
     <radialGradient id="vig" cx="50%" cy="48%" r="72%"><stop offset="0.62" stop-color="#5a8f9e" stop-opacity="0"/><stop offset="1" stop-color="#5a8f9e" stop-opacity=".38"/></radialGradient></defs>
     <rect width="${w}" height="${h}" fill="url(#glow)"/>` +
     `<g transform="rotate(-32)"><g filter="url(#grn)" opacity=".2"><path transform="rotate(32)" d="${wallD}" fill="#7fb8c4"/></g></g>` +
     `<g transform="rotate(-24)"><g filter="url(#hil)" opacity=".4"><path transform="rotate(24)" d="${wallD}" fill="#fff"/></g></g>` +
-    cloud(w * 0.06, h * 0.47, 0.6) + cloud(w * 0.94, h * 0.45, 0.6) +
+    cloud(w * 0.5, h * 0.33, 0.5) +
     blob(sofaBack, '#c9b2e8', { shade: '#9c80c9', g: 0.42, light: '#fff', l: 0.3, line: '#8a70b4', lw: 2.6 }) +
-    pencil(`M${w * 0.36} ${h * 0.52} C${w * 0.35} ${h * 0.6} ${w * 0.35} ${h * 0.68} ${w * 0.36} ${h * 0.76} M${w * 0.64} ${h * 0.52} C${w * 0.65} ${h * 0.6} ${w * 0.65} ${h * 0.68} ${w * 0.64} ${h * 0.76}`, 2.2, '#8a70b4', 0.6) + stars +
-    heart(w * 0.5, h * 0.075, 1.0, '#f590a8') + heart(w * 0.42, h * 0.06, 0.6, '#f9b2c3') + heart(w * 0.58, h * 0.055, 0.65, '#f7a0b6') +
+    pencil(`M${w * 0.36} ${h * 0.46} C${w * 0.35} ${h * 0.52} ${w * 0.35} ${h * 0.56} ${w * 0.36} ${h * 0.6} M${w * 0.64} ${h * 0.46} C${w * 0.65} ${h * 0.52} ${w * 0.65} ${h * 0.56} ${w * 0.64} ${h * 0.6}`, 2.2, '#8a70b4', 0.6) + stars +
+    heart(w * 0.5, h * 0.11, 1.15, '#f590a8') + heart(w * 0.42, h * 0.15, 0.65, '#f9b2c3') + heart(w * 0.58, h * 0.145, 0.7, '#f7a0b6') +
     `<rect width="${w}" height="${h}" fill="url(#vig)"/>`;
   return part(`portrait-bd-${w}x${h}`, w, h, 0, 0, inner, 61);
 }
 function propsParts(w, h) {
   const k = `${w}x${h}`;
-  const seat = `M${w * 0.0} ${h * 0.72} C${w * 0.0} ${h * 0.69} ${w * 0.03} ${h * 0.68} ${w * 0.08} ${h * 0.68} C${w * 0.35} ${h * 0.67} ${w * 0.65} ${h * 0.67} ${w * 0.92} ${h * 0.68} C${w * 0.97} ${h * 0.68} ${w} ${h * 0.69} ${w} ${h * 0.72} L${w} ${h} L0 ${h} Z`;
-  const armL = `M${-w * 0.02} ${h * 0.64} C${w * 0.03} ${h * 0.6} ${w * 0.1} ${h * 0.63} ${w * 0.1} ${h * 0.7} L${w * 0.1} ${h} L${-w * 0.02} ${h} Z`;
-  const armR = `M${w * 1.02} ${h * 0.64} C${w * 0.97} ${h * 0.6} ${w * 0.9} ${h * 0.63} ${w * 0.9} ${h * 0.7} L${w * 0.9} ${h} L${w * 1.02} ${h} Z`;
+  const seat = `M${w * 0.0} ${h * 0.63} C${w * 0.0} ${h * 0.6} ${w * 0.03} ${h * 0.59} ${w * 0.08} ${h * 0.59} C${w * 0.35} ${h * 0.58} ${w * 0.65} ${h * 0.58} ${w * 0.92} ${h * 0.59} C${w * 0.97} ${h * 0.59} ${w} ${h * 0.6} ${w} ${h * 0.63} L${w} ${h} L0 ${h} Z`;
+  const armL = `M${-w * 0.02} ${h * 0.56} C${w * 0.03} ${h * 0.52} ${w * 0.1} ${h * 0.55} ${w * 0.1} ${h * 0.62} L${w * 0.1} ${h} L${-w * 0.02} ${h} Z`;
+  const armR = `M${w * 1.02} ${h * 0.56} C${w * 0.97} ${h * 0.52} ${w * 0.9} ${h * 0.55} ${w * 0.9} ${h * 0.62} L${w * 0.9} ${h} L${w * 1.02} ${h} Z`;
   const patch = (x, y, inner) => `<g transform="translate(${x} ${y})">${inner}</g>`;
-  let star = ''; for (let j = 0; j < 10; j++) { const a = -Math.PI / 2 + j * Math.PI / 5, rr = j % 2 ? 13 : 27; star += (j ? 'L' : 'M') + n1(Math.cos(a) * rr) + ' ' + n1(Math.sin(a) * rr); }
+  let star = ''; for (let j = 0; j < 10; j++) { const a = -Math.PI / 2 + j * Math.PI / 5, rr = j % 2 ? 15 : 32; star += (j ? 'L' : 'M') + n1(Math.cos(a) * rr) + ' ' + n1(Math.sin(a) * rr); }
   const seatSvg = blob(seat, '#d8c4f0', { shade: '#a58bd0', g: 0.42, light: '#fff', l: 0.32, line: '#8a70b4', lw: 2.8 }) +
-    pencil(`M${w * 0.04} ${h * 0.74} C${w * 0.35} ${h * 0.73} ${w * 0.65} ${h * 0.73} ${w * 0.96} ${h * 0.74}`, 2.2, '#8a70b4', 0.55) +
-    patch(w * 0.2, h * 0.86, blob(star + 'Z', C.star, { shade: '#d9a520', g: 0.3, line: '#c99a2a', lw: 2.4 })) +
-    patch(w * 0.8, h * 0.87, blob('M0 14 C-34 -8 -18 -38 0 -20 C18 -38 34 -8 0 14 Z', '#f590a8', { shade: '#d0607a', g: 0.35, line: '#c25a72', lw: 2.4 })) +
+    pencil(`M${w * 0.04} ${h * 0.65} C${w * 0.35} ${h * 0.64} ${w * 0.65} ${h * 0.64} ${w * 0.96} ${h * 0.65}`, 2.2, '#8a70b4', 0.55) +
+    patch(w * 0.21, h * 0.8, blob('M-78 -50 C-40 -64 40 -64 78 -50 C92 -20 92 20 78 50 C40 64 -40 64 -78 50 C-92 20 -92 -20 -78 -50 Z', '#fbe08a', { shade: '#e0b54a', g: 0.4, light: '#fff', l: 0.3, line: '#c99a2a', lw: 2.6 }) +
+      pencil('M-60 -40 C-20 -30 20 -30 60 -40 M-60 40 C-20 30 20 30 60 40', 1.8, '#d6a83e', 0.5) + blob(star + 'Z', '#f6b93b', { shade: '#d98f20', g: 0.3, line: '#c4832a', lw: 2.4 })) +
+    patch(w * 0.79, h * 0.8, blob('M-78 -50 C-40 -64 40 -64 78 -50 C92 -20 92 20 78 50 C40 64 -40 64 -78 50 C-92 20 -92 -20 -78 -50 Z', '#a9cdf5', { shade: '#6f9be8', g: 0.4, light: '#fff', l: 0.3, line: '#5a83c4', lw: 2.6 }) +
+      pencil('M-60 -40 C-20 -30 20 -30 60 -40 M-60 40 C-20 30 20 30 60 40', 1.8, '#6f9be8', 0.5) + blob('M0 22 C-46 -10 -26 -50 0 -26 C26 -50 46 -10 0 22 Z', '#f590a8', { shade: '#d0607a', g: 0.35, line: '#c25a72', lw: 2.4 })) +
     blob(armL, '#c9b2e8', { shade: '#9c80c9', g: 0.42, light: '#fff', l: 0.3, line: '#8a70b4', lw: 2.6 }) + blob(armR, '#c9b2e8', { shade: '#9c80c9', g: 0.42, light: '#fff', l: 0.3, line: '#8a70b4', lw: 2.6 });
   // little woven basket for Bintang
-  const bx = w * 0.5, by = h * 0.555, bw = w * 0.17;
+  const bx = w * 0.5, by = h * 0.415, bw = w * 0.135;
   const back = blob(`M${bx - bw} ${by} C${bx - bw} ${by - 26} ${bx + bw} ${by - 26} ${bx + bw} ${by} Z`, '#c98f55', { shade: '#8f5a2c', g: 0.45, line: '#8a5a32', lw: 2.6 });
-  const front = `M${bx - bw - 6} ${by} C${bx - bw * 0.7} ${by + 12} ${bx + bw * 0.7} ${by + 12} ${bx + bw + 6} ${by} L${bx + bw * 0.86} ${by + h * 0.3} C${bx + bw * 0.4} ${by + h * 0.33} ${bx - bw * 0.4} ${by + h * 0.33} ${bx - bw * 0.86} ${by + h * 0.3} Z`;
+  const front = `M${bx - bw - 6} ${by} C${bx - bw * 0.7} ${by + 12} ${bx + bw * 0.7} ${by + 12} ${bx + bw + 6} ${by} L${bx + bw * 0.86} ${by + h * 0.4} C${bx + bw * 0.4} ${by + h * 0.43} ${bx - bw * 0.4} ${by + h * 0.43} ${bx - bw * 0.86} ${by + h * 0.4} Z`;
   let weave = '';
-  for (let i = 1; i < 7; i++) weave += `M${n1(bx - bw * (1 - i * 0.02))} ${n1(by + i * h * 0.043)} C${n1(bx - bw * 0.4)} ${n1(by + i * h * 0.043 + 10)} ${n1(bx + bw * 0.4)} ${n1(by + i * h * 0.043 + 10)} ${n1(bx + bw * (1 - i * 0.02))} ${n1(by + i * h * 0.043)} `;
-  for (let i = -3; i <= 3; i++) weave += `M${n1(bx + i * bw * 0.27)} ${n1(by + 10)} L${n1(bx + i * bw * 0.24)} ${n1(by + h * 0.3)} `;
+  for (let i = 1; i < 9; i++) weave += `M${n1(bx - bw * (1 - i * 0.016))} ${n1(by + i * h * 0.044)} C${n1(bx - bw * 0.4)} ${n1(by + i * h * 0.044 + 10)} ${n1(bx + bw * 0.4)} ${n1(by + i * h * 0.044 + 10)} ${n1(bx + bw * (1 - i * 0.016))} ${n1(by + i * h * 0.044)} `;
+  for (let i = -3; i <= 3; i++) weave += `M${n1(bx + i * bw * 0.27)} ${n1(by + 10)} L${n1(bx + i * bw * 0.24)} ${n1(by + h * 0.4)} `;
   const bow = blob(`M${bx} ${by + 26} C${bx - 30} ${by + 6} ${bx - 40} ${by + 46} ${bx} ${by + 30} C${bx + 40} ${by + 46} ${bx + 30} ${by + 6} ${bx} ${by + 26} Z`, '#f590a8', { shade: '#d0607a', g: 0.35, line: '#c25a72', lw: 2.4 });
   const frontSvg = blob(front, '#dca46a', { shade: '#a26a36', g: 0.45, light: '#fff', l: 0.25, line: '#8a5a32', lw: 2.8 }) + pencil(weave, 2, '#9a6436', 0.7) +
     pencil(`M${bx - bw - 6} ${by + 2} C${bx - bw * 0.7} ${by + 14} ${bx + bw * 0.7} ${by + 14} ${bx + bw + 6} ${by + 2}`, 5, '#b77f48', 0.9) + bow;

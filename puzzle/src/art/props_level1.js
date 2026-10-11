@@ -485,7 +485,7 @@ function zArt() {
   return svg(60, 60, `<path d="M14 14 H46 L14 46 H46" fill="none" stroke="#a9b7f0" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" filter="url(#crayon)"/><path d="M14 14 H46 L14 46 H46" ${stroke(2.6, '#6b6fa8')}/>`, 121);
 }
 function noteArt() {
-  return svg(56, 70, `${ol(`<ellipse cx="18" cy="54" rx="13" ry="10" transform="rotate(-20 18 54)"/><ellipse cx="44" cy="46" rx="11" ry="9" transform="rotate(-20 44 46)"/>`, C.lilacShade, 2.6)}<path d="M29 52 V10 L54 4 V44" ${stroke(3.6)}/><path d="M29 18 L54 12" ${stroke(5)}/>`, 131);
+  return svg(56, 70, `${ol(`<ellipse cx="18" cy="54" rx="13" ry="10" transform="rotate(-20 18 54)"/><ellipse cx="44" cy="46" rx="11" ry="9" transform="rotate(-20 44 46)"/>`, '#fff2cc', 2.6)}<path d="M29 52 V10 L54 4 V44" ${stroke(3.6)}/><path d="M29 18 L54 12" ${stroke(5)}/>`, 131);
 }
 
 // --- derived sprites for items: silhouette, shadow, glow ------------------------------------
