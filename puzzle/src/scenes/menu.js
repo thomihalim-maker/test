@@ -6,7 +6,7 @@ import { audio } from '../engine/audio.js';
 import { save } from '../engine/save.js';
 import { tween, wait, rng } from '../engine/tween.js';
 import { createCharacter, portraitSprite } from '../art/characters.js';
-import { makeButton, buttonSprite, press, release, tapButton, crayonWord, safeInset } from './ui.js';
+import { makeButton, buttonSprite, cornerScale, press, release, tapButton, crayonWord, safeInset } from './ui.js';
 import { burst, warmFx } from '../art/fx.js';
 import { PAL } from '../art/style.js';
 import {
@@ -242,7 +242,8 @@ export default class MenuScene {
     this.title.x = W / 2; this.title.y = oy + 124; this.plate.x = this.title.x; this.plate.y = this.title.y + 6;
     const first = this.title.letters[0];
     this.titleStar.x = first.baseX - 40; this.titleStar.y = -86; this.titleStar.bx = this.titleStar.x;
-    this.sound.x = W - 92 - si; this.sound.y = 90 + safeInset(v, 't') * 0.5;
+    const ck = cornerScale(); this.sound.baseScale = ck; if (this.sound.sx > 0.5) this.sound.sx = this.sound.sy = ck;
+    this.sound.x = W - 92 * ck - si; this.sound.y = 90 * ck + safeInset(v, 't') * 0.5;
   }
 
   enter() {
@@ -253,7 +254,7 @@ export default class MenuScene {
     const fy = this.fam.y; this.fam.y = fy + 120; tween(this.fam, { y: fy }, { dur: 0.8, delay: 0.1, ease: 'outBack' });
     this.play.sx = this.play.sy = 0; tween(this.play, { sx: 1, sy: 1 }, { dur: 0.6, delay: 0.55, ease: 'outBack' }).then(() => { this.play.ready = true; });
     this.cards.forEach((c, i) => { c.sx = c.sy = 0; tween(c, { sx: 1, sy: 1 }, { dur: 0.55, delay: 0.7 + i * 0.1, ease: 'outBack' }).then(() => { c.ready = true; }); });
-    this.sound.sx = this.sound.sy = 0; tween(this.sound, { sx: 1, sy: 1 }, { dur: 0.5, delay: 0.9, ease: 'outBack' });
+    this.sound.sx = this.sound.sy = 0; tween(this.sound, { sx: this.sound.baseScale || 1, sy: this.sound.baseScale || 1 }, { dur: 0.5, delay: 0.9, ease: 'outBack' });
     this.mom.lookAt?.(this.baby.toWorld(0, -120).x, this.baby.toWorld(0, -120).y);
     this.dad.lookAt?.(this.baby.toWorld(0, -120).x, this.baby.toWorld(0, -120).y);
     this.idleT = 3;

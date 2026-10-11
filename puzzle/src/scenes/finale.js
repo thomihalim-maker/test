@@ -7,7 +7,7 @@ import { tween } from '../engine/tween.js';
 import { createCharacter } from '../art/characters.js';
 import { burst, warmFx } from '../art/fx.js';
 import { PAL } from '../art/style.js';
-import { crayonWord, makeButton, press, release, safeInset } from './ui.js';
+import { crayonWord, makeButton, press, release, safeInset, cornerScale } from './ui.js';
 import {
   makeSprite, crayonShape, circlePts, ellipsePts, roundRectPts, starPts, roundCorners, tracePath, crayonFill, pencil, nightSky, hillSprite, moonSprite, glowSprite, buntingSprite,
   Starfield, Fireflies, ShootingStar,
@@ -83,7 +83,7 @@ export default class Finale {
     this.fam.y = H - 20 - (v.safe?.b || 0) * 0.5 - 142 * fs; // rug bottom (local +142) stays on screen
     this.famTop = this.fam.y - 600 * 0.78 * fs;
     this.mom.x = -250; this.dad.x = 250; this.baby.x = 0; this.baby.y = -26;
-    this.home.x = W - 110 - safeInset(v, 'r'); this.home.y = H - 110 - (v.safe?.b || 0) * 0.6;
+    const ck = cornerScale(); this.home.baseScale = ck; this.home.x = W - 110 * ck - safeInset(v, 'r'); this.home.y = H - 110 * ck - (v.safe?.b || 0) * 0.6;
   }
   enter() {
     audio.music('finale');
@@ -100,7 +100,7 @@ export default class Finale {
     }, 900);
     setTimeout(() => {
       if (game.scene !== this) return; this.canLeave = true; this.home.visible = true; this.home.sx = this.home.sy = 0;
-      tween(this.home, { sx: 1, sy: 1 }, { dur: 0.5, ease: 'outBack' }).then(() => { this.home.ready = true; });
+      tween(this.home, { sx: this.home.baseScale || 1, sy: this.home.baseScale || 1 }, { dur: 0.5, ease: 'outBack' }).then(() => { this.home.ready = true; });
     }, 3200);
   }
   _launch() {
@@ -121,7 +121,7 @@ export default class Finale {
     for (const L of this.title.letters) if (L.landed) { L.y = Math.sin(t * 3 - L.i * 0.45) * 8; L.rot = L.baseRot + Math.sin(t * 2 - L.i) * 0.05; }
     this.moon.rot = Math.sin(t * 0.6) * 0.08;
     this.bunting.rot = Math.sin(t * 0.9) * 0.006;
-    if (this.home.ready && !this.home.held) this.home.sx = this.home.sy = 1 + Math.sin(t * 4) * 0.05;
+    if (this.home.ready && !this.home.held) this.home.sx = this.home.sy = (this.home.baseScale || 1) * (1 + Math.sin(t * 4) * 0.05);
     // fireworks
     this.fwT -= dt; if (this.fwT <= 0) { this.fwT = game.time - this.t0 < 4 ? 0.6 + Math.random() * 0.3 : 1.1 + Math.random() * 0.6; this._launch(); if (Math.random() < 0.25) setTimeout(() => game.scene === this && this._launch(), 280); }
     for (const r of [...this.rockets]) {

@@ -92,6 +92,9 @@ export function release(b) {
 export function tapButton(b, fn) { press(b); setTimeout(() => { release(b); setTimeout(() => fn?.(), 90); }, 80); }
 
 /** Extra horizontal inset (design units) so corner buttons clear notches on wide phones. */
+/** Corner buttons get bigger when the stage is letterboxed in portrait (it renders smaller there). */
+export function cornerScale() { return game.offY > 0 ? 1.35 : 1; }
+
 export function safeInset(v = game.view, side = 'max') {
   const legacy = v.w > 1700 ? Math.min(70, (v.w - 1700) * 0.3) : 0, sf = v.safe || {};
   const l = Math.max(legacy, sf.l || 0), r = Math.max(legacy, sf.r || 0);
@@ -163,10 +166,11 @@ export async function createHud(scene) {
   let pressed = null, done = 0, total = 0, slots = [];
   const empty = starSprite(56, '#dccbab', { line: '#7a664a', lw: 2.6 }), full = starSprite(56, PAL.yellow);
   // intro pop
-  home.sx = home.sy = 0; tween(home, { sx: 1, sy: 1 }, { dur: 0.5, delay: 0.35, ease: 'outBack' });
+  home.baseScale = cornerScale();
+  home.sx = home.sy = 0; tween(home, { sx: home.baseScale, sy: home.baseScale }, { dur: 0.5, delay: 0.35, ease: 'outBack' });
   const hud = {
     home, progress: prog,
-    layout(v) { const si = safeInset(v, 'l'); home.x = 96 + si; home.y = 92 + safeInset(v, 't') * 0.5; prog.x = v.w / 2; prog.y = 70; },
+    layout(v) { const si = safeInset(v, 'l'), k = cornerScale(); if (home.sx > 0.5 && home.baseScale !== k) home.sx = home.sy = k; home.baseScale = k; home.x = 96 * k + si; home.y = 92 * k + safeInset(v, 't') * 0.5; prog.x = v.w / 2; prog.y = 70; },
     pointerDown(p) { if (!home.visible) return false; if (home.hitTest(p.x, p.y)) { pressed = home; press(home); return true; } return false; },
     pointerUp(p) {
       if (!pressed) return false; const n = pressed; pressed = null; release(n);
@@ -269,6 +273,9 @@ export function crayonWord(text, size, colors, o = {}) {
   return box;
 }
 
+/** Shared banner centre (design units below the top edge) — clears curtain rods / bunting in every level. */
+export const WIN_BANNER_Y = 112;
+
 export async function showWin(scene, { stars = 3, next, calm = false, bannerY: bannerYOpt, offsetY = 0, bannerScale = 0.84, starsY } = {}) {
   // winOpts: calm, bannerY (design y of the banner centre), offsetY (shifts the whole top group), bannerScale, starsY
   // calm: quiet bedtime variant (soft falling stars + glow, music-box chime, no confetti/sunburst, gentle motion)
@@ -285,18 +292,19 @@ export async function showWin(scene, { stars = 3, next, calm = false, bannerY: b
     // dim only the top and bottom bands so the level's payoff in the centre stays visible
     const w = W(), h = H(), g = ctx.createLinearGradient(0, 0, 0, h);
     // warm, light, and faded out before the character band so shirts keep their colour
-    g.addColorStop(0, 'rgba(74,48,34,0.36)'); g.addColorStop(0.26, 'rgba(74,48,34,0.06)'); g.addColorStop(0.36, 'rgba(74,48,34,0)');
-    g.addColorStop(0.86, 'rgba(74,48,34,0)'); g.addColorStop(1, 'rgba(74,48,34,0.22)');
+    const k = calm ? 0.55 : 1;
+    g.addColorStop(0, `rgba(74,48,34,${0.36 * k})`); g.addColorStop(0.26, `rgba(74,48,34,${0.06 * k})`); g.addColorStop(0.36, 'rgba(74,48,34,0)');
+    g.addColorStop(0.86, 'rgba(74,48,34,0)'); g.addColorStop(1, `rgba(74,48,34,${0.22 * k})`);
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
   } }));
   tween(dim, { alpha: 1 }, { dur: 0.45 });
-  const topY = Math.min(oy, 60) * 0.5 + offsetY;
+  const topY = Math.min(oy, 60) * 0.5 + offsetY + (v.safe?.t || 0) * 0.5;
   if (calm) {
     // soft moonlight glow instead of a sunburst
     const glow = root.add(new Node({ x: cx, y: topY + 150, alpha: 0, composite: 'lighter' }).setImage(glowSprite(64, '#fff1c8')));
-    glow.w = 900; glow.h = 520;
-    tween(glow, { alpha: 0.5 }, { dur: 1.6, delay: 0.3, ease: 'inOutSine' });
-    game.onUpdate((dt, t) => { if (glow.alpha > 0.2) glow.alpha = 0.42 + Math.sin(t * 0.9) * 0.08; });
+    glow.w = 720; glow.h = 380;
+    tween(glow, { alpha: 0.3 }, { dur: 1.6, delay: 0.3, ease: 'inOutSine' });
+    game.onUpdate((dt, t) => { if (glow.alpha > 0.12) glow.alpha = 0.26 + Math.sin(t * 0.9) * 0.05; });
   } else {
     const rays = root.add(new Node({ x: cx, y: topY + 120, alpha: 0, sx: 0.3, sy: 0.3 }).setImage(raysSprite()));
     rays.w = rays.h = 1500;
@@ -304,7 +312,7 @@ export async function showWin(scene, { stars = 3, next, calm = false, bannerY: b
     game.onUpdate((dt) => { rays.rot += dt * 0.12; });
   }
 
-  const bannerY = bannerYOpt ?? topY + 84;
+  const bannerY = bannerYOpt ?? topY + WIN_BANNER_Y; // one shared anchor for every level
   const cardY = starsY ?? bannerY + 112 * (bannerScale / 0.84);
   const back = root.add(new Node()); // confetti / falling stars live below the banner and stars
 
@@ -365,7 +373,7 @@ export async function showWin(scene, { stars = 3, next, calm = false, bannerY: b
     // buttons
     const defs = [['replay', PAL.green, 140, () => game.go(game.sceneName)], ['home', PAL.blue, 140, () => game.go('menu')]];
     if (next) defs.push(['next', PAL.orange, 178, () => game.go(next)]);
-    const by = H() - 112, gap = 215;
+    const by = H() - 112 - (game.view.safe?.b || 0) * 0.6, gap = 215;
     for (let i = 0; i < defs.length; i++) {
       const [icon, col, size, fn] = defs[i];
       const b = await makeButton({ icon, size, color: col }, fn);
