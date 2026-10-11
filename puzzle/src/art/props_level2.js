@@ -95,9 +95,9 @@ const softShadow = (cx, cy, rx, ry, op = 0.22, blur = 'soft') =>
 
 // ------------------------------------------------------------------ palette
 export const COLS = {
-  red: { c: '#ec6262', s: '#c84b4d', l: '#f8aaa6', name: 'merah', wick: '#f2a49b', wickS: '#d97c74', wickD: '#a85a56', rim: '#e48d84', cheek: '#ffd2cf' },
-  yellow: { c: '#f6c93a', s: '#d9a11e', l: '#fde69a', name: 'kuning', wick: '#f7d684', wickS: '#dcb052', wickD: '#a9823a', rim: '#efc35e', cheek: '#f7a9b8' },
-  blue: { c: '#5389e0', s: '#3a68bd', l: '#a9c6f3', name: 'biru', wick: '#a3c1f0', wickS: '#7898d6', wickD: '#526fa6', rim: '#87a8e2', cheek: '#f7a9b8' },
+  red: { c: '#e9504f', s: '#c63a3d', d: '#952a2e', l: '#f6a3a0', name: 'merah', cheek: '#ffd0cc' },
+  yellow: { c: '#f9d43c', s: '#eda72a', d: '#c47e1a', l: '#fde89a', name: 'kuning', cheek: '#f7a0b0' },
+  blue: { c: '#4f84df', s: '#3463b8', d: '#264a8e', l: '#a9c6f3', name: 'biru', cheek: '#f7a9b8' },
 };
 const R2 = {
   wall: '#fbe4cf', wallTex: '#f6d6bb', stripe: '#f8dcc4', panel: '#d5eadb', panelTex: '#c7e2d0', panelLine: '#a9cdb6',
@@ -124,8 +124,8 @@ const TOY_ART = {
       <path d="M14 69 Q80 108 148 63 M14 84 Q80 124 148 78" ${L(2.2, mix(C.s, PAL.line, 0.4))} opacity="0.7"/>
       ${hatch(d, [26, 39, 108, 108], C.s, { ang: -35, gap: 8, op: 0.3, seed: 4 })}
     </g>
-    <ellipse cx="58" cy="66" rx="13" ry="8" fill="#fff" opacity="0.85" transform="rotate(-30 58 66)"/>
-    <circle cx="76" cy="58" r="3.5" fill="#fff" opacity="0.8"/>
+    <ellipse cx="58" cy="66" rx="13" ry="8" fill="#fff" filter="url(#crayon)" opacity="0.85" transform="rotate(-30 58 66)"/>
+    <circle cx="76" cy="58" r="3.5" fill="#fff" filter="url(#crayon)" opacity="0.8"/>
     <path d="${d}" ${stroke(3.4)}/>`;
   },
   block(C) {
@@ -170,7 +170,7 @@ const TOY_ART = {
     <path d="M70 112 Q80 106 92 112" ${stroke(2)} opacity="0.7"/>
     <circle cx="107" cy="57" r="4.6" fill="${PAL.lineDark}"/><circle cx="108.5" cy="55.5" r="1.4" fill="#fff"/>
     <ellipse cx="98" cy="75" rx="7" ry="4.5" fill="${C.cheek}" filter="url(#blush)"/>
-    <ellipse cx="88" cy="47" rx="8" ry="4.5" fill="#fff" opacity="0.75" transform="rotate(-25 88 47)"/>
+    <ellipse cx="88" cy="47" rx="8" ry="4.5" fill="#fff" filter="url(#crayon)" opacity="0.75" transform="rotate(-25 88 47)"/>
     <path d="M36 104 Q46 120 66 128" ${L(4, '#fff')} opacity="0.45"/>`;
   },
   rings(C) {
@@ -187,7 +187,7 @@ const TOY_ART = {
         `<path d="M${x + 10} ${y + 6} Q${x + w / 2} ${y + 3} ${x + w - 14} ${y + 6}" ${L(3, '#fff')} opacity="0.6"/>`;
     }).join('')}
     ${shape(blobD(80, 44, 13, 13, { seed: 40 }), wood, { lw: 2.6 })}
-    <circle cx="76" cy="40" r="3" fill="#fff" opacity="0.8"/>`;
+    <circle cx="76" cy="40" r="3" fill="#fff" filter="url(#crayon)" opacity="0.8"/>`;
   },
 };
 export const TOY_TYPES = Object.keys(TOY_ART);
@@ -209,12 +209,12 @@ function basketBackSVG(k) {
     ticks += `M${f(x - 5)} ${f(y - 6)}L${f(x + 5)} ${f(y + 6)}`;
   }
   return W(BASKET_W, BASKET_H, `
-    <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${C.wickS}"/><stop offset="1" stop-color="${C.wickD}"/></linearGradient>
+    <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${mix(C.c, C.s, 0.4)}"/><stop offset="1" stop-color="${mix(C.s, C.d, 0.5)}"/></linearGradient>
     ${softShadow(cx, BK.by + 2, rx + 8, 15, 0.3)}
     <ellipse cx="${cx}" cy="${ty}" rx="${rx - 8}" ry="${ry - 7}" fill="url(#${gid})"/>
-    <ellipse cx="${cx}" cy="${ty}" rx="${rx - 8}" ry="${ry - 7}" fill="${C.wickD}" opacity="0.4" filter="url(#crayon)"/>
-    ${shape(backRim, C.rim, { lw: 3 })}
-    <path d="${ticks}" ${L(2.2, C.wickD)} opacity="0.55" filter="url(#pencil)"/>`, { seed: 7 });
+    <ellipse cx="${cx}" cy="${ty}" rx="${rx - 8}" ry="${ry - 7}" fill="${C.d}" opacity="0.22" filter="url(#crayon)"/>
+    ${shape(backRim, C.c, { lw: 3, base: C.s })}
+    <path d="${ticks}" ${L(2.2, C.d)} opacity="0.55" filter="url(#pencil)"/>`, { seed: 7 });
 }
 function basketFrontSVG(k) {
   const C = COLS[k], { cx, rx, ry, ty, by } = BK, cid = uid('c');
@@ -239,7 +239,7 @@ function basketFrontSVG(k) {
     for (let i = 0; i < NS; i++) {
       const t = (i + 0.5) / NS, ym = rimCurve(cx, off + 12), x = stakeX(t, ym), y = rimCurve(x, off + 12);
       const w = (2 * rx / NS) * 0.9;
-      if ((i + j) % 2) bumps += `<path d="${rrect(x - w / 2, y - 9, w, 18, 8)}" fill="${C.wickS}"/>`;
+      if ((i + j) % 2) bumps += `<path d="${rrect(x - w / 2, y - 9, w, 18, 8)}" fill="${C.s}"/>`;
       else shades += `M${f(x - w * 0.32)} ${f(y - 3)}Q${f(x)} ${f(y - 7)} ${f(x + w * 0.32)} ${f(y - 3)}`;
     }
   });
@@ -256,19 +256,19 @@ function basketFrontSVG(k) {
   const tails = `M60 108L46 140L57 134L61 145Z M68 108L82 138L71 134L67 145Z`;
   return W(BASKET_W, BASKET_H, `
     <clipPath id="${cid}"><path d="${body}"/></clipPath>
-    <path d="${body}" fill="${lighten(C.wick, 0.25)}"/>
-    <path d="${body}" fill="${C.wick}" filter="url(#crayon)"/>
+    <path d="${body}" fill="${lighten(C.c, 0.12)}"/>
+    <path d="${body}" fill="${C.c}" filter="url(#crayon)"/>
     <g clip-path="url(#${cid})">
       <g filter="url(#crayon)" opacity="0.7">${bumps}</g>
-      <path d="${shades}" ${L(3, lighten(C.wick, 0.5))} opacity="0.8"/>
-      <g filter="url(#penU)" opacity="0.55"><path d="${rowPath}" ${L(2.2, C.wickD)}/><path d="${stakePath}" ${L(2, C.wickD)}/></g>
-      <path d="M${cx - rx} ${ty}C${cx - rx + 6} ${ty + 60} ${cx - rx + 22} ${by - 30} ${cx - rx + 34} ${by - 10}L${cx - rx + 70} ${by}L${cx - rx + 40} ${ty}Z" fill="${C.wickD}" opacity="0.2"/>
-      <path d="M${cx + rx} ${ty}C${cx + rx - 6} ${ty + 60} ${cx + rx - 22} ${by - 30} ${cx + rx - 34} ${by - 10}L${cx + rx - 90} ${by}L${cx + rx - 60} ${ty}Z" fill="${C.wickD}" opacity="0.28"/>
-      <ellipse cx="${cx}" cy="${by + 6}" rx="${rx}" ry="26" fill="${C.wickD}" opacity="0.25" filter="url(#soft)"/>
+      <path d="${shades}" ${L(3, lighten(C.c, 0.45))} opacity="0.75"/>
+      <g filter="url(#penU)" opacity="0.5"><path d="${rowPath}" ${L(2.2, C.d)}/><path d="${stakePath}" ${L(2, C.d)}/></g>
+      <path d="M${cx - rx} ${ty}C${cx - rx + 6} ${ty + 60} ${cx - rx + 22} ${by - 30} ${cx - rx + 34} ${by - 10}L${cx - rx + 70} ${by}L${cx - rx + 40} ${ty}Z" fill="${C.d}" opacity="0.18"/>
+      <path d="M${cx + rx} ${ty}C${cx + rx - 6} ${ty + 60} ${cx + rx - 22} ${by - 30} ${cx + rx - 34} ${by - 10}L${cx + rx - 90} ${by}L${cx + rx - 60} ${ty}Z" fill="${C.d}" opacity="0.26"/>
+      <ellipse cx="${cx}" cy="${by + 6}" rx="${rx}" ry="26" fill="${C.d}" opacity="0.25" filter="url(#soft)"/>
     </g>
     <path d="${body}" ${stroke(3.4)}/>
-    ${shape(frontRim, C.rim, { lw: 3 })}
-    <path d="${ticks}" ${L(2.4, C.wickD)} opacity="0.6" filter="url(#pencil)"/>
+    ${shape(frontRim, C.c, { lw: 3, base: C.s })}
+    <path d="${ticks}" ${L(2.4, C.d)} opacity="0.6" filter="url(#pencil)"/>
     <path d="M${cx - rx + 10} ${ty + 12}Q${cx - 60} ${ty + 34} ${cx - 20} ${ty + 37}" ${L(3.5, '#fff')} opacity="0.55"/>
     <g transform="rotate(-3 160 165)">
       <path d="${tag}" fill="#000" opacity="0.12" transform="translate(3 5)" filter="url(#soft)"/>
@@ -277,14 +277,41 @@ function basketFrontSVG(k) {
       ${shape(blob, C.c, { base: lighten(C.c, 0.15), lw: 3.2 })}
       ${hatch(blob, [121, 127, 78, 72], C.s, { ang: -35, gap: 7, op: 0.3, seed: 3 })}
       <ellipse cx="146" cy="145" rx="9" ry="6" fill="#fff" opacity="0.8" transform="rotate(-30 146 145)"/>
-      <circle cx="150" cy="161" r="3.8" fill="${PAL.lineDark}"/><circle cx="170" cy="161" r="3.8" fill="${PAL.lineDark}"/>
-      <path d="M153 172 Q160 179 167 172" ${L(2.8, PAL.lineDark)}/>
-      <ellipse cx="141" cy="171" rx="6" ry="4" fill="${C.cheek}" filter="url(#blush)"/>
-      <ellipse cx="179" cy="171" rx="6" ry="4" fill="${C.cheek}" filter="url(#blush)"/>
     </g>
     ${shape(bow, C.c, { lw: 2.8 })}${shape(tails, C.c, { lw: 2.6 })}
-    <circle cx="64" cy="106" r="8" fill="${C.s}"/><circle cx="64" cy="106" r="8" ${stroke(2.6)}/>
+    <circle cx="64" cy="106" r="8" fill="${C.d}"/><circle cx="64" cy="106" r="8" ${stroke(2.6)}/>
     <path d="M44 98 Q48 94 54 96" ${L(2.6, '#fff')} opacity="0.7"/>`, { seed: 9 });
+}
+
+/** label faces (90x70, centre (45,38)): idle smile, look-up gasp (hover), happy (success) */
+export const FACE_W = 90, FACE_H = 70, FACE_CY = 38;
+function faceSVG(k, mood) {
+  const C = COLS[k], ink = PAL.lineDark;
+  const cheeks = `<ellipse cx="25" cy="47" rx="6.5" ry="4.2" fill="${C.cheek}" filter="url(#blush)"/><ellipse cx="65" cy="47" rx="6.5" ry="4.2" fill="${C.cheek}" filter="url(#blush)"/>`;
+  if (mood === 'open') return W(FACE_W, FACE_H, `${cheeks}
+    <circle cx="35" cy="31" r="4.6" fill="${ink}"/><circle cx="55" cy="31" r="4.6" fill="${ink}"/>
+    <circle cx="36.4" cy="29.4" r="1.5" fill="#fff"/><circle cx="56.4" cy="29.4" r="1.5" fill="#fff"/>
+    <path d="M29 21 Q34 17 39 20 M51 20 Q56 17 61 21" ${L(2.4, ink)}/>
+    <ellipse cx="45" cy="48" rx="6" ry="7" fill="#c4505f"/><ellipse cx="45" cy="48" rx="6" ry="7" ${L(2.4, ink)}/>
+    <ellipse cx="45" cy="51.5" rx="3.6" ry="2.6" fill="#f58c9d"/>`, { seed: 31 });
+  if (mood === 'happy') return W(FACE_W, FACE_H, `${cheeks}
+    <path d="M29 37 Q35 29 41 37 M49 37 Q55 29 61 37" ${L(3, ink)}/>
+    <path d="M35 44 Q45 47 55 44 Q53 57 45 57 Q37 57 35 44Z" fill="#c4505f"/><path d="M35 44 Q45 47 55 44 Q53 57 45 57 Q37 57 35 44Z" ${L(2.4, ink)}/>
+    <ellipse cx="45" cy="53" rx="4" ry="2.4" fill="#f58c9d"/>`, { seed: 33 });
+  return W(FACE_W, FACE_H, `${cheeks}
+    <circle cx="35" cy="36" r="3.9" fill="${ink}"/><circle cx="55" cy="36" r="3.9" fill="${ink}"/>
+    <path d="M38 47 Q45 54 52 47" ${L(2.8, ink)}/>`, { seed: 35 });
+}
+
+// ------------------------------------------------------------------ CUSHION (foreground floor pouf for tall/tablet views; 320x190)
+function cushionSVG() {
+  const d = 'M20 120C14 70 70 40 160 40C250 40 306 70 300 120C296 160 240 182 160 182C80 182 24 160 20 120Z';
+  return W(320, 190, `${softShadow(160, 176, 150, 16, 0.3)}
+    ${shape(d, R2.mint, { lw: 3.2 })}
+    ${hatch(d, [20, 40, 280, 142], '#93c7aa', { ang: -30, gap: 9, op: 0.35, seed: 3 })}
+    <path d="M40 104C90 84 230 84 280 104" ${L(3, '#fff')} opacity="0.6"/>
+    <path d="M70 70 Q160 120 250 70 M160 46 L160 178" ${L(2.2, '#7fb497')} opacity="0.7" stroke-dasharray="6 7"/>
+    ${shape(softStarD(160, 104, 22, 10, 5), '#fde69a', { lw: 2.4 })}`, { seed: 37 });
 }
 
 // ------------------------------------------------------------------ BOUNCER (320x300, base centre at y=288)
@@ -314,20 +341,20 @@ function bouncerBackSVG() {
     <path d="M86 214C80 160 104 82 160 76C216 82 240 160 234 214" fill="none" stroke="${R2.seatS}" stroke-width="2.4" stroke-dasharray="6 7" stroke-linecap="round" opacity="0.8"/>`, { seed: 13 });
 }
 function bouncerFrontSVG() {
-  const bowl = 'M40 170C40 240 96 282 160 282C224 282 280 240 280 170C240 194 80 194 40 170Z', cid = uid('c');
+  const bowl = 'M40 204C40 252 96 284 160 284C224 284 280 252 280 204C240 226 80 226 40 204Z', cid = uid('c');
   return W(BOUNCER_W, BOUNCER_H, `
     <clipPath id="${cid}"><path d="${bowl}"/></clipPath>
     ${shape(bowl, R2.seat2, { line: false })}
     <g clip-path="url(#${cid})">
-      ${hatch(bowl, [40, 170, 240, 112], R2.seatS, { ang: -35, gap: 9, op: 0.35, seed: 8 })}
-      <path d="M70 196 Q90 250 140 270 M250 196 Q230 250 180 270" ${L(2.4, R2.seatS)} opacity="0.9" stroke-dasharray="6 6"/>
+      ${hatch(bowl, [40, 204, 240, 80], R2.seatS, { ang: -35, gap: 9, op: 0.35, seed: 8 })}
+      <path d="M70 226 Q90 260 140 274 M250 226 Q230 260 180 274" ${L(2.4, R2.seatS)} opacity="0.9" stroke-dasharray="6 6"/>
       <ellipse cx="160" cy="282" rx="130" ry="30" fill="#7d6aa8" opacity="0.18" filter="url(#soft)"/>
     </g>
-    <path d="M40 170C80 194 240 194 280 170" fill="none" stroke="${lighten(R2.seat2, 0.5)}" stroke-width="10" stroke-linecap="round" filter="url(#crayon)"/>
+    <path d="M40 204C80 228 240 228 280 204" fill="none" stroke="${lighten(R2.seat2, 0.5)}" stroke-width="10" stroke-linecap="round" filter="url(#crayon)"/>
     <path d="${bowl}" ${stroke(3.2)}/>
-    <path d="M44 178C84 200 236 200 276 178" ${stroke(2)} opacity="0.6"/>
-    ${shape(rrect(144, 214, 32, 26, 8), '#fff6e6', { lw: 2.4 })}
-    <path d="M152 227 L168 227" ${stroke(2)} opacity="0.7"/>
+    <path d="M46 212C86 234 234 234 274 212" ${stroke(2)} opacity="0.6"/>
+    ${shape(softStarD(160, 252, 21, 9.5, 5), '#fde69a', { lw: 2.4 })}
+    <circle cx="124" cy="258" r="4" fill="#fff6c8"/><circle cx="196" cy="258" r="4" fill="#fff6c8"/>
     <path d="M30 278A130 16 0 0 0 290 278" ${L(8, R2.grey)}/>
     <path d="M30 278A130 16 0 0 0 290 278" ${stroke(2.4)}/>
     <path d="M60 286A100 6 0 0 0 260 286" ${L(3, '#fff')} opacity="0.5"/>`, { seed: 15 });
@@ -384,12 +411,12 @@ function wallSVG() {
     <circle cx="${pic.x + 117}" cy="${pic.y + 93}" r="4.5" fill="none" stroke="#2f57b8" stroke-width="2.4"/>
     <path d="M${pic.x + 20} ${pic.y + 110}Q${pic.x + 85} ${pic.y + 104} ${pic.x + 150} ${pic.y + 111}" ${L(3, '#59c48c')}/>`;
   // round wall clock (wide screens)
-  const clock = `${softShadow(1606, 160, 58, 58, 0.18)}
-    ${shape(blobD(1600, 150, 58, 58, { seed: 3, j: 0.01 }), R2.mint, { lw: 3 })}
-    ${shape(blobD(1600, 150, 44, 44, { seed: 4, j: 0.01 }), '#fffdf5', { base: '#fffdf5', lw: 2.4 })}
-    <path d="M1600 150L1600 120 M1600 150L1620 160" ${L(4, PAL.lineDark)}/>
-    <circle cx="1600" cy="150" r="4" fill="${PAL.lineDark}"/>
-    <path d="M1600 112v6 M1638 150h-6 M1600 188v-6 M1562 150h6" ${L(3, PAL.line)}/>`;
+  const clock = `${softShadow(1536, 128, 58, 58, 0.18)}
+    ${shape(blobD(1530, 118, 58, 58, { seed: 3, j: 0.01 }), R2.mint, { lw: 3 })}
+    ${shape(blobD(1530, 118, 44, 44, { seed: 4, j: 0.01 }), '#fffdf5', { base: '#fffdf5', lw: 2.4 })}
+    <path d="M1530 118L1530 88 M1530 118L1550 128" ${L(4, PAL.lineDark)}/>
+    <circle cx="1530" cy="118" r="4" fill="${PAL.lineDark}"/>
+    <path d="M1530 80v6 M1568 118h-6 M1530 156v-6 M1492 118h6" ${L(3, PAL.line)}/>`;
   return W(w, h, `
     <clipPath id="${cid}"><path d="${hole}" clip-rule="evenodd"/></clipPath>
     <path d="${hole}" fill="${R2.wall}" fill-rule="evenodd"/>
@@ -456,7 +483,7 @@ function floorSVG() {
     <rect x="-400" y="540" width="2400" height="560" fill="url(#${gid})"/>
     <!-- grounding shadows for furniture -->
     ${softShadow(1310, 566, 170, 16, 0.28)}
-    ${softShadow(1600, 598, 90, 14, 0.26)}
+    ${softShadow(1545, 598, 70, 12, 0.26)}
     ${softShadow(-250, 612, 80, 12, 0.24)}
     ${softShadow(1850, 698, 170, 20, 0.26)}
     <rect x="-400" y="546" width="2400" height="14" fill="#8a5a34" opacity="0.14" filter="url(#soft)"/>
@@ -666,7 +693,7 @@ function handSVG() {
 }
 
 /** soft round shadow (160x50) */
-function shadowSVG() { return W(200, 60, `<ellipse cx="100" cy="30" rx="80" ry="16" fill="#5a3a2a" opacity="0.5" filter="url(#soft)"/>`); }
+function shadowSVG() { return W(200, 60, `<ellipse cx="100" cy="30" rx="80" ry="16" fill="#4a2e22" opacity="0.62" filter="url(#soft)"/><ellipse cx="100" cy="30" rx="56" ry="10" fill="#4a2e22" opacity="0.3" filter="url(#soft)"/>`); }
 
 // ------------------------------------------------------------------ loader
 /** Rasterize all level-2 art in parallel. Returns { toys: {`${type}-${col}`: sprite}, baskets: {col: {back, front}}, ... } */
@@ -679,11 +706,13 @@ export async function loadLevel2Art(toyList) {
     curtain: S(curtainSVG, CURTAIN_W, CURTAIN_H, 'curtain'), leaves: S(plantLeavesSVG, 320, 360, 'leaves'), pot: S(potSVG, 160, 130, 'pot'),
     shelf: S(shelfSVG, 300, 340, 'shelf'), lamp: S(lampSVG, 180, 620, 'lamp'), chest: S(chestSVG, 320, 240, 'chest'),
     beam: S(beamSVG, BEAM.w, BEAM.h, 'beam'), hand: S(handSVG, HAND_W, HAND_H, 'hand'), shadow: S(shadowSVG, 200, 60, 'shadow'),
+    cushion: S(cushionSVG, 320, 190, 'cushion'),
     bouncerBack: S(bouncerBackSVG, BOUNCER_W, BOUNCER_H, 'bouncer-b'), bouncerFront: S(bouncerFrontSVG, BOUNCER_W, BOUNCER_H, 'bouncer-f'),
   };
   for (const k of Object.keys(COLS)) {
     jobs['bk-back-' + k] = S(() => basketBackSVG(k), BASKET_W, BASKET_H, 'bk-back-' + k);
     jobs['bk-front-' + k] = S(() => basketFrontSVG(k), BASKET_W, BASKET_H, 'bk-front-' + k);
+    for (const m of ['idle', 'open', 'happy']) jobs[`bk-face${m}-${k}`] = S(() => faceSVG(k, m), FACE_W, FACE_H, `face-${m}-${k}`);
   }
   const need = new Set(toyList.map(t => `${t.type}-${t.col}`));
   for (const key of need) { const [type, col] = key.split('-'); jobs['toy-' + key] = S(() => toySVG(type, col), TOY_W, TOY_H, 'toy-' + key); }

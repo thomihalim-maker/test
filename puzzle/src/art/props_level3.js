@@ -15,7 +15,7 @@ export const L3 = {
   OVER: 9,                   // frame lip overlapping the photo edge
   STRING: 78,                // hanging string height above the frame
   NAIL_Y: 24,                // nail y inside the frame sprite
-  M: 16,                     // sprite margin around the frame
+  M: 46,                     // sprite margin around the frame (room for the soft wall shadow)
 };
 L3.OW = L3.PW - 2 * L3.OVER + 2 * L3.B;   // frame outer width
 L3.OH = L3.PH - 2 * L3.OVER + 2 * L3.B;   // frame outer height
@@ -104,7 +104,7 @@ export function wallSVG(frameCY) {
 }
 
 // Garland of crayon flags across the top, both sides of the frame. Sprite centered on the frame (x = cx).
-export const GARLAND_W = 2000, GARLAND_H = 230;
+export const GARLAND_W = 1160, GARLAND_H = 200;
 export function garlandSVG() {
   const W = GARLAND_W, H = GARLAND_H, r = rng(77);
   const cols = [PAL.red, PAL.yellow, PAL.blue, PAL.green, '#f39bb0', PAL.orange, PAL.purple];
@@ -114,7 +114,7 @@ export function garlandSVG() {
     const qx = mx, qy = (y0 + y1) / 2 + sag * 2;
     const P = t => ({ x: (1 - t) * (1 - t) * x0 + 2 * (1 - t) * t * qx + t * t * x1, y: (1 - t) * (1 - t) * y0 + 2 * (1 - t) * t * qy + t * t * y1 });
     let flags = '', outl = '';
-    const n = 9;
+    const n = 8;
     for (let i = 0; i < n; i++) {
       const t = (i + 0.6) / (n + 0.2), p = P(t), p2 = P(t + 0.01), a = Math.atan2(p2.y - p.y, p2.x - p.x) * 180 / Math.PI;
       const col = cols[(i + seed) % cols.length], fw = 52, fh = 62 + r() * 8;
@@ -124,8 +124,9 @@ export function garlandSVG() {
     s += `<path d="M${x0} ${y0} Q${qx} ${qy} ${x1} ${y1}" ${stroke(3, '#8f7f73')}/>` + flags;
     s += `<circle cx="${x0}" cy="${y0}" r="6" fill="#9aa0a8"/><circle cx="${x1}" cy="${y1}" r="6" fill="#9aa0a8"/>`;
   };
-  strand(40, 26, W / 2 - 330, 34, 46, 1, 0);
-  strand(W / 2 + 330, 34, W - 40, 26, 46, -1, 3);
+  // strands start clear of the home button (cx-540 = ox+260) and meet behind the frame's nail
+  strand(W / 2 - 540, 22, W / 2 - 34, 44, 40, 1, 0);
+  strand(W / 2 + 34, 44, W / 2 + 540, 22, 40, -1, 3);
   return svg(W, H, s, 9);
 }
 
@@ -136,19 +137,21 @@ export function tableSVG() {
   let s = softDefs('tsoft', 6);
   s += `<rect x="-20" y="34" width="${W + 40}" height="${H}" fill="${WOOD.mid}"/>`;
   s += `<rect x="-20" y="34" width="${W + 40}" height="${H}" ${fill('#d28f55')}/>`;
-  // drawers
-  const dw = 380, gap = 40;
+  // one compact row of drawers + a plinth rail (keeps tall screens from showing a wall of drawers)
+  const dw = 380, gap = 40, dh = 104, y = 62;
   for (let k = -3; k <= 3; k++) {
-    const x = W / 2 + k * (dw + gap) - dw / 2, y = 78;
-    s += `<path d="${rr(x, y, dw, 150, 14)}" ${fill('#dda06a')}/>`;
-    s += `<path d="${rr(x + 8, y + 8, dw - 16, 134, 10)}" fill="none" stroke="#f0bf8a" stroke-width="5" opacity="0.6" filter="url(#crayon)"/>`;
-    s += `<path d="${rr(x, y, dw, 150, 14)}" ${stroke(2.8, '#7d5638')}/>`;
-    // knob
-    s += `<ellipse cx="${x + dw / 2}" cy="${y + 52}" rx="17" ry="15" ${fill('#f6cf3e')}/><ellipse cx="${x + dw / 2}" cy="${y + 52}" rx="17" ry="15" ${stroke(2.6, '#7d5638')}/>`;
-    s += `<ellipse cx="${x + dw / 2 - 5}" cy="${y + 47}" rx="5" ry="4" fill="#fff" opacity="0.7"/>`;
-    s += `<path d="${rr(x, y + 180, dw, 150, 14)}" ${fill('#dda06a')}/><path d="${rr(x, y + 180, dw, 150, 14)}" ${stroke(2.8, '#7d5638')}/>`;
-    s += `<ellipse cx="${x + dw / 2}" cy="${y + 232}" rx="17" ry="15" ${fill('#f6cf3e')}/><ellipse cx="${x + dw / 2}" cy="${y + 232}" rx="17" ry="15" ${stroke(2.6, '#7d5638')}/>`;
+    const x = W / 2 + k * (dw + gap) - dw / 2;
+    s += `<path d="${rr(x, y, dw, dh, 14)}" ${fill('#dda06a')}/>`;
+    s += `<path d="${rr(x + 8, y + 8, dw - 16, dh - 16, 10)}" fill="none" stroke="#f0bf8a" stroke-width="5" opacity="0.6" filter="url(#crayon)"/>`;
+    s += `<path d="${rr(x, y, dw, dh, 14)}" ${stroke(2.8, '#7d5638')}/>`;
+    s += `<ellipse cx="${x + dw / 2}" cy="${y + dh / 2}" rx="17" ry="15" ${fill('#f6cf3e')}/><ellipse cx="${x + dw / 2}" cy="${y + dh / 2}" rx="17" ry="15" ${stroke(2.6, '#7d5638')}/>`;
+    s += `<ellipse cx="${x + dw / 2 - 5}" cy="${y + dh / 2 - 5}" rx="5" ry="4" fill="#fff" opacity="0.7"/>`;
   }
+  const py = y + dh + 26;
+  s += `<rect x="-20" y="${py}" width="${W + 40}" height="${H}" ${fill('#c07f48')}/>`;
+  s += `<path d="${wline(-20, py, W + 20, py, 1.5, r, 16)}" ${stroke(2.8, '#7d5638')}/>`;
+  s += `<path d="${wline(-20, py + 12, W + 20, py + 12, 1.5, r, 16)}" stroke="#e7ad74" stroke-width="4" opacity="0.5" fill="none" filter="url(#crayon)"/>`;
+  for (let k = -6; k <= 6; k++) { const x = W / 2 + k * 190; s += `<path d="M${x} ${py + 30} V${H}" ${stroke(2, '#9a6436')} opacity="0.45"/>`; }
   // wood grain
   for (let i = 0; i < 26; i++) {
     const x = r() * W, y = 60 + r() * (H - 80), l = 80 + r() * 200;
@@ -280,37 +283,56 @@ function tabEdge(ax, ay, dx, dy, nx, ny, L, g, r) {
     return [ax + dx * uu * L + nx * vv * L * g, ay + dy * uu * L + ny * vv * L * g];
   });
 }
+const cubicAt = (p0, p1, p2, p3, t) => { const u = 1 - t; return [u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0], u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]]; };
 
-/** Build the 3×2 jigsaw. Returns {cw, ch, pad, S (sprite w/h), pieces:[{i,c,r,d (local path), gx, gy}], ghostD (global paths)} */
+/** Build the 3×2 jigsaw. Returns {cw, ch, pad, SW, SH, pieces:[{i,c,r,d (sprite-local path), edge (sprite-local polyline), gx, gy}], ghostD} */
 export function buildJigsaw(seed = 7) {
   const { PW, PH, COLS, ROWS } = L3, cw = PW / COLS, ch = PH / ROWS, r = rng(seed);
-  const pad = Math.ceil(Math.max(cw, ch) * 0.36) + 22;
-  // edge tables: H[r][c] between row r and r+1; V[r][c] between col c and c+1
+  const pad = Math.ceil(Math.max(cw, ch) * 0.36) + 46;   // room for tabs, cardboard thickness and the soft lift shadow
   const H = [], V = [];
   const signs = [1, -1, 1, -1, 1, -1, 1];
   let si = 0;
   for (let rr_ = 0; rr_ < ROWS - 1; rr_++) { H[rr_] = []; for (let c = 0; c < COLS; c++) H[rr_][c] = tabEdge(c * cw, (rr_ + 1) * ch, 1, 0, 0, 1, cw, signs[si++ % signs.length], r); }
   for (let rr_ = 0; rr_ < ROWS; rr_++) { V[rr_] = []; for (let c = 0; c < COLS - 1; c++) V[rr_][c] = tabEdge((c + 1) * cw, rr_ * ch, 0, 1, 1, 0, ch, (rr_ + c) % 2 ? 1 : -1, r); }
   const pieces = [], ghostD = [];
-  const seg = (pts, ox, oy) => {
-    let d = '';
-    for (let k = 1; k < pts.length; k += 3) d += ` C${f1(pts[k][0] - ox)} ${f1(pts[k][1] - oy)} ${f1(pts[k + 1][0] - ox)} ${f1(pts[k + 1][1] - oy)} ${f1(pts[k + 2][0] - ox)} ${f1(pts[k + 2][1] - oy)}`;
-    return d;
-  };
   for (let rw = 0; rw < ROWS; rw++) for (let c = 0; c < COLS; c++) {
     const build = (ox, oy) => {
+      const poly = [];
       let d = `M${f1(c * cw - ox)} ${f1(rw * ch - oy)}`;
-      d += rw === 0 ? ` L${f1((c + 1) * cw - ox)} ${f1(-oy)}` : seg(H[rw - 1][c], ox, oy);
-      d += c === COLS - 1 ? ` L${f1((c + 1) * cw - ox)} ${f1((rw + 1) * ch - oy)}` : seg(V[rw][c], ox, oy);
-      d += rw === ROWS - 1 ? ` L${f1(c * cw - ox)} ${f1((rw + 1) * ch - oy)}` : seg([...H[rw][c]].reverse(), ox, oy);
-      d += c === 0 ? ` L${f1(c * cw - ox)} ${f1(rw * ch - oy)}` : seg([...V[rw][c - 1]].reverse(), ox, oy);
-      return d + ' Z';
+      let cur = [c * cw, rw * ch]; poly.push([cur[0] - ox, cur[1] - oy]);
+      const line = (x, y) => { d += ` L${f1(x - ox)} ${f1(y - oy)}`; for (let k = 1; k <= 8; k++) poly.push([cur[0] + (x - cur[0]) * k / 8 - ox, cur[1] + (y - cur[1]) * k / 8 - oy]); cur = [x, y]; };
+      const seg = pts => {
+        for (let k = 1; k < pts.length; k += 3) {
+          d += ` C${f1(pts[k][0] - ox)} ${f1(pts[k][1] - oy)} ${f1(pts[k + 1][0] - ox)} ${f1(pts[k + 1][1] - oy)} ${f1(pts[k + 2][0] - ox)} ${f1(pts[k + 2][1] - oy)}`;
+          for (let t = 1; t <= 4; t++) { const q = cubicAt(pts[k - 1], pts[k], pts[k + 1], pts[k + 2], t / 4); poly.push([q[0] - ox, q[1] - oy]); }
+        }
+        cur = pts[pts.length - 1];
+      };
+      if (rw === 0) line((c + 1) * cw, 0); else seg(H[rw - 1][c]);
+      if (c === COLS - 1) line((c + 1) * cw, (rw + 1) * ch); else seg(V[rw][c]);
+      if (rw === ROWS - 1) line(c * cw, (rw + 1) * ch); else seg([...H[rw][c]].reverse());
+      if (c === 0) line(c * cw, rw * ch); else seg([...V[rw][c - 1]].reverse());
+      return { d: d + ' Z', poly };
     };
-    pieces.push({ i: rw * COLS + c, c, r: rw, d: build(c * cw - pad, rw * ch - pad), gx: (c + 0.5) * cw, gy: (rw + 0.5) * ch });
-    ghostD.push(build(0, 0));
+    const loc = build(c * cw - pad, rw * ch - pad);
+    pieces.push({ i: rw * COLS + c, c, r: rw, d: loc.d, edge: loc.poly, gx: (c + 0.5) * cw, gy: (rw + 0.5) * ch });
+    ghostD.push(build(0, 0).d);
   }
   return { cw, ch, pad, SW: cw + 2 * pad, SH: ch + 2 * pad, pieces, ghostD };
 }
+
+// Pencil "cut" filters: stronger wobble + graphite grain, two seeds so the doubled stroke varies in width.
+const cutDefs = seed => `<defs>
+  <filter id="cutA" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="2" seed="${seed}" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="3.4" xChannelSelector="R" yChannelSelector="G" result="d"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="${seed + 3}" result="g"/>
+    <feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.1 1.55" result="ga"/>
+    <feComposite in="d" in2="ga" operator="in"/></filter>
+  <filter id="cutB" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.02 0.09" numOctaves="2" seed="${seed + 9}" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="4.2" xChannelSelector="R" yChannelSelector="G" result="d"/>
+    <feTurbulence type="fractalNoise" baseFrequency="1.2" numOctaves="1" seed="${seed + 5}" result="g"/>
+    <feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.6 1.7" result="ga"/>
+    <feComposite in="d" in2="ga" operator="in"/></filter></defs>`;
 
 // ---------------------------------------------------------------------------------------------
 // Sprites cut from the portrait.
@@ -323,44 +345,111 @@ export async function ghostSprite(portrait, geo) {
     x.drawImage(portrait.img, 0, 0, PW, PH);
     x.globalCompositeOperation = 'saturation'; x.fillStyle = '#808080'; x.fillRect(0, 0, PW, PH);
     x.globalCompositeOperation = 'source-over';
-    x.fillStyle = 'rgba(252,244,232,0.74)'; x.fillRect(0, 0, PW, PH);
+    x.fillStyle = 'rgba(252,244,232,0.72)'; x.fillRect(0, 0, PW, PH);
     x.globalCompositeOperation = 'multiply'; x.fillStyle = 'rgba(250,226,200,0.55)'; x.fillRect(0, 0, PW, PH);
     x.globalCompositeOperation = 'source-over';
     x.drawImage(dash.img, 0, 0, PW, PH);
   });
 }
 
-/** Per piece: {img (clipped portrait + emboss + pencil outline), shadow (soft silhouette), glow (warm halo)} */
+/** Per piece sprites:
+ *  img    — physical piece: cream cardboard thickness + darker underside, clipped portrait, emboss, pencil cut edge
+ *  flat   — just the clipped picture (crossfaded in once placed so the photo reads as finished)
+ *  white  — white silhouette (snap flash)
+ *  shadow / shadowSoft — resting and lifted drop shadows
+ *  glow   — soft halo + crayon-yellow outline, light fill (magnet / hint) */
 export async function pieceSprites(portrait, geo) {
   const { PW, PH } = L3, { SW, SH, pad, cw, ch } = geo, ratio = game.pxRatio;
+  const T = 7; // cardboard thickness
   const out = [];
   for (const p of geo.pieces) {
     const path = new Path2D(p.d);
-    const outline = await svgSprite(svg(SW, SH, `<path d="${p.d}" fill="none" stroke="#fff" stroke-width="2.4" opacity="0.55" transform="translate(1.6 1.6)"/><path d="${p.d}" ${stroke(3.6, '#5b4f48')}/>`, 41 + p.i), SW, SH, 'l3-pc-line-' + p.i);
+    const [line, glowLine] = await Promise.all([
+      svgSprite(svg(SW, SH, cutDefs(40 + p.i * 7) +
+        `<path d="${p.d}" fill="none" stroke="#fffaf0" stroke-width="2.6" opacity="0.7" transform="translate(1.4 1.6)"/>` +
+        `<path d="${p.d}" fill="none" stroke="#6b5c52" stroke-width="4.4" opacity="0.45" stroke-linejoin="round" filter="url(#cutB)"/>` +
+        `<path d="${p.d}" fill="none" stroke="#4d423c" stroke-width="2.4" opacity="0.95" stroke-linejoin="round" filter="url(#cutA)"/>`, 41 + p.i), SW, SH, 'l3-pc-line2-' + p.i),
+      svgSprite(svg(SW, SH, cutDefs(70 + p.i * 5) +
+        `<path d="${p.d}" fill="none" stroke="#f6b81f" stroke-width="9" stroke-linejoin="round" filter="url(#cutB)"/>` +
+        `<path d="${p.d}" fill="none" stroke="#fff6c8" stroke-width="2.6" stroke-linejoin="round" filter="url(#cutA)"/>`, 61 + p.i), SW, SH, 'l3-pc-glowline-' + p.i),
+    ]);
+    const picture = x => { x.fillStyle = '#fdf6ec'; x.fillRect(0, 0, SW, SH); x.drawImage(portrait.img, pad - p.c * cw, pad - p.r * ch, PW, PH); };
     const img = canvasSprite(SW, SH, x => {
+      // cardboard thickness: darker underside, then cream layers stepping up to the face
+      x.save(); x.translate(0, T + 1.5); x.fillStyle = '#8f7556'; x.fill(path); x.restore();
+      for (let k = T; k >= 1; k--) {
+        x.save(); x.translate(0, k); x.fillStyle = k > T * 0.6 ? '#cdb48d' : k > T * 0.3 ? '#e4d3b2' : '#f3e8d2'; x.fill(path); x.restore();
+      }
+      x.save(); x.translate(0, T + 0.5); x.lineWidth = 1.6; x.strokeStyle = 'rgba(90,70,50,0.55)'; x.stroke(path); x.restore();
+      // face
       x.save(); x.clip(path);
-      x.fillStyle = '#fdf6ec'; x.fillRect(0, 0, SW, SH);
-      x.drawImage(portrait.img, pad - p.c * cw, pad - p.r * ch, PW, PH);
-      // emboss: light along the top-left inner edge, shade along the bottom-right
+      picture(x);
       x.lineJoin = 'round';
       x.translate(3, 3); x.lineWidth = 7; x.strokeStyle = 'rgba(255,255,255,0.5)'; x.stroke(path);
       x.translate(-6, -6); x.lineWidth = 8; x.strokeStyle = 'rgba(96,58,30,0.26)'; x.stroke(path);
+      x.translate(3, 3); x.lineWidth = 4; x.strokeStyle = 'rgba(250,240,220,0.6)'; x.stroke(path); // cream cut rim
       x.restore();
-      x.drawImage(outline.img, 0, 0, SW, SH);
+      x.drawImage(line.img, 0, 0, SW, SH);
     });
-    const shadow = canvasSprite(SW, SH, x => {
+    const flat = canvasSprite(SW, SH, x => { x.save(); x.clip(path); picture(x); x.restore(); });
+    const white = canvasSprite(SW, SH, x => { x.fillStyle = '#fffdf4'; x.fill(path); x.lineWidth = 6; x.strokeStyle = '#fffdf4'; x.stroke(path); });
+    const shadowOf = blur => canvasSprite(SW, SH, x => {
       const off = 4000;
-      x.shadowColor = 'rgba(92,52,24,0.5)'; x.shadowBlur = 12 * ratio; x.shadowOffsetX = off * ratio;
+      x.shadowColor = 'rgba(80,46,22,1)'; x.shadowBlur = blur * ratio; x.shadowOffsetX = off * ratio;
       x.translate(-off, 0); x.fillStyle = '#000'; x.fill(path);
     });
     const glow = canvasSprite(SW, SH, x => {
-      x.shadowColor = 'rgba(255,190,40,1)'; x.shadowBlur = 24 * ratio;
-      x.fillStyle = 'rgba(255,224,110,0.85)'; x.fill(path); x.fill(path);
-      x.shadowBlur = 0; x.lineJoin = 'round';
-      x.lineWidth = 10; x.strokeStyle = '#f5b82e'; x.stroke(path);
-      x.lineWidth = 3; x.strokeStyle = '#fffbe6'; x.stroke(path);
+      x.lineJoin = 'round';
+      x.shadowColor = 'rgba(255,196,50,1)'; x.shadowBlur = 30 * ratio;
+      x.lineWidth = 12; x.strokeStyle = 'rgba(255,214,90,0.8)'; x.stroke(path); x.stroke(path);
+      x.shadowBlur = 0;
+      x.fillStyle = 'rgba(255,236,150,0.3)'; x.fill(path);
+      x.drawImage(glowLine.img, 0, 0, SW, SH);
     });
-    out.push({ img, shadow, glow, path });
+    out.push({ img, flat, white, shadow: shadowOf(12), shadowSoft: shadowOf(30), glow, path });
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Hint hand: crayon pointing hand, fingertip at (HAND.tx, HAND.ty) in a HAND.w×HAND.h sprite.
+export const HAND = { w: 150, h: 200, tx: 58, ty: 14 };
+export function handSVG() {
+  const { w, h } = HAND;
+  const skin = '#ffffff', line = '#5b5552';
+  const finger = `M46 98 L46 30 Q46 12 58 12 Q70 12 70 30 L70 92`;
+  const palm = `M40 96 Q34 84 46 80 L70 82 Q78 70 90 76 Q100 70 108 80 Q118 76 122 90 Q130 100 124 128 Q118 160 92 166 L64 166 Q40 160 34 132 Q24 120 22 104 Q20 92 32 92 Q40 92 46 106 Z`;
+  let s = '';
+  s += `<path d="${palm}" fill="${skin}"/><path d="${palm}" ${fill('#f3ece6')} opacity="0.5"/>`;
+  s += `<path d="${finger} Z" fill="${skin}"/>`;
+  s += `<path d="${finger}" ${stroke(3.4, line)}/>`;
+  s += `<path d="${palm}" ${stroke(3.4, line)}/>`;
+  s += `<path d="M76 84 Q80 100 78 108 M98 80 Q102 96 100 106" ${stroke(2.2, line)}/>`;
+  s += `<ellipse cx="58" cy="26" rx="6" ry="5" fill="#f7a9b8" opacity="0.5" filter="url(#blush)"/>`;
+  // pink cuff
+  s += `<path d="M58 160 L118 156 L124 196 L56 198 Z" ${fill('#fbc6dc')}/><path d="M58 160 L118 156 L124 196 L56 198 Z" ${stroke(3, line)}/>`;
+  s += `<path d="M62 176 L120 172" stroke="#fff" stroke-width="4" opacity="0.6" stroke-linecap="round"/>`;
+  return svg(w, h, s, 27);
+}
+/** Small crayon star particle (36×36). */
+export function starSVG(col = PAL.yellow) {
+  return svg(40, 40, `<path d="${star(20, 21, 16)}" ${fill(col)}/><path d="${star(20, 21, 16)}" ${stroke(2.2, '#b8892a')}/>`, 29);
+}
+
+/** Fallback studio backdrop for the live photo (used only when characters.js does not export one). */
+export function photoBackdropSVG(w, h) {
+  const r = rng(404);
+  let s = `<defs><radialGradient id="bd" cx="50%" cy="45%" r="70%"><stop offset="0" stop-color="#eefaf6"/><stop offset="0.6" stop-color="#cdeef0"/><stop offset="1" stop-color="#a9dbe8"/></radialGradient></defs>`;
+  s += `<rect width="${w}" height="${h}" fill="url(#bd)"/><rect width="${w}" height="${h}" ${fill('#bfe7ea')} opacity="0.45"/>`;
+  const cols = [PAL.red, PAL.yellow, PAL.green, PAL.blue, '#f39bb0', PAL.purple];
+  const yAt = x => h * 0.1 + Math.sin(Math.PI * x / w) * h * 0.08;
+  s += `<path d="M0 ${f1(yAt(0))} Q${w / 2} ${f1(h * 0.26)} ${w} ${f1(yAt(w))}" ${stroke(2.2, '#7f8f96')}/>`;
+  for (let i = 0; i < 9; i++) {
+    const x0 = w * (i + 0.2) / 9, x1 = w * (i + 0.8) / 9, xm = (x0 + x1) / 2;
+    const d = `M${f1(x0)} ${f1(yAt(x0))} L${f1(x1)} ${f1(yAt(x1))} L${f1(xm)} ${f1(yAt(xm) + h * 0.11)} Z`;
+    s += `<path d="${d}" ${fill(cols[i % cols.length])}/><path d="${d}" ${stroke(2)}/>`;
+  }
+  for (let i = 0; i < 9; i++) { const x = w * (0.06 + r() * 0.88), y = h * (0.3 + r() * 0.4); s += `<path d="${star(x, y, 7 + r() * 5)}" ${fill(PAL.yellow)} opacity="0.9"/>`; }
+  s += `<path d="M0 ${h * 0.8} C${w * 0.3} ${h * 0.76} ${w * 0.7} ${h * 0.76} ${w} ${h * 0.8} V${h} H0 Z" ${fill('#bfe3a8')}/>`;
+  return svg(w, h, s, 33);
 }

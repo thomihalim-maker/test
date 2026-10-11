@@ -1,23 +1,26 @@
 // Level 3 — "Foto Keluarga" (jigsaw). A wooden picture frame hangs on a warm wall above a sideboard; the family
-// portrait is cut into a 3×2 jigsaw with real tab/blank shapes. Ibu and Ayah peek over the sideboard and react.
-// Flow: frame shows the photo → it pops apart and the pieces fly to both sides → drag each piece into the frame
-// (magnetic snap within ~95 units) → seams fade, camera flash, the photo comes alive → win.
+// portrait is cut into a 3×2 jigsaw with real tab/blank shapes. Ibu and Ayah stand behind the sideboard at both
+// sides of the frame and react. Flow: the frame shows the photo → it pops apart and the pieces fly out (two per side,
+// two resting on the counter) → drag each piece into the frame (magnetic snap within ~95 units) → seams fade,
+// camera flash, the photo comes alive (live rigged characters inside the frame) → the frame settles between the
+// win banner and the buttons while the family keeps moving.
 import { Node } from '../engine/node.js';
-import { tween, wait, Ease, killTweensOf, clamp, lerp } from '../engine/tween.js';
+import { tween, wait, killTweensOf, clamp, lerp } from '../engine/tween.js';
 import { svgSprite } from '../engine/raster.js';
-import { createCharacter, portraitSprite } from '../art/characters.js';
+import * as CH from '../art/characters.js';
 import { burst } from '../art/fx.js';
 import { LevelScene, game, audio } from './base.js';
 import * as A from '../art/props_level3.js';
 
+const { createCharacter, portraitSprite } = CH;
 const { L3 } = A;
 const SNAP_R = 95;          // generous magnetic snap radius (design units)
 const HINT_AFTER = 6;       // seconds of no interaction before a hint
-const PHOTO_CY = 362;       // photo centre (content y, inside the central 1600×900)
-const CHAR_SCALE = 0.54;
-// home spot for each piece index (0..5) → scatter slot; L = left side top→bottom, R = right side
-const HOME_OF = [3, 2, 0, 1, 5, 4];
-const HOME_ROT = [-0.15, 0.11, -0.07, 0.13, -0.1, 0.08];
+const PHOTO_CY = 362;       // photo centre (design y at height 900)
+const CHAR_S = 0.62;
+// home spot per piece index: spots = [L-top, L-low, counter-L, counter-R, R-top, R-low]
+const HOME_OF = [4, 2, 0, 5, 3, 1];
+const HOME_ROT = [-0.14, 0.1, -0.08, 0.12, -0.1, 0.07];
 
 export default class Level3 extends LevelScene {
   static level = 3;
@@ -26,111 +29,207 @@ export default class Level3 extends LevelScene {
   async load() {
     await super.load();
     const geo = (this.geo = A.buildJigsaw(11));
-    const [wall, garland, table, back, front, plant, lamp, portrait, mom, dad] = await Promise.all([
+    const { PW, PH } = L3;
+    const [wall, garland, table, back, front, plant, lamp, hand, star, portrait, mom, dad, lmom, ldad, lbaby, backdrop] = await Promise.all([
       svgSprite(A.wallSVG(PHOTO_CY), A.WALL_W, A.WALL_H, 'l3-wall'),
-      svgSprite(A.garlandSVG(), A.GARLAND_W, A.GARLAND_H, 'l3-garland'),
-      svgSprite(A.tableSVG(), A.TABLE_W, A.TABLE_H, 'l3-table'),
-      svgSprite(A.frameBackSVG(), L3.FW, L3.FH, 'l3-frame-back'),
-      svgSprite(A.frameFrontSVG(), L3.FW, L3.FH, 'l3-frame-front'),
+      svgSprite(A.garlandSVG(), A.GARLAND_W, A.GARLAND_H, 'l3-garland2'),
+      svgSprite(A.tableSVG(), A.TABLE_W, A.TABLE_H, 'l3-table2'),
+      svgSprite(A.frameBackSVG(), L3.FW, L3.FH, 'l3-frame-back2'),
+      svgSprite(A.frameFrontSVG(), L3.FW, L3.FH, 'l3-frame-front2'),
       svgSprite(A.plantSVG(), 180, 250, 'l3-plant'),
-      svgSprite(A.lampSVG(), 170, 270, 'l3-lamp'),
-      portraitSprite(L3.PW, L3.PH),
-      createCharacter('mom'),
-      createCharacter('dad'),
+      svgSprite(A.lampSVG(), 170, 270, 'l3-lamp2'),
+      svgSprite(A.handSVG(), A.HAND.w, A.HAND.h, 'l3-hand'),
+      svgSprite(A.starSVG(), 40, 40, 'l3-star'),
+      portraitSprite(PW, PH),
+      createCharacter('mom'), createCharacter('dad'),
+      createCharacter('mom'), createCharacter('dad'), createCharacter('baby'),
+      this.loadBackdrop(PW, PH),
     ]);
-    this.portrait = portrait;
+    this.portrait = portrait; this.starSp = star;
     const [ghost, pcs] = await Promise.all([A.ghostSprite(portrait, geo), A.pieceSprites(portrait, geo)]);
 
     const W = this.world;
-    this.wallN = W.add(new Node({ ax: 0.5, ay: 0 }).setImage(wall));
+    this.wallN = W.add(new Node({ ax: 0.5, ay: 1 }).setImage(wall));
     this.garlandN = W.add(new Node({ ax: 0.5, ay: 0 }).setImage(garland));
 
-    // --- characters peek from behind the frame, over the sideboard
+    // --- Ibu & Ayah stand behind the sideboard, flanking the frame
     this.charLayer = W.add(new Node());
+    this.mom = this.charLayer.add(mom); this.dad = this.charLayer.add(dad);
+    this.charRise = 0;
 
     // --- frame group: origin = the nail, so wobbles swing like a hanging frame
     const C = L3.CENTER_FROM_NAIL;
     this.frameG = W.add(new Node());
     this.frameG.add(new Node({ ax: 0.5, ay: L3.NAIL_Y / L3.FH }).setImage(back));
-    this.photoX = -L3.PW / 2; this.photoY = C - L3.PH / 2; // photo top-left in frame-local coords
+    this.photoX = -PW / 2; this.photoY = C - PH / 2; // photo top-left in frame-local coords
     this.frameG.add(new Node({ x: 0, y: C }).setImage(ghost));
     this.glowLayer = this.frameG.add(new Node());
     this.placedLayer = this.frameG.add(new Node());
     this.fullPhoto = this.frameG.add(new Node({ x: 0, y: C, alpha: 0 }).setImage(portrait));
-    this.fullPhoto.w = L3.PW; this.fullPhoto.h = L3.PH;
+    this.fullPhoto.w = PW; this.fullPhoto.h = PH;
+    this.livePhoto = this.frameG.add(this.buildLivePhoto(backdrop, lmom, ldad, lbaby));
     this.glossK = -1;
     this.frameG.add(new Node({ drawFn: ctx => this.drawGloss(ctx) }));
     this.frameG.add(new Node({ ax: 0.5, ay: L3.NAIL_Y / L3.FH }).setImage(front));
-
-
-    this.mom = this.charLayer.add(mom); this.dad = this.charLayer.add(dad);
-    for (const c of [mom, dad]) { c.sx = c.sy = CHAR_SCALE; c.interactive = false; }
-    this.charRise = 0;
 
     this.tableN = W.add(new Node({ ax: 0.5, ay: 0 }).setImage(table));
     this.plantN = W.add(new Node({ ax: 0.5, ay: 1 }).setImage(plant));
     this.lampN = W.add(new Node({ ax: 0.5, ay: 1 }).setImage(lamp));
 
-    // --- pieces
+    // --- pieces (pieceLayer is scaled with the frame on tall screens)
     this.pieceLayer = W.add(new Node());
     this.pieces = geo.pieces.map((g, i) => {
       const sp = pcs[i];
-      const n = new Node({ interactive: true, draggable: true, w: geo.cw, h: geo.ch, hitPad: 36, alpha: 0 });
-      n.data = { i, c: g.c, r: g.r, slot: { x: this.photoX + g.gx, y: this.photoY + g.gy } };
-      n.shadowImg = sp.shadow.img; n.lift = 0; n.placed = false; n.vx = 0;
+      const n = new Node({ interactive: true, draggable: true, w: geo.cw, h: geo.ch, hitPad: 38, alpha: 0 });
+      n.data = { i, c: g.c, r: g.r, slot: { x: this.photoX + g.gx, y: this.photoY + g.gy }, edge: g.edge };
+      n.shadowImg = sp.shadow.img; n.shadowSoftImg = sp.shadowSoft.img; n.lift = 0; n.placed = false; n.vx = 0;
       n.drawFn = (ctx, nd) => this.drawPieceShadow(ctx, nd);
       n.art = n.add(new Node().setImage(sp.img));
+      n.flat = n.add(new Node({ alpha: 0 }).setImage(sp.flat));
+      n.whiteN = n.add(new Node({ alpha: 0 }).setImage(sp.white));
       n.glow = this.glowLayer.add(new Node({ x: n.data.slot.x, y: n.data.slot.y, alpha: 0 }).setImage(sp.glow));
       n.glowMag = 0;
       return this.pieceLayer.add(n);
     });
 
     this.fxLayer = W.add(new Node());
+    this.trail = this.fxLayer.add(new Node({ drawFn: ctx => this.drawTrail(ctx) }));
+    this.trailK = 0; this.trailPts = null;
+    this.hand = this.fxLayer.add(new Node({ ax: A.HAND.tx / A.HAND.w, ay: A.HAND.ty / A.HAND.h, alpha: 0, rot: -0.35 }).setImage(hand));
     this.flash = W.add(new Node({ alpha: 0, drawFn: ctx => this.drawFlash(ctx) }));
     this.flashK = 0;
 
     this.swing = { a: 0, v: 0 };
     this.introDone = false; this.introGen = 0;
-    this.lastAct = 0; this.hintT = 0; this.hintPiece = null; this.hintIdx = 0;
-    this.dragging = null; this.celebrating = false;
+    this.lastAct = 0; this.hintT = 0; this.hintPiece = null; this.hintIdx = 0; this.hintTok = 0;
+    this.dragging = null; this.celebrating = false; this.winPose = false; this.sparkT = 0;
+  }
+
+  /** Photo backdrop for the live payoff: characters.js export if present, else our own studio backdrop. */
+  async loadBackdrop(w, h) {
+    try {
+      const fn = CH.portraitBackdrop || CH.portraitBackground || CH.portraitBgSprite;
+      if (typeof fn === 'function') { const sp = await fn(w, h); if (sp && sp.img) return sp; }
+    } catch (e) { /* fall through */ }
+    return svgSprite(A.photoBackdropSVG(w, h), w, h, 'l3-photo-bd');
+  }
+  /** Where each family member sits inside the photo (photo-local px). Uses characters.js PORTRAIT_LAYOUT if exported. */
+  portraitLayout(w, h) {
+    const s = h / 600;
+    const def = {
+      mom: { x: w * 0.225, y: h + 46 * s, s: 0.86 * s, rot: 0.11 },
+      dad: { x: w * 0.785, y: h + 46 * s, s: 0.86 * s, rot: -0.11 },
+      baby: { x: w * 0.5, y: h - 26 * s, s: 1.0 * s, rot: 0 },
+    };
+    try {
+      let L = CH.PORTRAIT_LAYOUT;
+      if (typeof L === 'function') L = L(w, h);
+      if (L && typeof L === 'object') {
+        for (const k of ['mom', 'dad', 'baby']) {
+          const e = L[k]; if (!e) continue;
+          const fx = v => (Math.abs(v) <= 1.5 ? v * w : v), fy = v => (Math.abs(v) <= 1.5 ? v * h : v);
+          const sc = e.s ?? e.scale ?? e.k;
+          def[k] = {
+            x: e.x != null ? fx(e.x) : def[k].x, y: e.y != null ? fy(e.y) : def[k].y,
+            s: sc != null ? (L.relative || e.relative ? sc * s : sc) : def[k].s, rot: e.rot ?? def[k].rot,
+          };
+        }
+      }
+    } catch (_) {}
+    return def;
+  }
+  buildLivePhoto(backdrop, mom, dad, baby) {
+    const { PW, PH } = L3;
+    // container clips its children to the photo rect (drawFn runs inside the node's save/restore)
+    const lp = new Node({ x: this.photoX, y: this.photoY, visible: false, drawFn: ctx => { ctx.beginPath(); ctx.rect(0, 0, PW, PH); ctx.clip(); } });
+    const bd = lp.add(new Node({ ax: 0, ay: 0 }).setImage(backdrop)); bd.w = PW; bd.h = PH;
+    const L = this.portraitLayout(PW, PH);
+    this.live = { mom, dad, baby };
+    for (const k of ['mom', 'dad', 'baby']) {
+      const c = this.live[k], e = L[k];
+      if (k === 'baby') lp.add(new Node({ drawFn: ctx => { ctx.globalAlpha *= 0.16; ctx.fillStyle = '#8a5a3a'; ctx.beginPath(); ctx.ellipse(e.x, PH - 28 * PH / 600, 120 * PH / 600, 14 * PH / 600, 0, 0, Math.PI * 2); ctx.fill(); } }));
+      c.x = e.x; c.y = e.y; c.sx = c.sy = e.s; c.rot = e.rot; c.home = { ...e };
+      c.setMood?.('adore');
+      lp.add(c);
+    }
+    mom.gazeOverride = [0.75, 0.75]; dad.gazeOverride = [-0.75, 0.75]; baby.gazeOverride = [0, 0];
+    mom.tiltOverride = 0.1; dad.tiltOverride = -0.1; baby.tiltOverride = 0.04;
+    // warm photo-paper border like the printed portrait
+    lp.add(new Node({ drawFn: ctx => {
+      const s = PH / 600; ctx.strokeStyle = '#fffaf0'; ctx.lineWidth = 18 * s; ctx.strokeRect(0, 0, PW, PH);
+      ctx.strokeStyle = 'rgba(120,90,70,.3)'; ctx.lineWidth = 2 * s; ctx.strokeRect(10 * s, 10 * s, PW - 20 * s, PH - 20 * s);
+    } }));
+    return lp;
   }
 
   // ------------------------------------------------------------------------------------------- layout
   onLayout(v) {
     this.v = v;
-    const cx = v.w / 2, ox = (v.w - 1600) / 2, oy = (v.h - 900) / 2;
-    this.cx = cx; this.ox = ox; this.oy = oy;
-    this.wallN.x = cx; this.wallN.y = oy - A.WALL_TOP;
-    this.garlandN.x = cx; this.garlandN.y = oy * 0.35 + 2;
-    this.frameG.x = cx; this.frameG.y = oy + PHOTO_CY - L3.CENTER_FROM_NAIL;
-    this.tableN.x = cx; this.tableN.y = oy + A.TABLE_Y;
-    this.plantN.x = cx - 905; this.plantN.y = oy + A.TABLE_Y + 22;
-    this.lampN.x = cx + 905; this.lampN.y = oy + A.TABLE_Y + 22;
-    this.charBase = { y: oy + A.TABLE_Y + 84 };
-    this.mom.x = cx - 172; this.dad.x = cx + 178;
+    const cx = v.w / 2, ox = (v.w - 1600) / 2;
+    const fy = Math.max(1, v.h / 900), Y = y => y * fy;      // tall screens (tablets) spread vertically
+    const k = Math.min(1.15, 1 + (fy - 1) * 0.45);           // …and get a bigger frame + pieces
+    this.cx = cx; this.ox = ox; this.fy = fy; this.k = k;
+    this.tableY = Y(A.TABLE_Y);
+    this.wallN.x = cx; this.wallN.y = this.tableY;
+    this.garlandN.x = cx; this.garlandN.y = Y(2);
+    this.tableN.x = cx; this.tableN.y = this.tableY;
+
+    // frame: play pose (win pose is applied when complete() runs)
+    this.playPose = { x: cx, cy: Y(PHOTO_CY), s: k };
+    if (!this.winPose) this.applyFramePose(this.playPose);
+    else this.applyFramePose(this.winPoseFor(v));
+    this.pieceLayer.sx = this.pieceLayer.sy = k;
+
+    // Ibu & Ayah flank the frame, behind the counter, waist up
+    const cs = CHAR_S * Math.min(k, 1.08);
+    this.charS = cs;
+    const side = Math.min(660, v.w / 2 - 150);
+    for (const c of [this.mom, this.dad]) { c.sx = c.sy = cs; }
+    this.mom.x = cx - side; this.dad.x = cx + side;
+    this.charBase = this.tableY + 150 * cs / CHAR_S;
     this.placeChars();
 
-    // scatter homes: three per side in a zig-zag, clear of the frame and the home button
-    const half = L3.OW / 2, zl0 = ox + 40, zl1 = cx - half - 36, pw = this.geo.cw / 2 + 52;
-    const outerL = zl0 + pw, innerL = zl1 - pw;
+    // props on the counter only where they cannot touch the characters
+    const px = Math.min(905, v.w / 2 - 90);
+    this.plantN.x = cx - px; this.lampN.x = cx + px;
+    this.plantN.y = this.lampN.y = this.tableY + 22;
+    const room = (side - px) > 90 + 140 * cs / CHAR_S;
+    this.plantN.visible = this.lampN.visible = room;
+
+    // scatter homes (world), then into pieceLayer-local
+    const inner = cx - (L3.OW / 2) * k - 40 - (this.geo.cw / 2 + 50) * k;
     const spots = [
-      { x: outerL + 4, y: oy + 300 }, { x: innerL, y: oy + 512 }, { x: outerL + 14, y: oy + 722 },
-      { x: 2 * cx - innerL, y: oy + 288 }, { x: 2 * cx - outerL - 6, y: oy + 500 }, { x: 2 * cx - innerL - 8, y: oy + 716 },
+      { x: inner + 6, y: Y(262) }, { x: inner - 10, y: Y(478) },
+      { x: cx - 150 * k, y: this.tableY - 52 * k }, { x: cx + 150 * k, y: this.tableY - 48 * k },
+      { x: 2 * cx - inner - 4, y: Y(270) }, { x: 2 * cx - inner + 8, y: Y(486) },
     ];
     this.pieces.forEach((n, i) => {
       const h = spots[HOME_OF[i]];
-      n.home = { x: h.x, y: h.y, rot: HOME_ROT[i], sx: 1, sy: 1 };
-      if (this.introDone && !n.placed && n !== this.dragging) { killTweensOf(n); killTweensOf(n, 'ret'); Object.assign(n, { x: h.x, y: h.y, rot: HOME_ROT[i], sx: 1, sy: 1 }); }
+      n.home = { x: h.x / k, y: h.y / k, rot: HOME_ROT[i], sx: 1, sy: 1 };
+      if (this.introDone && !n.placed && n !== this.dragging) { killTweensOf(n); killTweensOf(n, 'ret'); Object.assign(n, { x: n.home.x, y: n.home.y, rot: HOME_ROT[i], sx: 1, sy: 1 }); }
     });
   }
+  applyFramePose(p) {
+    const C = L3.CENTER_FROM_NAIL;
+    this.frameK = p.s;
+    this.frameG.x = p.x; this.frameG.y = p.cy - C * p.s; this.frameG.sx = this.frameG.sy = p.s;
+  }
+  winPoseFor(v) {
+    // showWin: banner + stars in a top band, buttons in a bottom band → park the frame in the clear wall between
+    const topY = Math.min((v.h - 900) / 2, 60) * 0.5;
+    const top = topY + 262, bottom = v.h - 112 - 100;
+    const s = Math.min(0.85 * Math.min(this.k || 1, 1.1), (bottom - top - 24) / L3.OH);
+    return { x: v.w / 2, cy: (top + bottom) / 2 + 6, s };
+  }
   placeChars() {
-    if (!this.charBase) return;
-    const k = this.charRise;
-    this.mom.y = this.charBase.y + (1 - k) * 260;
-    this.dad.y = this.charBase.y + 6 + (1 - Math.min(1, k * 1.08)) * 270;
+    if (this.charBase == null) return;
+    const r = this.charRise;
+    this.mom.y = this.charBase + (1 - r) * 300;
+    this.dad.y = this.charBase + 8 + (1 - Math.min(1, r * 1.08)) * 310;
   }
 
   slotWorld(n) { return this.frameG.toWorld(n.data.slot.x, n.data.slot.y); }
+  pieceWorld(n) { return n.parent.toWorld(n.x, n.y); }
 
   // ------------------------------------------------------------------------------------------- intro
   enter() {
@@ -142,49 +241,54 @@ export default class Level3 extends LevelScene {
     const gen = ++this.introGen, alive = () => gen === this.introGen && !this.introDone;
     this.drag.enabled = false;
     this.fullPhoto.alpha = 1;
-    this.frameG.sy = 1; this.swing.v = 0.22;          // frame swings in
-    await wait(0.35); if (!alive()) return;
+    this.swing.v = 0.22;
+    await wait(0.3); if (!alive()) return;
     tween(this, { charRise: 1 }, { dur: 0.6, ease: 'outBack', tag: 'intro' });
     audio.sfx('pop');
-    await wait(0.45); if (!alive()) return;
-    audio.voice('Ayo susun foto keluarga!');
-    this.mom.talk?.(1.6); this.mom.react?.('happy', 1.6);
-    this.dad.react?.('happy', 1.6);
     await wait(0.4); if (!alive()) return;
-    // little anticipation shake, then the photo pops into pieces that fly to their homes
-    tween(this.frameG, { sx: 1.04, sy: 0.97 }, { dur: 0.12, tag: 'intro' }).then(() => tween(this.frameG, { sx: 1, sy: 1 }, { dur: 0.4, ease: 'outElastic', tag: 'intro' }));
+    audio.voice('Ayo susun foto keluarga!');
+    this.mom.talk?.(1.6); this.mom.react?.('happy', 1.6); this.dad.react?.('happy', 1.6);
+    await wait(0.35); if (!alive()) return;
+    const k = this.frameK;
+    tween(this.frameG, { sx: k * 1.04, sy: k * 0.97 }, { dur: 0.12, tag: 'intro' }).then(() => tween(this.frameG, { sx: k, sy: k }, { dur: 0.4, ease: 'outElastic', tag: 'intro' }));
     this.swing.v += 0.12;
     await wait(0.16); if (!alive()) return;
     this.fullPhoto.alpha = 0;
     audio.sfx('whoosh');
-    burst(this.fxLayer, this.cx, this.oy + PHOTO_CY, 'dust', { count: 10 });
+    burst(this.fxLayer, this.cx, this.playPose.cy, 'dust', { count: 10 });
+    const L = this.pieceLayer.sx;
     this.pieces.forEach((n, i) => {
       const s = this.slotWorld(n), h = n.home;
-      Object.assign(n, { x: s.x, y: s.y, rot: 0, alpha: 1, sx: 1, sy: 1, lift: 0.6 });
-      const sx = s.x, sy = s.y, cx = (sx + h.x) / 2, cy = Math.min(sy, h.y) - 170 - (i % 3) * 30;
-      const spin = (h.x < this.cx ? -1 : 1) * Math.PI * 2;
+      const sx = s.x / L, sy = s.y / L;
+      Object.assign(n, { x: sx, y: sy, rot: 0, alpha: 1, sx: 1, sy: 1, lift: 0.6 });
+      // spread arcs: each piece rises to its own height and bows outward before landing
+      const outward = h.x < sx ? -1 : 1;
+      const ctlx = (sx + h.x) / 2 + outward * (60 + (i % 3) * 40), ctly = Math.min(sy, h.y) - 150 - (i % 3) * 70;
+      const spin = outward * Math.PI * 2;
       const o = { k: 0 };
       tween(o, { k: 1 }, {
-        dur: 0.72, delay: 0.05 + i * 0.07, ease: 'inOutCubic', tag: 'intro',
+        dur: 0.75, delay: 0.04 + i * 0.1, ease: 'inOutCubic', tag: 'intro',
         onUpdate: e => {
           const u = 1 - e;
-          n.x = u * u * sx + 2 * u * e * cx + e * e * h.x;
-          n.y = u * u * sy + 2 * u * e * cy + e * e * h.y;
-          n.rot = h.rot * e + spin * e * (1 - e) * 0.18;
-          n.sx = n.sy = 1 + Math.sin(e * Math.PI) * 0.14;
+          n.x = u * u * sx + 2 * u * e * ctlx + e * e * h.x;
+          n.y = u * u * sy + 2 * u * e * ctly + e * e * h.y;
+          n.rot = h.rot * e + spin * e * (1 - e) * 0.16;
+          n.sx = n.sy = 1 + Math.sin(e * Math.PI) * 0.12;
           n.lift = 0.6 + Math.sin(e * Math.PI) * 0.4 - e * 0.6;
         },
       }).then(() => { if (!alive()) return; tween(n, { sx: 1.08, sy: 0.92 }, { dur: 0.06 }).then(() => tween(n, { sx: 1, sy: 1 }, { dur: 0.35, ease: 'outElastic' })); });
-      if (i % 2 === 0) setTimeout(() => alive() && audio.sfx('whoosh'), 80 + i * 70);
+      if (i % 2 === 0) setTimeout(() => alive() && audio.sfx('whoosh'), 60 + i * 100);
     });
-    await wait(0.05 + 5 * 0.07 + 0.78); if (!alive()) return;
+    await wait(0.04 + 5 * 0.1 + 0.8); if (!alive()) return;
     this.finishIntro();
   }
   finishIntro() {
     if (this.introDone) return;
     this.introDone = true; this.introGen++;
+    killTweensOf(this, 'intro');
     this.charRise = 1; this.placeChars();
-    this.fullPhoto.alpha = this.celebrating ? this.fullPhoto.alpha : 0;
+    killTweensOf(this.frameG, 'intro'); if (!this.winPose) this.applyFramePose(this.playPose);
+    if (!this.celebrating) this.fullPhoto.alpha = 0;
     for (const n of this.pieces) {
       if (n.placed) continue;
       killTweensOf(n); killTweensOf(n, 'intro');
@@ -196,77 +300,133 @@ export default class Level3 extends LevelScene {
 
   // ------------------------------------------------------------------------------------------- per frame
   tick(dt, t) {
-    // frame: damped spring swing around the nail + a tiny idle sway
     const s = this.swing;
     s.v += (-38 * s.a - 2.6 * s.v) * dt; s.a += s.v * dt;
     this.frameG.rot = s.a + Math.sin(t * 0.9) * 0.004;
     if (!this.introDone) this.placeChars();
 
+    let magnet = null;
     for (const n of this.pieces) {
       if (n.placed) { n.art.x = n.art.y = n.art.rot = 0; continue; }
       if (n === this.dragging) {
-        // tilt with horizontal velocity
         const vx = (n.x - (n._px ?? n.x)) / Math.max(dt, 1e-3); n._px = n.x;
         n.vx = lerp(n.vx, vx, Math.min(1, dt * 10));
-        const target = clamp(n.vx / 2600, -0.3, 0.3);
-        n.rot += (target - n.rot) * Math.min(1, dt * 12);
+        const target = clamp(n.vx / 1300, -0.4, 0.4) + Math.sin(t * 9) * 0.035;
+        n.rot += (target - n.rot) * Math.min(1, dt * 14);
         n.art.y = n.art.x = 0; n.art.rot = 0;
-        // magnetic preview glow on its own slot
-        const sw = this.slotWorld(n), d = Math.hypot(n.x - sw.x, n.y - sw.y);
-        n.glowMag = lerp(n.glowMag, d < SNAP_R * 1.5 ? 0.75 : 0, Math.min(1, dt * 10));
+        const sw = this.slotWorld(n), pw = this.pieceWorld(n), d = Math.hypot(pw.x - sw.x, pw.y - sw.y);
+        n.glowMag = lerp(n.glowMag, d < SNAP_R * 1.6 ? 0.95 : 0, Math.min(1, dt * 10));
+        if (n.glowMag > 0.3) magnet = n;
       } else {
         n.glowMag = lerp(n.glowMag, 0, Math.min(1, dt * 8));
-        n.art.y = Math.sin(t * 1.7 + n.data.i * 1.3) * 2.5;
-        n.art.rot = 0;
+        if (n !== this.hintPiece) { n.art.y = Math.sin(t * 1.7 + n.data.i * 1.3) * 2.5; n.art.rot = 0; }
       }
+      n.flat.x = n.whiteN.x = n.art.x; n.flat.y = n.whiteN.y = n.art.y; n.whiteN.rot = n.art.rot;
     }
 
-    // hint: glow the slot and wiggle the matching piece
-    if (this.introDone && !this.finished && !this.celebrating && !this.dragging && game.time - this.lastAct > HINT_AFTER) this.startHint();
+    // idle hint
+    if (this.introDone && !this.finished && !this.celebrating && !this.dragging && this.hintT <= 0 && game.time - this.lastAct > HINT_AFTER) this.startHint();
     let hintA = 0;
     if (this.hintT > 0) {
       this.hintT -= dt;
-      const env = Math.min(1, this.hintT / 0.4, (2.8 - this.hintT) / 0.3);
+      const env = Math.min(1, this.hintT / 0.4, (this.hintDur - this.hintT) / 0.3);
       const n = this.hintPiece;
       if (n && !n.placed && n !== this.dragging) {
-        n.art.rot = env * Math.sin(t * 17) * 0.11;
-        const sc = 1 + env * 0.05 * (0.5 + 0.5 * Math.sin(t * 8.5));
-        n.art.sx = n.art.sy = sc;
-        hintA = env * (0.55 + 0.4 * Math.sin(t * 7));
+        n.art.rot = env * Math.sin(t * 17) * 0.1 * (0.5 + 0.5 * Math.sin(t * 2.3));
+        hintA = env * (0.8 + 0.2 * Math.sin(t * 7));
       }
       if (this.hintT <= 0) this.endHint();
     }
     for (const n of this.pieces) {
-      if (n.placed) { n.glow.alpha = Math.max(0, n.glow.alpha - dt * 3); continue; }
-      n.glow.alpha = Math.max(n.glowMag, n === this.hintPiece ? hintA : 0);
+      const g = n.glow;
+      if (n.placed) { g.alpha = Math.max(0, g.alpha - dt * 3); continue; }
+      const base = Math.max(n.glowMag, n === this.hintPiece ? hintA : 0);
+      g.alpha = base * (0.82 + 0.18 * Math.sin(t * 8));
+      g.sx = g.sy = 1 + base * 0.035 * (0.5 + 0.5 * Math.sin(t * 6));
+    }
+    // sparkles drifting along the glowing edge
+    const sparkN = magnet || (hintA > 0.3 ? this.hintPiece : null);
+    if (sparkN) {
+      this.sparkT -= dt;
+      if (this.sparkT <= 0) {
+        this.sparkT = 0.07;
+        const e = sparkN.data.edge, pt = e[(Math.random() * e.length) | 0], g = this.geo;
+        const w = this.frameG.toWorld(sparkN.data.slot.x + pt[0] - g.SW / 2, sparkN.data.slot.y + pt[1] - g.SH / 2);
+        burst(this.fxLayer, w.x, w.y, 'sparkle', { count: 1, spread: 0.12, scale: 0.55, life: 0.8 });
+      }
     }
   }
+
+  // ------------------------------------------------------------------------------------------- hint
   startHint() {
     const cand = this.pieces.filter(p => !p.placed);
-    this.lastAct = game.time + 2.8;
     if (!cand.length) return;
     const n = cand[this.hintIdx++ % cand.length];
-    this.hintPiece = n; this.hintT = 2.8;
+    this.hintPiece = n; this.hintDur = this.hintT = 4.6;
+    this.lastAct = game.time + 4.6;
     audio.sfx('sparkle');
-    const sw = this.slotWorld(n);
-    this.mom.lookAt?.(n.x, n.y); this.dad.lookAt?.(n.x, n.y);
-    setTimeout(() => { if (this.hintPiece === n) { this.mom.lookAt?.(sw.x, sw.y); this.dad.lookAt?.(sw.x, sw.y); } }, 1300);
+    audio.voice('Yuk, taruh di sini!');
     this.mom.react?.('think', 1.2);
+    this.runHand(n, ++this.hintTok);
+  }
+  async runHand(n, tok) {
+    const ok = () => tok === this.hintTok && this.hintPiece === n && !n.placed && n !== this.dragging;
+    const h = this.hand;
+    for (let rep = 0; rep < 2; rep++) {
+      const p = this.pieceWorld(n), s = this.slotWorld(n);
+      const c = { x: (p.x + s.x) / 2, y: Math.min(p.y, s.y) - 150 };
+      this.trailPts = { p, c, s }; this.trailK = 0;
+      Object.assign(h, { x: p.x + 40, y: p.y + 60, alpha: 0, sx: 0.8, sy: 0.8 });
+      this.mom.lookAt?.(p.x, p.y); this.dad.lookAt?.(p.x, p.y);
+      await tween(h, { x: p.x, y: p.y, alpha: 1, sx: 1, sy: 1 }, { dur: 0.3, ease: 'outBack', tag: 'hint' }); if (!ok()) return;
+      // press the piece
+      audio.sfx('tap');
+      await tween(h, { sx: 0.88, sy: 0.82 }, { dur: 0.1, tag: 'hint' }); if (!ok()) return;
+      n.sx = 1.08; n.sy = 0.92; tween(n, { sx: 1, sy: 1 }, { dur: 0.4, ease: 'outElastic', tag: 'hint' });
+      await tween(h, { sx: 1, sy: 1 }, { dur: 0.14, tag: 'hint' }); if (!ok()) return;
+      // slide along the dotted arc to the slot
+      const o = { k: 0 };
+      await tween(o, { k: 1 }, { dur: 1.0, ease: 'inOutSine', tag: 'hint', onUpdate: e => {
+        const u = 1 - e; h.x = u * u * p.x + 2 * u * e * c.x + e * e * s.x; h.y = u * u * p.y + 2 * u * e * c.y + e * e * s.y;
+        this.trailK = e; this.mom.lookAt?.(h.x, h.y); this.dad.lookAt?.(h.x, h.y);
+      } }); if (!ok()) return;
+      audio.sfx('sparkle');
+      burst(this.fxLayer, s.x, s.y, 'sparkle', { count: 10, spread: 0.6 });
+      await tween(h, { sx: 0.88, sy: 0.82 }, { dur: 0.1, tag: 'hint' }); if (!ok()) return;
+      await tween(h, { sx: 1, sy: 1, alpha: 0 }, { dur: 0.3, tag: 'hint' }); if (!ok()) return;
+    }
+    this.trailPts = null;
   }
   endHint() {
-    const n = this.hintPiece; this.hintT = 0; this.hintPiece = null;
-    if (n) { n.art.rot = 0; n.art.sx = n.art.sy = 1; }
+    const n = this.hintPiece; this.hintT = 0; this.hintPiece = null; this.hintTok++;
+    if (n) { n.art.rot = 0; }
+    killTweensOf(this.hand, 'hint');
+    if (this.hand.alpha > 0) tween(this.hand, { alpha: 0 }, { dur: 0.15 });
+    this.trailPts = null;
     this.mom.lookAt?.(null); this.dad.lookAt?.(null);
   }
 
   // ------------------------------------------------------------------------------------------- drawing
   drawPieceShadow(ctx, n) {
-    const off = 5 + n.lift * 18, a = 0.55 + n.lift * 0.15, sc = 1 + n.lift * 0.05;
+    if (n.placed) return;
+    const L = n.lift, off = 5 + L * 27, sc = 1 + L * 0.08;
     const lx = off * Math.sin(n.rot) + n.art.x, ly = off * Math.cos(n.rot) + n.art.y * 0.3;
-    const w = this.geo.SW * sc, h = this.geo.SH * sc;
-    const ga = ctx.globalAlpha; ctx.globalAlpha = ga * a;
-    ctx.drawImage(n.shadowImg, lx - w / 2, ly - h / 2, w, h);
+    const w = this.geo.SW * sc, h = this.geo.SH * sc, ga = ctx.globalAlpha;
+    if (L < 0.98) { ctx.globalAlpha = ga * 0.5 * (1 - L); ctx.drawImage(n.shadowImg, lx - w / 2, ly - h / 2, w, h); }
+    if (L > 0.02) { ctx.globalAlpha = ga * 0.38 * L; ctx.drawImage(n.shadowSoftImg, lx - w / 2, ly - h / 2, w, h); }
     ctx.globalAlpha = ga;
+  }
+  drawTrail(ctx) {
+    const T = this.trailPts; if (!T || this.hand.alpha <= 0) return;
+    const { p, c, s } = T, N = 16;
+    for (let i = 1; i < N; i++) {
+      const e = i / N; if (e > this.trailK + 0.02) break;
+      const u = 1 - e, x = u * u * p.x + 2 * u * e * c.x + e * e * s.x, y = u * u * p.y + 2 * u * e * c.y + e * e * s.y;
+      ctx.globalAlpha = this.hand.alpha * 0.9;
+      ctx.fillStyle = '#fff7d6'; ctx.strokeStyle = '#d9a83a'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
   }
   drawGloss(ctx) {
     const k = this.glossK; if (k < 0 || k > 1) return;
@@ -283,32 +443,36 @@ export default class Level3 extends LevelScene {
   drawFlash(ctx) {
     const v = this.v || game.view, k = this.flashK;
     ctx.fillStyle = '#fffdf6'; ctx.fillRect(0, 0, v.w, v.h);
-    // starburst flare centred on the photo
-    const cx = this.cx, cy = this.oy + PHOTO_CY, R = 260 + (1 - k) * 420;
-    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+    const p = this.frameG.toWorld(0, L3.CENTER_FROM_NAIL), R = 260 + (1 - k) * 420;
+    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, R);
     g.addColorStop(0, 'rgba(255,248,214,1)'); g.addColorStop(1, 'rgba(255,248,214,0)');
-    ctx.fillStyle = g; ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
+    ctx.fillStyle = g; ctx.fillRect(p.x - R, p.y - R, R * 2, R * 2);
   }
 
   // ------------------------------------------------------------------------------------------- input
   onPick(n) {
     if (n.placed) return;
-    killTweensOf(n); killTweensOf(n, 'drag'); killTweensOf(n, 'ret');
+    killTweensOf(n); killTweensOf(n, 'drag'); killTweensOf(n, 'ret'); killTweensOf(n, 'hint');
     this.dragging = n; n._px = n.x; n.vx = 0;
     if (this.hintPiece) this.endHint();
     this.lastAct = game.time;
     audio.sfx('pick');
-    tween(n, { sx: 1.1, sy: 1.1, lift: 1 }, { dur: 0.2, ease: 'outBack', tag: 'drag' });
-    this.mom.lookAt?.(n.x, n.y); this.dad.lookAt?.(n.x, n.y);
+    tween(n, { lift: 1 }, { dur: 0.22, tag: 'drag' });
+    tween(n, { sx: 1.22, sy: 1.22 }, { dur: 0.09, ease: 'outQuad', tag: 'drag' }).then(() => {
+      if (this.dragging === n) tween(n, { sx: 1.12, sy: 1.12 }, { dur: 0.3, ease: 'outBack', tag: 'drag' });
+    });
+    const p = this.pieceWorld(n);
+    this.mom.lookAt?.(p.x, p.y); this.dad.lookAt?.(p.x, p.y);
   }
   onMove(n) {
-    this.mom.lookAt?.(n.x, n.y); this.dad.lookAt?.(n.x, n.y);
+    const p = this.pieceWorld(n);
+    this.mom.lookAt?.(p.x, p.y); this.dad.lookAt?.(p.x, p.y);
   }
   onDrop(n, p, moved) {
     this.dragging = null; this.lastAct = game.time;
-    const sw = this.slotWorld(n);
-    const d = Math.hypot(n.x - sw.x, n.y - sw.y);
-    if (d < SNAP_R) { this.place(n); return true; }
+    killTweensOf(n, 'drag');
+    const sw = this.slotWorld(n), pw = this.pieceWorld(n);
+    if (Math.hypot(pw.x - sw.x, pw.y - sw.y) < SNAP_R) { this.place(n); return true; }
     this.sendHome(n, moved);
     return true;
   }
@@ -317,42 +481,49 @@ export default class Level3 extends LevelScene {
     this.mom.lookAt?.(null); this.dad.lookAt?.(null);
     if (moved) {
       audio.sfx('wrong');
-      const who = n.x < this.cx ? this.mom : this.dad;
-      who.react?.('think', 1.3);
+      (this.pieceWorld(n).x < this.cx ? this.mom : this.dad).react?.('think', 1.3);
     } else audio.sfx('tap');
-    const dist = Math.hypot(n.x - h.x, n.y - h.y), dur = clamp(0.35 + dist / 1800, 0.4, 0.75);
+    // squash on release, then spring home
+    n.sx = 1.24; n.sy = 1.0;
+    const dist = Math.hypot(n.x - h.x, n.y - h.y), dur = clamp(0.35 + dist / 1800, 0.42, 0.75);
     tween(n, { lift: 0 }, { dur, tag: 'ret' });
     tween(n, { x: h.x, y: h.y, rot: h.rot, sx: 1, sy: 1 }, { dur, ease: 'outBack', tag: 'ret' }).then(() => {
       if (n.placed || n === this.dragging) return;
-      tween(n, { sx: 1.07, sy: 0.93 }, { dur: 0.07, tag: 'ret' }).then(() => tween(n, { sx: 1, sy: 1 }, { dur: 0.45, ease: 'outElastic', tag: 'ret' }));
+      tween(n, { sx: 1.08, sy: 0.92 }, { dur: 0.07, tag: 'ret' }).then(() => tween(n, { sx: 1, sy: 1 }, { dur: 0.45, ease: 'outElastic', tag: 'ret' }));
     });
   }
   place(n, instant = false) {
     if (n.placed) return;
     n.placed = true; n.interactive = false; n.draggable = false;
-    killTweensOf(n); killTweensOf(n, 'drag'); killTweensOf(n, 'ret'); killTweensOf(n, 'intro');
-    const lp = this.frameG.toLocal(n.x, n.y);
-    const wr = n.rot;
+    killTweensOf(n); killTweensOf(n, 'drag'); killTweensOf(n, 'ret'); killTweensOf(n, 'intro'); killTweensOf(n, 'hint');
+    const wp = this.pieceWorld(n), lp = this.frameG.toLocal(wp.x, wp.y), wr = n.rot;
     this.placedLayer.add(n);
     n.x = lp.x; n.y = lp.y; n.rot = wr - this.frameG.rot; n.alpha = 1;
-    n.art.x = n.art.y = n.art.rot = 0; n.art.sx = n.art.sy = 1;
+    n.art.x = n.art.y = n.art.rot = 0;
     const s = n.data.slot;
     if (this.hintPiece === n) this.endHint();
     if (instant) {
       Object.assign(n, { x: s.x, y: s.y, rot: 0, sx: 1, sy: 1, lift: 0 });
+      n.flat.alpha = 1; n.art.alpha = 0.25;
     } else {
       tween(n, { lift: 0 }, { dur: 0.2 });
-      tween(n, { x: s.x, y: s.y, rot: 0, sx: 1, sy: 1 }, { dur: 0.2, ease: 'outCubic' }).then(() =>
-        tween(n, { sx: 1.06, sy: 0.94 }, { dur: 0.07 }).then(() => tween(n, { sx: 1, sy: 1 }, { dur: 0.45, ease: 'outElastic' })));
+      tween(n, { x: s.x, y: s.y, rot: 0, sx: 1, sy: 1 }, { dur: 0.2, ease: 'outCubic' }).then(() => {
+        tween(n, { sx: 1.07, sy: 0.93 }, { dur: 0.07 }).then(() => tween(n, { sx: 1, sy: 1 }, { dur: 0.45, ease: 'outElastic' }));
+        n.whiteN.alpha = 0.5; tween(n.whiteN, { alpha: 0 }, { dur: 0.15 });
+        tween(n.flat, { alpha: 1 }, { dur: 0.45, delay: 0.15 }); tween(n.art, { alpha: 0.25 }, { dur: 0.45, delay: 0.15 });
+      });
       audio.sfx('snap');
       setTimeout(() => audio.sfx('sparkle'), 90);
       const w = this.frameG.toWorld(s.x, s.y);
-      burst(this.fxLayer, w.x, w.y, 'sparkle', { count: 16 });
+      burst(this.fxLayer, w.x, w.y, 'sparkle', { count: 28, spread: 1.1 });
+      this.crayonStars(w.x, w.y, 5, 1);
       this.ring(w.x, w.y);
-      this.swing.v += (s.x < 0 ? -1 : 1) * 0.07;
+      this.swing.v += (s.x < 0 ? -1 : 1) * 0.09;
+      const k = this.frameK;
+      tween(this.frameG, { sx: k * 1.03, sy: k * 1.03 }, { dur: 0.07 }).then(() => tween(this.frameG, { sx: k, sy: k }, { dur: 0.45, ease: 'outElastic' }));
       const left = s.x < 0;
-      (left ? this.mom : this.dad).react?.('happy', 1.4);
-      (left ? this.dad : this.mom).react?.('happy', 1.0);
+      (left ? this.mom : this.dad).react?.('cheer', 1.4);
+      (left ? this.dad : this.mom).react?.('happy', 1.1);
       this.mom.lookAt?.(w.x, w.y); this.dad.lookAt?.(w.x, w.y);
       setTimeout(() => { this.mom.lookAt?.(null); this.dad.lookAt?.(null); }, 900);
     }
@@ -360,47 +531,105 @@ export default class Level3 extends LevelScene {
   }
   ring(x, y) {
     const r = this.fxLayer.add(new Node({ x, y, drawFn: (ctx, nd) => {
-      ctx.strokeStyle = '#ffd95a'; ctx.lineWidth = 7 * (1 - nd.k) + 1; ctx.beginPath(); ctx.arc(0, 0, 40 + nd.k * 110, 0, Math.PI * 2); ctx.stroke();
+      const k = nd.k, R = 50 + k * 170, lw = 14 * (1 - k) + 2;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#f7c234'; ctx.lineWidth = lw; ctx.setLineDash([22, 9]);
+      ctx.beginPath(); ctx.arc(0, 0, R, k * 2, k * 2 + Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = '#fff6c8'; ctx.lineWidth = lw * 0.4; ctx.setLineDash([14, 16]);
+      ctx.beginPath(); ctx.arc(1.5, -1.5, R - lw * 0.2, -k, -k + Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
     } }));
     r.k = 0;
-    tween(r, { k: 1, alpha: 0 }, { dur: 0.5, ease: 'outCubic' }).then(() => r.removeSelf());
+    tween(r, { k: 1, alpha: 0 }, { dur: 0.55, ease: 'outCubic' }).then(() => r.removeSelf());
+  }
+  /** a few hand-drawn crayon stars flying out (no glow discs) */
+  crayonStars(x, y, n, scale = 1, up = false) {
+    for (let i = 0; i < n; i++) {
+      const a = up ? -Math.PI / 2 + (Math.random() - 0.5) * 1.6 : (i / n) * Math.PI * 2 + Math.random() * 0.6;
+      const d = (110 + Math.random() * 90) * scale, sc = (0.8 + Math.random() * 0.6) * scale;
+      const st = this.fxLayer.add(new Node({ x, y, sx: 0.2, sy: 0.2, rot: Math.random() * 6 }).setImage(this.starSp));
+      tween(st, { x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, sx: sc, sy: sc, rot: st.rot + 2.5 }, { dur: 0.55, ease: 'outCubic' })
+        .then(() => tween(st, { alpha: 0, y: st.y + 30, sx: sc * 0.6, sy: sc * 0.6 }, { dur: 0.45, ease: 'inQuad' })).then(() => st.removeSelf());
+    }
   }
 
   // ------------------------------------------------------------------------------------------- finish
   async celebrate(fast) {
     if (this.celebrating) return;
     this.celebrating = true; this.drag.enabled = false; this.endHint();
-    const photo = { x: this.cx, y: this.oy + PHOTO_CY };
+    const photo = () => this.frameG.toWorld(0, L3.CENTER_FROM_NAIL);
     await wait(fast ? 0.15 : 0.55);
     // seams fade into one seamless photo
     tween(this.fullPhoto, { alpha: 1 }, { dur: 0.7, ease: 'inOutSine' });
     audio.sfx('sparkle');
-    this.mom.lookAt?.(photo.x, photo.y); this.dad.lookAt?.(photo.x, photo.y);
+    { const p = photo(); this.mom.lookAt?.(p.x, p.y); this.dad.lookAt?.(p.x, p.y); }
     await wait(0.85);
-    // camera flash
+    // camera flash — under the white the printed photo turns into the live family
     audio.sfx('pop');
-    this.flash.alpha = 0.95; this.flashK = 0;
-    tween(this, { flashK: 1 }, { dur: 0.7, ease: 'outCubic' });
-    tween(this.flash, { alpha: 0 }, { dur: 0.7, ease: 'inQuad' });
+    this.flash.alpha = 0.97; this.flashK = 0;
+    tween(this, { flashK: 1 }, { dur: 0.75, ease: 'outCubic' });
+    tween(this.flash, { alpha: 0 }, { dur: 0.75, ease: 'inQuad' });
+    this.livePhoto.visible = true;
+    this.fullPhoto.alpha = 0;
+    for (const n of this.pieces) n.visible = false;
     await wait(0.12);
-    // the photo comes alive
-    this.swing.v += 0.55;
-    tween(this.frameG, { sx: 1.08, sy: 0.94 }, { dur: 0.12 }).then(() => tween(this.frameG, { sx: 1, sy: 1 }, { dur: 0.9, ease: 'outElastic' }));
-    this.glossK = 0; tween(this, { glossK: 1.01 }, { dur: 0.9, delay: 0.2, ease: 'inOutSine' });
+    this.comeAlive();
+    // frame wobble, outer family cheers
+    this.swing.v += 0.5;
+    const k = this.frameK;
+    tween(this.frameG, { sx: k * 1.07, sy: k * 0.95 }, { dur: 0.12 }).then(() => tween(this.frameG, { sx: k, sy: k }, { dur: 0.9, ease: 'outElastic' }));
+    this.glossK = 0; tween(this, { glossK: 1.01 }, { dur: 0.9, delay: 0.25, ease: 'inOutSine' });
     audio.sfx('cheer');
-    this.mom.react?.('cheer', 4); this.mom.setMood?.('cheer');
-    setTimeout(() => { this.dad.react?.('cheer', 4); this.dad.setMood?.('cheer'); }, 120);
-    for (const c of [this.mom, this.dad]) tween(c, { y: c.y - 30 }, { dur: 0.25, ease: 'outQuad' }).then(() => tween(c, { y: c.y + 30 }, { dur: 0.5, ease: 'outBounce' }));
-    burst(this.fxLayer, photo.x, photo.y, 'hearts', { count: 12 });
-    burst(this.fxLayer, photo.x - 330, photo.y - 200, 'confetti', { count: 26 });
-    burst(this.fxLayer, photo.x + 330, photo.y - 200, 'confetti', { count: 26 });
-    await wait(0.45);
-    burst(this.fxLayer, this.mom.x, this.mom.y - 200, 'hearts', { count: 8 });
-    burst(this.fxLayer, this.dad.x, this.dad.y - 220, 'hearts', { count: 8 });
-    burst(this.fxLayer, photo.x, photo.y - 260, 'stars', { count: 14 });
+    this.mom.setMood?.('cheer'); this.mom.react?.('cheer', 3);
+    setTimeout(() => { this.dad.setMood?.('cheer'); this.dad.react?.('cheer', 3); }, 120);
+    for (const c of [this.mom, this.dad]) { const y0 = c.y; tween(c, { y: y0 - 30 }, { dur: 0.25, ease: 'outQuad' }).then(() => tween(c, { y: y0 }, { dur: 0.5, ease: 'outBounce' })); }
+    const v = this.v;
+    burst(this.fxLayer, 30, -20, 'confetti', { angle: Math.PI * 0.3, cone: 0.9, count: 34, spread: 1.1 });
+    burst(this.fxLayer, v.w - 30, -20, 'confetti', { angle: Math.PI * 0.7, cone: 0.9, count: 34, spread: 1.1 });
+    await wait(0.3);
+    this.heartsOverHeads();
+    { const p = photo(); this.crayonStars(p.x, p.y - L3.PH * 0.5 * this.frameK, 8, 1.2, true); }
     audio.sfx('star');
-    await wait(1.2);
+    await wait(1.1);
+    this.mom.setMood?.('happy'); this.dad.setMood?.('happy');
     this.complete();
+  }
+  heartsOverHeads() {
+    const top = c => c.y - 560 * c.sy - 30;
+    burst(this.fxLayer, this.mom.x, top(this.mom), 'hearts', { count: 6 });
+    burst(this.fxLayer, this.dad.x, top(this.dad), 'hearts', { count: 6 });
+  }
+  /** the photo comes alive: live characters drop their portrait pose, cheer, baby wakes and giggles; loops forever */
+  comeAlive() {
+    const { mom, dad, baby } = this.live;
+    for (const c of [mom, dad, baby]) { c.gazeOverride = null; c.tiltOverride = null; }
+    mom.setMood?.('happy'); dad.setMood?.('happy'); baby.setMood?.('sleep');
+    mom.react?.('cheer', 1.8);
+    setTimeout(() => dad.react?.('cheer', 1.8), 150);
+    setTimeout(() => { baby.react?.('surprised', 0.6); audio.sfx('giggle'); }, 700);
+    setTimeout(() => { baby.setMood?.('happy'); baby.react?.('cheer', 1.4); }, 1300);
+    const wp = c => this.livePhoto.toWorld(c.x, c.y - 300 * c.sy);
+    let next = 2.4, i = 0;
+    game.onUpdate(dt => {
+      next -= dt; if (next > 0) return;
+      next = 1.8 + Math.random() * 1.4; i++;
+      const pick = i % 4;
+      if (pick === 0) { mom.react?.('cheer', 1.2); mom.talk?.(0.8); }
+      else if (pick === 1) { dad.react?.('cheer', 1.2); const p = wp(baby); dad.lookAt?.(p.x, p.y); }
+      else if (pick === 2) { baby.react?.('cheer', 1.0); audio.sfx('giggle'); const p = wp(baby); mom.lookAt?.(p.x, p.y); }
+      else { mom.lookAt?.(null); dad.lookAt?.(null); mom.react?.('happy', 1); dad.talk?.(0.8); }
+      // keep the outer parents alive too
+      if (Math.random() < 0.4) (Math.random() < 0.5 ? this.mom : this.dad).react?.('happy', 1);
+    });
+  }
+
+  async complete() {
+    if (this.finished) return;
+    this.winPose = true;
+    const p = this.winPoseFor(this.v || game.view), C = L3.CENTER_FROM_NAIL;
+    this.frameK = p.s;
+    tween(this.frameG, { x: p.x, y: p.cy - C * p.s, sx: p.s, sy: p.s }, { dur: 0.8, ease: 'inOutCubic' });
+    return super.complete();
   }
 
   debugSolve(n = Infinity) {

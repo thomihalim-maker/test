@@ -30,7 +30,8 @@ export class LevelScene {
   async complete() {
     if (this.finished) return; this.finished = true; this.drag.enabled = false;
     save.setStars(this.level, 3);
-    this.winUI = await showWin(this, { stars: 3, next: this.level < 3 ? 'level' + (this.level + 1) : 'finale' });
+    // Levels may set this.winOpts (e.g. { calm: true } for a quiet bedtime win) before calling complete().
+    this.winUI = await showWin(this, { stars: 3, next: this.level < 3 ? 'level' + (this.level + 1) : 'finale', ...(this.winOpts || {}) });
   }
   /** Debug/screenshot hook: place `n` pieces instantly (Infinity = solve). Levels implement. */
   debugSolve(n = Infinity) {}
