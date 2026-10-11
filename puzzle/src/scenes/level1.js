@@ -146,6 +146,7 @@ export default class Level1 extends LevelScene {
     const key = v.w.toFixed(0) + 'x' + v.h.toFixed(0);
     if (this.bgKey !== key) { this.bgKey = key; this.bg.setImage(this.bakeBackground(v)); }
     this.applyCam();
+    this.bunting.visible = this.oy > 60; // wall garland only where there is wall to fill (tablet / portrait)
     // Ibu stands inward a bit more on narrow (4:3) screens so her knot never leaves the frame
     // Ibu: cropped by the bottom edge like the reference (half figure). On tall screens she grows a little and stays
     // anchored to the bottom edge; on narrow screens she steps inward so her knot stays in frame.
@@ -486,9 +487,10 @@ export default class Level1 extends LevelScene {
     await wait(0.6);
     const hd = this.headSleep();
     burst(this.fxLayer, hd.x + 170, hd.y - 150, 'stars', { count: 5 });
-    // camera eases in a touch (lamp + shelf stay in frame) and drops a little so the win banner fits above the mobile
+    // camera eases in a touch (lamp + shelf stay in frame), drops so the shared win banner + stars clear the mobile,
+    // and slides left so the stool/bottle stay out of the win button band
     const v = game.view, cs = Math.min(1.05, v.w / 1590);
-    tween(this.cam, { s: cs, fx: 820, fy: 560, dx: -20, dy: Math.max(0, 70 - this.oy) }, { dur: 3.2, ease: 'inOutSine' });
+    tween(this.cam, { s: cs, fx: 820, fy: 560, dx: -60, dy: Math.max(0, 92 - this.oy) }, { dur: 3.2, ease: 'inOutSine' });
     await wait(3.4);
     this.complete();
   }
@@ -504,10 +506,8 @@ export default class Level1 extends LevelScene {
   }
 
   complete() {
-    // banner + stars sit above the mobile ring (the mobile stays)
-    const ringTop = this.stage.toWorld(L.mobile.x, L.mobile.y + L.mobile.ring - 30).y;
-    const bannerScale = 0.7, bannerY = Math.max(70, ringTop - 160);
-    this.winOpts = { calm: true, bannerScale, bannerY, starsY: bannerY + 92 };
+    // shared banner height across levels; the finale camera already keeps the mobile below the banner + stars
+    this.winOpts = { calm: true };
     this.lullaby = false; // no more music notes once the win overlay is up
     return super.complete();
   }

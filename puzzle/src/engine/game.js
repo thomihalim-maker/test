@@ -53,6 +53,8 @@ class Game {
     if (W / H >= DESIGN_W / DESIGN_H) { this.scale = H / DESIGN_H; this.view = { w: W / this.scale, h: DESIGN_H }; }
     else { this.scale = W / DESIGN_W; this.view = { w: DESIGN_W, h: Math.min(H / this.scale, DESIGN_W * 0.75) }; }
     this.offY = Math.max(0, (H - this.view.h * this.scale) / 2); // css px band above the stage
+    // Keep touch targets ≥ ~48 css px when the stage is shown small (portrait letterbox).
+    Node.extraPad = this.scale < 0.4 ? Math.min(40, Math.max(0, 48 / this.scale - 160) / 2) : 0;
     // Notch / rounded-corner insets (CSS env safe-area-inset-*), in design units.
     const si = this._safeInsets();
     this.view.safe = { l: si.l / this.scale, r: si.r / this.scale, t: this.offY ? 0 : si.t / this.scale, b: this.offY ? 0 : si.b / this.scale };

@@ -202,7 +202,7 @@ export function scribble(ctx, pts, color, w = 4, o = {}) { pencil(ctx, pts, { ..
  * cream "sticker" halo. opts: {line, halo, haloColor, weight, hatch}
  */
 export function crayonText(text, size, color, o = {}) {
-  const key = o.key ?? `txt2|${text}|${size}|${color}|${o.halo ?? 1}|${o.line ?? PAL.lineDark}|${o.haloColor ?? ''}`;
+  const key = o.key ?? `txt3|${text}|${size}|${color}|${o.halo ?? 1}|${o.line ?? PAL.lineDark}|${o.haloColor ?? ''}`;
   const weight = o.weight ?? 700, font = `${weight} ${size}px ${FONT}`;
   const mc = document.createElement('canvas').getContext('2d'); mc.font = font;
   const tw = Math.ceil(mc.measureText(text).width), pad = Math.ceil(size * 0.22);
@@ -214,8 +214,8 @@ export function crayonText(text, size, color, o = {}) {
     // outline first: strokeText strokes every font contour, so it must never be drawn over the fill
     withLayer(x, { x: 0, y: 0, w, h }, l => {
       l.font = font; l.textAlign = 'center'; l.textBaseline = 'middle'; l.strokeStyle = o.line ?? PAL.lineDark; l.lineJoin = 'round';
-      l.lineWidth = Math.max(4, size * 0.09); l.globalAlpha = 0.85; l.strokeText(text, cx + 0.6, cy - 0.4);
-      l.lineWidth = Math.max(2.4, size * 0.05); l.globalAlpha = 0.45; l.strokeText(text, cx - 1.1, cy + 0.9);
+      l.lineWidth = Math.max(3, size * 0.055); l.globalAlpha = 0.9; l.strokeText(text, cx + 0.6, cy - 0.4);
+      l.lineWidth = Math.max(2, size * 0.032); l.globalAlpha = 0.45; l.strokeText(text, cx - 1.1, cy + 0.9);
     }, 0.35);
     // solid underfill hides every contour stroke inside the glyphs; the crayon fill (with tooth) sits on top
     x.fillStyle = o.haloColor ?? '#fffaf0'; x.fillText(text, cx, cy);

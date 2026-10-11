@@ -61,10 +61,10 @@ export class Node {
     return { x, y };
   }
   hitTest(px, py) {
-    const p = this.toLocal(px, py);
-    if (this.hitR > 0) return p.x * p.x + p.y * p.y <= this.hitR * this.hitR;
-    const l = -this.ax * this.w - this.hitPad, t = -this.ay * this.h - this.hitPad;
-    return p.x >= l && p.x <= l + this.w + this.hitPad * 2 && p.y >= t && p.y <= t + this.h + this.hitPad * 2;
+    const p = this.toLocal(px, py), xp = Node.extraPad;
+    if (this.hitR > 0) { const r = this.hitR + xp; return p.x * p.x + p.y * p.y <= r * r; }
+    const pad = this.hitPad + xp, l = -this.ax * this.w - pad, t = -this.ay * this.h - pad;
+    return p.x >= l && p.x <= l + this.w + pad * 2 && p.y >= t && p.y <= t + this.h + pad * 2;
   }
   isShown() { let n = this; while (n) { if (!n.visible || n.alpha <= 0) return false; n = n.parent; } return true; }
   // Topmost interactive descendant (including self) under the point, in render order.
@@ -75,3 +75,5 @@ export class Node {
     return null;
   }
 }
+// Extra touch padding (design units) applied to every hit test; the engine raises it when the stage is small (portrait).
+Node.extraPad = 0;

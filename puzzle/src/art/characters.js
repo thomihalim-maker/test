@@ -382,7 +382,7 @@ function dadParts() {
     part('dad-nose', 40, 40, 20, 20, pencil('M5 -9 C-6 -11 -9 4 3 5', 2.8, C.inkSoft, 1, { gaps: false })),
     part('dad-stubble', 130, 90, 65, 40, `<g filter="url(#pgr)">${stub}</g>`),
     ...eyeParts(k, false), ...mouthParts(k, 1.08), brow(k, 3.7), cheek(k, 22, 12), question(k), ...handParts(k),
-    texPart('skin', '#ffffff', '#ddd2cc', null, 0.3), texPart('green', C.green, C.greenShade, C.greenLight, 0.5, 0.3),
+    texPart('skin', '#ffffff', C.skinGrain, null, 0.2), texPart('green', C.green, C.greenShade, C.greenLight, 0.5, 0.3),
     lineTex('line', C.line), lineTex('greenLine', C.greenLine),
   ];
 }
@@ -448,7 +448,7 @@ const CFG = {
     arm: { upperW: 54, foreW: 50, fill: 'pink', line: 'pinkLine', toWrist: true, shadow: 'rgba(226,138,178,0.55)' } },
   dad: { parts: dadParts, h: 600, w: 380, neck: [0, -236], face: -128, shoulder: [144, -198], L1: 96, L2: 92, handS: 1.1, facing: -13, faceR: [147, 126], elbow: [190, -146],
     eye: [42, 2], brow: [45, -34], cheek: [92, 34], mouth: [0, 64], nose: [-3, 28], stubble: [0, 58], ears: 146,
-    arm: { upperW: 42, foreW: 40, fill: 'skin', line: 'line', shadow: 'rgba(236,206,196,0.7)', sleeve: { w: 66, len: 0.62, fill: 'green', line: 'greenLine' } } },
+    arm: { upperW: 42, foreW: 40, fill: 'skin', line: 'line', shadow: 'rgba(240,214,204,0.55)', sleeve: { w: 66, len: 0.62, fill: 'green', line: 'greenLine' } } },
   baby: { parts: babyParts, h: 230, w: 230, neck: [0, -92], face: -58, facing: 0, faceR: [106, 76],
     eye: [33, 6], brow: [33, -16], cheek: [62, 24], mouth: [0, 27] },
 };
@@ -784,7 +784,7 @@ export class Character extends Node {
         let nx = -dy / L, ny = dx / L; if (ny < 0 || (Math.abs(ny) < 0.05 && nx < 0)) { nx = -nx; ny = -ny; }
         U.push([P[i][0] + nx * r * 0.5, P[i][1] + ny * r * 0.5]);
       }
-      this._poly(ctx, U, r * 0.6, sh, 0.5);
+      this._poly(ctx, U, r * 0.5, sh, 0.32);
     }
   }
   _sprite(ctx, key, x, y, rot, sx, sy) {

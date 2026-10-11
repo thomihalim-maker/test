@@ -10,7 +10,8 @@ import { save } from './save.js';
 const dbg = e => { try { if (window.__audioDebug) console.error('audio:', e && e.stack || e); } catch (_) {} };
 const MASTER = 0.7;
 // per-sfx loudness trim so everything sits within ~8 dB RMS (measured offline)
-const LEVEL = { tap: 4, pick: 2.8, drop: 2.6, giggle: 2.8, pop: 7, whoosh: 1.9, sparkle: 1.7, wrong: 1.4, snap: 0.5, star: 0.45, cheer: 0.48, win: 0.36, unlock: 0.45, chime: 0.65 };
+const LEVEL = { tap: 1.0, pick: 2.0, drop: 0.95, giggle: 2.8, pop: 1.0, whoosh: 3.4, sparkle: 1.7, wrong: 1.4, snap: 0.6, star: 0.5, cheer: 0.52, win: 0.4, unlock: 0.5, chime: 0.85, launch: 1, crackle: 1 };
+// (trims aim every sfx at roughly -12..-8 dBFS peak before the compressor, so dynamics only touch stacked celebrations)
 const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 const R = (a, b) => a + Math.random() * (b - a);
 
@@ -74,15 +75,15 @@ class Audio {
     const c = this.ctx;
     this.master = c.createGain(); this.master.gain.value = this.muted ? 0 : MASTER;
     const comp = c.createDynamicsCompressor();
-    comp.threshold.value = -14; comp.knee.value = 12; comp.ratio.value = 3; comp.attack.value = 0.004; comp.release.value = 0.2;
+    comp.threshold.value = -10; comp.knee.value = 10; comp.ratio.value = 2; comp.attack.value = 0.012; comp.release.value = 0.18;
     // brickwall stage so stacked celebrations can never clip
     const lim = c.createDynamicsCompressor();
-    lim.threshold.value = -3; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.001; lim.release.value = 0.12;
+    lim.threshold.value = -6; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.001; lim.release.value = 0.12;
     this.master.connect(comp).connect(lim).connect(c.destination);
     // warm low-pass on the whole mix keeps everything soft for small ears
     this.sfxBus = c.createGain(); this.sfxBus.gain.value = 0.9; this.sfxBus.connect(this.master);
     this.duck = c.createGain(); this.duck.gain.value = 1; this.duck.connect(this.master);
-    this.musicBus = c.createGain(); this.musicBus.gain.value = 0.42;
+    this.musicBus = c.createGain(); this.musicBus.gain.value = 0.36;
     const mlp = c.createBiquadFilter(); mlp.type = 'lowpass'; mlp.frequency.value = 5200;
     this.musicBus.connect(mlp).connect(this.duck);
     // reverb
@@ -252,6 +253,7 @@ class Audio {
         case 'pop': {
           this._glide(t, 320 * p, 1300 * p, 0.06, 0.5 * v, 'sine', this.sfxBus, 0.15);
           this._noise(t, 0.02, 0.06 * v, 'highpass', 2500, 1);
+          I('marimba', 88 + (opts.pitch || 0) * 0, 0.02, 0.22, 0.3, 0.5); // a little body so it isn't just a click
           break;
         }
         case 'giggle': {
@@ -277,6 +279,19 @@ class Audio {
           [96, 100, 103, 108, 103, 108].forEach((m, k) => I('bell', m - 12, 0.7 + k * 0.06, 0.08, 0.7, 0.7));
           this._noise(t + 0.5, 0.9, 0.03 * v, 'highpass', 8000, 0.4);
           this._duckMusic(0.25, 1.4);
+          break;
+        }
+        case 'launch': { // firework launch: soft low thump + rising hiss
+          this._glide(t, 150 * p, 55 * p, 0.18, 0.5 * v, 'sine', this.sfxBus, 0.1);
+          const n = this._noise(t, 0.55, 0.12 * v, 'bandpass', 600, 2);
+          n.f.frequency.setValueAtTime(500, t); n.f.frequency.exponentialRampToValueAtTime(3200, t + 0.5);
+          break;
+        }
+        case 'crackle': { // firework burst: soft boom + glittery crackles
+          this._glide(t, 110 * p, 45 * p, 0.35, 0.45 * v, 'sine', this.sfxBus, 0.4);
+          this._noise(t, 0.25, 0.14 * v, 'lowpass', 900, 0.7);
+          for (let k = 0; k < 16; k++) this._noise(t + 0.12 + Math.random() * 0.8, 0.012, (0.05 + Math.random() * 0.06) * v, 'highpass', 4000 + Math.random() * 4000, 1);
+          I('bell', 96 + ((Math.random() * 3) | 0) * 2, 0.15, 0.06, 0.8, 0.8);
           break;
         }
         case 'chime': {
@@ -308,7 +323,7 @@ class Audio {
       const c = this.ctx, t = c.currentTime;
       if (this.track) { const old = this.track; old.out.gain.cancelScheduledValues(t); old.out.gain.setTargetAtTime(0, t, 0.25); setTimeout(() => { try { old.out.disconnect(); } catch (e) { dbg(e); } }, 2000); this.track = null; }
       if (!name) { clearInterval(this._timer); this._timer = null; return; }
-      const out = c.createGain(); out.gain.setValueAtTime(0, t); out.gain.linearRampToValueAtTime(1, t + 1.2); out.connect(this.musicBus);
+      const out = c.createGain(); out.gain.setValueAtTime(0, t); out.gain.linearRampToValueAtTime(ARR[name].gain || 1, t + 1.2); out.connect(this.musicBus);
       const arr = ARR[name];
       this.track = { name, arr, out, step: 0, next: t + 0.15, spb: 60 / arr.bpm / 2 };
       if (!this._timer) this._timer = setInterval(() => this._tick(), 40);
@@ -384,22 +399,27 @@ const ARR = {
     },
   },
 };
-// finale: slower celebration lullaby — melody on bells over warm pads, rocking kalimba and soft bass
+// finale: bright celebration (~112 bpm) — marimba melody, bell countermelody, oom-pah bass, soft claps;
+// the second pass lifts a whole tone and ends on a closing V–I cadence with a bell flourish.
 ARR.finale = {
-  bpm: 76,
+  bpm: 112, gain: 1.6,
   step(a, tr, s, t) {
-    const pass = s >= LOOP ? 1 : 0, ls = s % LOOP, ch = chordAt(ls), mel = MEL_AT[ls];
-    if (ls % 4 === 0) a._pad(tr, [ch[0] + 12, ch[1] + 12, ch[2] + 12, ch[0] + 24], t, tr.spb * 4, 0.026);
-    if (ls % 4 === 0) a._m(tr, 'bass', ch[0] - 12, t, 0.26, 0.3, 1.8);
-    const arp = [ch[0], ch[1], ch[2], ch[1]][ls % 4] + 24;
-    a._m(tr, 'kalimba', arp, t, ls % 2 ? 0.06 : 0.09, 0.5, 0.9);
+    const pass = s >= LOOP ? 1 : 0, ls = s % LOOP, key = pass ? 2 : 0, ch = chordAt(ls).map(n => n + key), mel = MEL_AT[ls];
+    const bar = ls % 8;
+    if (ls % 2 === 0) a._m(tr, 'bass', (ls % 4 === 0 ? ch[0] : ch[2] - 12), t, ls % 4 === 0 ? 0.34 : 0.22, 0.15, 0.6);
+    else a._m(tr, 'kalimba', ch[1 + (ls % 4 === 1 ? 0 : 1)] + 12, t, 0.08, 0.35, 0.5);
+    if (bar === 2 || bar === 6) { a._noise(t, 0.07, 0.07, 'bandpass', 1300, 0.9, tr.out); a._noise(t + 0.012, 0.05, 0.05, 'bandpass', 2200, 1.2, tr.out); }
+    a._shaker(tr, t, ls % 2 ? 0.014 : 0.022);
     if (mel) {
-      const [m, l] = mel;
-      a._m(tr, 'bell', m + 24, t, 0.2, 0.75, l > 2 ? 1.6 : 1.1);
-      a._m(tr, 'musicbox', m + 12, t, pass ? 0.16 : 0.1, 0.6, 1.2);
-      if (pass && l > 2) a._m(tr, 'bell', nextChordTone(m + 24, ch), t + tr.spb * 2, 0.07, 0.85);
+      const [m0, l] = mel, m = m0 + key;
+      a._m(tr, 'marimba', m + 12, t, 0.36, 0.45, l > 2 ? 1.4 : 1);
+      a._m(tr, 'musicbox', m + 24, t, 0.08, 0.6);
     }
-    if (ls % 16 === 12) a._shaker(tr, t, 0.015);
+    // bell countermelody: descending chord tones on the off-beats
+    if (ls % 2 === 1) a._m(tr, 'bell', [ch[2], ch[1], ch[0], ch[1]][(ls >> 1) % 4] + 24, t, 0.07, 0.75, 0.9);
+    // closing cadence at the very end of the lifted pass
+    if (pass && ls === LOOP - 8) { [ch[0], ch[1], ch[2]].forEach((n, k) => a._m(tr, 'bell', n + 24 + 7, t + k * 0.06, 0.08, 0.8)); }
+    if (pass && ls === LOOP - 4) { [0, 4, 7, 12].forEach((iv, k) => a._m(tr, 'bell', 72 + key + iv, t + k * 0.07, 0.1, 0.85, 1.4)); a._m(tr, 'bass', 48 + key - 12, t, 0.4, 0.3, 2); }
   },
 };
 
