@@ -211,6 +211,14 @@ export function crayonText(text, size, color, o = {}) {
     x.font = font; x.textAlign = 'center'; x.textBaseline = 'middle';
     const cx = w / 2, cy = h / 2 + size * 0.04;
     if (o.halo !== 0) { x.strokeStyle = o.haloColor ?? '#fffaf0'; x.lineWidth = size * 0.2 * (o.halo ?? 1); x.lineJoin = 'round'; x.strokeText(text, cx, cy); }
+    // outline first: strokeText strokes every font contour, so it must never be drawn over the fill
+    withLayer(x, { x: 0, y: 0, w, h }, l => {
+      l.font = font; l.textAlign = 'center'; l.textBaseline = 'middle'; l.strokeStyle = o.line ?? PAL.lineDark; l.lineJoin = 'round';
+      l.lineWidth = Math.max(4, size * 0.09); l.globalAlpha = 0.85; l.strokeText(text, cx + 0.6, cy - 0.4);
+      l.lineWidth = Math.max(2.4, size * 0.05); l.globalAlpha = 0.45; l.strokeText(text, cx - 1.1, cy + 0.9);
+    }, 0.35);
+    // solid underfill hides every contour stroke inside the glyphs; the crayon fill (with tooth) sits on top
+    x.fillStyle = o.haloColor ?? '#fffaf0'; x.fillText(text, cx, cy);
     withLayer(x, { x: 0, y: 0, w, h }, l => {
       l.font = font; l.textAlign = 'center'; l.textBaseline = 'middle'; l.fillStyle = color; l.fillText(text, cx, cy);
       l.globalCompositeOperation = 'source-atop'; const r = rng(text.length * 7 + size);
@@ -218,11 +226,6 @@ export function crayonText(text, size, color, o = {}) {
       const g = l.createLinearGradient(0, cy - size * 0.5, 0, cy + size * 0.5); g.addColorStop(0, 'rgba(255,255,255,0.25)'); g.addColorStop(0.5, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(0,0,0,0.12)');
       l.globalAlpha = 1; l.fillStyle = g; l.fillRect(0, 0, w, h);
     }, 0.28);
-    withLayer(x, { x: 0, y: 0, w, h }, l => {
-      l.font = font; l.textAlign = 'center'; l.textBaseline = 'middle'; l.strokeStyle = o.line ?? PAL.lineDark; l.lineJoin = 'round';
-      l.lineWidth = Math.max(2, size * 0.045); l.globalAlpha = 0.85; l.strokeText(text, cx + 0.6, cy - 0.4);
-      l.lineWidth = Math.max(1.2, size * 0.025); l.globalAlpha = 0.45; l.strokeText(text, cx - 1.1, cy + 0.9);
-    }, 0.35);
   }, { key });
 }
 

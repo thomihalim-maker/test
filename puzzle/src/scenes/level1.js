@@ -488,7 +488,8 @@ export default class Level1 extends LevelScene {
   }
 
   complete() {
-    this.winOpts = { calm: true };
+    this.winOpts = { calm: true, bannerY: 150, bannerScale: 0.85 };
+    this.lullaby = false; // no more music notes once the win overlay is up
     tween(this.mobile, { alpha: 0 }, { dur: 0.6 });
     return super.complete();
   }

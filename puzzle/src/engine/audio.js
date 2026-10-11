@@ -8,6 +8,9 @@
 import { save } from './save.js';
 
 const dbg = e => { try { if (window.__audioDebug) console.error('audio:', e && e.stack || e); } catch (_) {} };
+const MASTER = 0.7;
+// per-sfx loudness trim so everything sits within ~8 dB RMS (measured offline)
+const LEVEL = { tap: 2, pick: 2, drop: 1.8, giggle: 1.8, pop: 1.7, whoosh: 1.3, sparkle: 1.1, wrong: 1.2, snap: 0.6, star: 0.58, cheer: 0.6, win: 0.55, unlock: 0.58, chime: 1 };
 const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 const R = (a, b) => a + Math.random() * (b - a);
 
@@ -69,10 +72,13 @@ class Audio {
 
   _build() {
     const c = this.ctx;
-    this.master = c.createGain(); this.master.gain.value = this.muted ? 0 : 0.85;
+    this.master = c.createGain(); this.master.gain.value = this.muted ? 0 : MASTER;
     const comp = c.createDynamicsCompressor();
     comp.threshold.value = -14; comp.knee.value = 12; comp.ratio.value = 3; comp.attack.value = 0.004; comp.release.value = 0.2;
-    this.master.connect(comp).connect(c.destination);
+    // brickwall stage so stacked celebrations can never clip
+    const lim = c.createDynamicsCompressor();
+    lim.threshold.value = -3; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.001; lim.release.value = 0.12;
+    this.master.connect(comp).connect(lim).connect(c.destination);
     // warm low-pass on the whole mix keeps everything soft for small ears
     this.sfxBus = c.createGain(); this.sfxBus.gain.value = 0.9; this.sfxBus.connect(this.master);
     this.duck = c.createGain(); this.duck.gain.value = 1; this.duck.connect(this.master);
@@ -110,7 +116,7 @@ class Audio {
   setMuted(m) {
     this.muted = !!m; try { save.muted = this.muted; } catch (e) { dbg(e); }
     try {
-      if (this.master) { const t = this.ctx.currentTime; this.master.gain.cancelScheduledValues(t); this.master.gain.setTargetAtTime(m ? 0 : 0.85, t, 0.03); }
+      if (this.master) { const t = this.ctx.currentTime; this.master.gain.cancelScheduledValues(t); this.master.gain.setTargetAtTime(m ? 0 : MASTER, t, 0.03); }
       if (m && typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
     } catch (e) { dbg(e); }
   }
@@ -172,7 +178,7 @@ class Audio {
       // tiny anti-machine-gun guard for identical sfx in the same frame
       if (this._lastSfx[name] && now - this._lastSfx[name] < 0.03) return;
       this._lastSfx[name] = now;
-      const t = now + 0.005, v = opts.vol ?? 1, p = Math.pow(2, (opts.pitch || 0) / 12);
+      const t = now + 0.005, v = (opts.vol ?? 1) * (LEVEL[name] ?? 1), p = Math.pow(2, (opts.pitch || 0) / 12);
       const I = (inst, m, dt, vel, rev = 0.35, len = 1) => this._inst(inst, mtof(m) * p, t + dt, vel * v, this.sfxBus, rev, len);
       switch (name) {
         case 'tap': {
@@ -183,12 +189,14 @@ class Audio {
         case 'pick': {
           this._glide(t, 480 * p, 900 * p, 0.09, 0.14 * v, 'sine', this.sfxBus, 0.15);
           I('kalimba', 86, 0.03, 0.22, 0.3, 0.6);
+          this._duckMusic(0.7, 0.2);
           break;
         }
         case 'drop': {
           this._glide(t, 240 * p, 120 * p, 0.12, 0.3 * v, 'sine', this.sfxBus, 0.05);
           this._noise(t, 0.08, 0.12 * v, 'lowpass', 500, 0.7);
           I('marimba', 60, 0.01, 0.3, 0.25, 0.7);
+          this._duckMusic(0.7, 0.2);
           break;
         }
         case 'snap': {
