@@ -31,7 +31,7 @@ const TYPE_DY = { rings: -16, car: -16, ball: 0, block: -4, duck: -6 };
 const SLOT_S = 0.9;
 const LIFT_Y = -50, LIFT_S = 1.15;
 const DAD = { x: 250, s: 0.88, drop: 64 };
-const BOUNCER = { x: 1478, y: 690 };
+const BOUNCER = { x: 1460, y: 690 };
 const PRAISE = ['Pintar!', 'Hebat!', 'Bagus sekali!', 'Hore!'];
 const DUST = '#f3e3c8';
 
@@ -59,7 +59,7 @@ export default class Level2 extends LevelScene {
     this.butterfly.t = 0;
 
     // --- room shell ---
-    S.add(spr(art.wall, { x: -400, y: -200, ax: 0, ay: 0 }));
+    S.add(spr(art.wall, { x: -400, y: -340, ax: 0, ay: 0 }));
     S.add(spr(art.floor, { x: -400, y: 520, ax: 0, ay: 0 }));
     this.curtains = [
       S.add(spr(art.curtain, { x: 300, y: 50, ax: 0, ay: 0 })),
@@ -471,7 +471,7 @@ export default class Level2 extends LevelScene {
     }
     for (const t of this.toys) if (!t.placed) {
       killTweensOf(t); killTweensOf(t.art);
-      Object.assign(t, { x: t.home.x, y: t.home.y, rot: t.home.rot, sx: 1, sy: 1 }); t.art.y = 0; t.shadow.alpha = 0.6;
+      Object.assign(t, { x: t.home.x, y: t.home.y, rot: t.home.rot, sx: 1, sy: 1, spin: 0 }); Object.assign(t.art, { y: 0, sx: 1, sy: 1, rot: 0 }); t.shadow.alpha = 0.6;
     }
     for (const b of this.baskets) { killTweensOf(b); b.sx = b.sy = 1; }
     if (this.toys.every(t => t.placed)) this.celebrate();

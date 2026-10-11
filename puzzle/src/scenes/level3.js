@@ -197,7 +197,7 @@ export default class Level3 extends LevelScene {
     // showWin: banner + stars in a top band, buttons in a bottom band → park the frame in the clear wall between
     const topY = Math.min((v.h - 900) / 2, 60) * 0.5;
     const top = topY + 262, bottom = v.h - 112 - 100;
-    const s = Math.min(0.85 * Math.min(this.k || 1, 1.1), (bottom - top - 24) / L3.OH);
+    const s = Math.min(0.85 * (this.k || 1), (bottom - top - 24) / L3.OH);
     return { x: v.w / 2, cy: (top + bottom) / 2 + 6, s };
   }
   placeChars() {
@@ -212,6 +212,7 @@ export default class Level3 extends LevelScene {
 
   // ------------------------------------------------------------------------------------------- intro
   enter() {
+    this.enterT = game.time;
     audio.music('level');
     game.onUpdate((dt, t) => this.tick(dt, t));
     this.intro();

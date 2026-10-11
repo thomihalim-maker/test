@@ -376,14 +376,14 @@ function bunting(x1, y1, x2, y2, sag, n, seed) {
   return `<path d="M${x1} ${y1}Q${f(qx)} ${f(qy)} ${x2} ${y2}" ${stroke(2.6)}/>${flags}`;
 }
 function wallSVG() {
-  const ox = 400, oy = 200, w = 2400, h = 740;
-  const hole = `M-400 -200H2000V540H-400Z M${WIN.x} ${WIN.y}V${WIN.y + WIN.h}H${WIN.x + WIN.w}V${WIN.y}Z`;
+  const ox = 400, oy = 340, w = 2400, h = 880;
+  const hole = `M-400 -340H2000V540H-400Z M${WIN.x} ${WIN.y}V${WIN.y + WIN.h}H${WIN.x + WIN.w}V${WIN.y}Z`;
   const cid = uid('c');
   let stripes = '';
-  for (let x = -400; x < 2000; x += 72) stripes += `<rect x="${x}" y="-200" width="28" height="640" fill="${R2.stripe}"/>`;
+  for (let x = -400; x < 2000; x += 72) stripes += `<rect x="${x}" y="-340" width="28" height="780" fill="${R2.stripe}"/>`;
   let dots = '';
   const r = rng(5);
-  for (let x = -380; x < 2000; x += 72) for (let y = -170; y < 420; y += 64) dots += `<circle cx="${f(x + 50 + (Math.round(y / 64) % 2) * 36)}" cy="${f(y)}" r="${f(2.2 + r())}" fill="#fff"/>`;
+  for (let x = -380; x < 2000; x += 72) for (let y = -310; y < 420; y += 64) dots += `<circle cx="${f(x + 50 + (Math.round(y / 64) % 2) * 36)}" cy="${f(y)}" r="${f(2.2 + r())}" fill="#fff"/>`;
   // wainscot panels
   let panels = '';
   for (let x = -390; x < 2000; x += 180) panels += `<path d="${rrect(x + 14, 452, 152, 54, 6)}"/>`;
@@ -700,7 +700,7 @@ function shadowSVG() { return W(200, 60, `<ellipse cx="100" cy="30" rx="80" ry="
 export async function loadLevel2Art(toyList) {
   const S = (fn, w, h, key) => svgSprite(fn(), w, h, 'l2-' + key);
   const jobs = {
-    wall: S(wallSVG, 2400, 740, 'wall'), floor: S(floorSVG, 2400, 580, 'floor'), rug: S(rugSVG, RUG_W, RUG_H, 'rug'),
+    wall: S(wallSVG, 2400, 880, 'wall2'), floor: S(floorSVG, 2400, 580, 'floor'), rug: S(rugSVG, RUG_W, RUG_H, 'rug'),
     garden: S(gardenSVG, GARDEN.w, GARDEN.h, 'garden'), crown: S(treeCrownSVG, 280, 240, 'crown'),
     cloud1: S(() => cloudSVG(31), 220, 100, 'cloud1'), cloud2: S(() => cloudSVG(37), 220, 100, 'cloud2'),
     curtain: S(curtainSVG, CURTAIN_W, CURTAIN_H, 'curtain'), leaves: S(plantLeavesSVG, 320, 360, 'leaves'), pot: S(potSVG, 160, 130, 'pot'),
