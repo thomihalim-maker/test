@@ -19,7 +19,7 @@ const HINT_AFTER = 6;       // seconds of no interaction before a hint
 const PHOTO_CY = 362;       // photo centre (design y at height 900)
 const CHAR_S = 0.62;
 // home spot per piece index: spots = [L-top, L-low, counter-L, counter-R, R-top, R-low]
-const HOME_OF = [4, 2, 0, 5, 3, 1];
+const HOME_OF = [3, 1, 2, 4, 0, 5];   // top-row pieces (flat tops) rest on the counter
 const HOME_ROT = [-0.14, 0.1, -0.08, 0.12, -0.1, 0.07];
 
 export default class Level3 extends LevelScene {
@@ -183,25 +183,25 @@ export default class Level3 extends LevelScene {
     // Ibu & Ayah flank the frame, behind the counter, waist up
     const cs = CHAR_S * Math.min(k, 1.08);
     this.charS = cs;
-    const side = Math.min(660, v.w / 2 - 150);
+    const side = Math.min(860, v.w / 2 - 130);
     for (const c of [this.mom, this.dad]) { c.sx = c.sy = cs; }
     this.mom.x = cx - side; this.dad.x = cx + side;
-    this.charBase = this.tableY + 150 * cs / CHAR_S;
+    this.charBase = this.tableY + 58 * cs / CHAR_S;
     this.placeChars();
 
     // props on the counter only where they cannot touch the characters
     const px = Math.min(905, v.w / 2 - 90);
     this.plantN.x = cx - px; this.lampN.x = cx + px;
     this.plantN.y = this.lampN.y = this.tableY + 22;
-    const room = (side - px) > 90 + 140 * cs / CHAR_S;
+    const room = (side - px) > 90 + 150 * cs / CHAR_S;
     this.plantN.visible = this.lampN.visible = room;
 
     // scatter homes (world), then into pieceLayer-local
     const inner = cx - (L3.OW / 2) * k - 40 - (this.geo.cw / 2 + 50) * k;
     const spots = [
-      { x: inner + 6, y: Y(262) }, { x: inner - 10, y: Y(478) },
-      { x: cx - 150 * k, y: this.tableY - 52 * k }, { x: cx + 150 * k, y: this.tableY - 48 * k },
-      { x: 2 * cx - inner - 4, y: Y(270) }, { x: 2 * cx - inner + 8, y: Y(486) },
+      { x: inner + 6, y: Y(245) }, { x: inner - 10, y: Y(455) },
+      { x: cx - 150 * k, y: this.tableY - 62 * k }, { x: cx + 150 * k, y: this.tableY - 58 * k },
+      { x: 2 * cx - inner - 4, y: Y(252) }, { x: 2 * cx - inner + 8, y: Y(462) },
     ];
     this.pieces.forEach((n, i) => {
       const h = spots[HOME_OF[i]];

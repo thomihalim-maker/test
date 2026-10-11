@@ -183,10 +183,12 @@ export default class Level2 extends LevelScene {
         .then(() => { if (!n.placed) { audio.sfx('drop', { volume: 0.4 }); this.puff(n.x, n.y, 0.8); } });
     });
     this.baby.react('happy', 1.5);
-    await wait(0.08 * order.length + 0.8);
-    this.dad.lookAt(null);
+    await wait(0.35); // toys are grabbable while the rest are still popping
     if (!this.finished && !this.celebrating) this.drag.enabled = true;
-    this.lastInput = game.time;
+    this.lastInput = game.time + 1;
+    await wait(0.08 * order.length + 0.5);
+    this.dad.lookAt(null);
+    this.lastInput = Math.max(this.lastInput, game.time);
   }
 
   /** soft warm-cream dust puff on the floor (drawn below the toys) */
