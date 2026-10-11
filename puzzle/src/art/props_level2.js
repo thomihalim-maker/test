@@ -195,7 +195,11 @@ const TOY_ART = {
   },
 };
 export const TOY_TYPES = Object.keys(TOY_ART);
-const toySVG = (type, col) => W(TOY_W, TOY_H, TOY_ART[type](COLS[col]), { seed: 5 + type.length });
+const toySVG = (type, col, bold = false) => {
+  const s = W(TOY_W, TOY_H, TOY_ART[type](COLS[col]), { seed: 5 + type.length });
+  if (!bold) return s; // placed variant: ~1.35x darker pencil outline so toys read against their basket
+  return s.replace(new RegExp(`stroke="${PAL.line}" stroke-width="([\\d.]+)"`, 'g'), (m, w) => `stroke="${PAL.lineDark}" stroke-width="${(+w * 1.35).toFixed(2)}"`);
+};
 
 // ------------------------------------------------------------------ BASKETS (320x250, bottom centre at y=235)
 export const BASKET_W = 320, BASKET_H = 250, BASKET_BASE = 235, BASKET_RIM = 78;
@@ -213,10 +217,10 @@ function basketBackSVG(k) {
     ticks += `M${f(x - 5)} ${f(y - 6)}L${f(x + 5)} ${f(y + 6)}`;
   }
   return W(BASKET_W, BASKET_H, `
-    <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${mix(C.c, C.s, 0.4)}"/><stop offset="1" stop-color="${mix(C.s, C.d, 0.5)}"/></linearGradient>
+    <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6ead4"/><stop offset="0.55" stop-color="#ead9bc"/><stop offset="1" stop-color="#d9c29c"/></linearGradient>
     ${softShadow(cx, BK.by + 2, rx + 8, 15, 0.3)}
     <ellipse cx="${cx}" cy="${ty}" rx="${rx - 8}" ry="${ry - 7}" fill="url(#${gid})"/>
-    <ellipse cx="${cx}" cy="${ty}" rx="${rx - 8}" ry="${ry - 7}" fill="${C.d}" opacity="0.22" filter="url(#crayon)"/>
+    <ellipse cx="${cx}" cy="${ty}" rx="${rx - 8}" ry="${ry - 7}" fill="#cdb28a" opacity="0.3" filter="url(#crayon)"/>
     ${shape(backRim, C.c, { lw: 3, base: C.s })}
     <path d="${ticks}" ${L(2.2, C.d)} opacity="0.55" filter="url(#pencil)"/>`, { seed: 7 });
 }
@@ -296,8 +300,8 @@ function faceSVG(k, mood) {
     <circle cx="35" cy="31" r="4.6" fill="${ink}"/><circle cx="55" cy="31" r="4.6" fill="${ink}"/>
     <circle cx="36.4" cy="29.4" r="1.5" fill="#fff"/><circle cx="56.4" cy="29.4" r="1.5" fill="#fff"/>
     <path d="M29 21 Q34 17 39 20 M51 20 Q56 17 61 21" ${L(2.4, ink)}/>
-    <ellipse cx="45" cy="48" rx="6" ry="7" fill="#c4505f"/><ellipse cx="45" cy="48" rx="6" ry="7" ${L(2.4, ink)}/>
-    <ellipse cx="45" cy="51.5" rx="3.6" ry="2.6" fill="#f58c9d"/>`, { seed: 31 });
+    <path d="M34 43 Q45 47 56 43 Q55 58 45 58 Q35 58 34 43Z" fill="#c4505f"/><path d="M34 43 Q45 47 56 43 Q55 58 45 58 Q35 58 34 43Z" ${L(2.4, ink)}/>
+    <ellipse cx="45" cy="53.5" rx="4.5" ry="2.8" fill="#f58c9d"/>`, { seed: 31 });
   if (mood === 'hmm') return W(FACE_W, FACE_H, `${cheeks}
     <circle cx="39" cy="36" r="3.9" fill="${ink}"/><circle cx="59" cy="36" r="3.9" fill="${ink}"/>
     <path d="M29 28 Q34 26 40 28 M51 25 Q56 21 62 24" ${L(2.4, ink)}/>
@@ -371,14 +375,14 @@ function bouncerFrontSVG() {
 // ------------------------------------------------------------------ ROOM: wall (stage x -400..2000, y -200..540)
 const WIN = { x: 410, y: 80, w: 600, h: 320 }; // window opening (stage coords)
 export const WINDOW = WIN;
-function bunting(x1, y1, x2, y2, sag, n, seed) {
+function bunting(x1, y1, x2, y2, sag, n, seed, fh = 52) {
   const r = rng(seed), cols = ['#f7b9c4', R2.mint, '#fde69a', R2.lilac, R2.peach, '#bfe0f5'];
   const qx = (x1 + x2) / 2, qy = Math.max(y1, y2) + sag;
   const P = t => [(1 - t) * (1 - t) * x1 + 2 * (1 - t) * t * qx + t * t * x2, (1 - t) * (1 - t) * y1 + 2 * (1 - t) * t * qy + t * t * y2];
   let flags = '';
   for (let i = 0; i < n; i++) {
     const t0 = (i + 0.15) / n, t1 = (i + 0.85) / n, a = P(t0), b = P(t1), m = P((t0 + t1) / 2);
-    const tip = [m[0] + (r() - 0.5) * 6, m[1] + 52];
+    const tip = [m[0] + (r() - 0.5) * 6, m[1] + fh];
     flags += shape(`M${f(a[0])} ${f(a[1])}L${f(b[0])} ${f(b[1])}L${f(tip[0])} ${f(tip[1])}Z`, cols[(i + seed) % cols.length], { lw: 2.6 });
   }
   return `<path d="M${x1} ${y1}Q${f(qx)} ${f(qy)} ${x2} ${y2}" ${stroke(2.6)}/>${flags}`;
@@ -451,8 +455,8 @@ function wallSVG() {
     ${shape(rrect(WIN.x - 42, WIN.y + WIN.h + 16, WIN.w + 84, 22, 6), R2.trim, { base: '#ffffff', lw: 3 })}
     <!-- curtain rod -->
     ${shape(rrect(282, 46, 856, 12, 6), R2.woodS, { lw: 2.6 })}
+    ${bunting(470, 56, 710, 56, 26, 6, 1, 36)}${bunting(710, 56, 950, 56, 26, 6, 4, 36)}
     ${shape(blobD(280, 52, 15, 15, { seed: 8 }), R2.wood, { lw: 2.6 })}${shape(blobD(1140, 52, 15, 15, { seed: 9 }), R2.wood, { lw: 2.6 })}
-    ${bunting(-390, 6, -50, 12, 70, 7, 1)}${bunting(-50, 12, 268, 20, 60, 6, 3)}
     ${picture}${clock}
     <!-- skirting -->
     ${shape(rrect(-410, 516, 2420, 30, 3), R2.trim, { base: '#fffdf8', lw: 2.6 })}
@@ -708,7 +712,7 @@ function shadowSVG() { return W(200, 60, `<ellipse cx="100" cy="30" rx="80" ry="
 export async function loadLevel2Art(toyList) {
   const S = (fn, w, h, key) => svgSprite(fn(), w, h, 'l2-' + key);
   const jobs = {
-    wall: S(wallSVG, 2400, 880, 'wall2'), floor: S(floorSVG, 2400, 680, 'floor2'), rug: S(rugSVG, RUG_W, RUG_H, 'rug'),
+    wall: S(wallSVG, 2400, 880, 'wall3'), floor: S(floorSVG, 2400, 680, 'floor2'), rug: S(rugSVG, RUG_W, RUG_H, 'rug'),
     garden: S(gardenSVG, GARDEN.w, GARDEN.h, 'garden'), crown: S(treeCrownSVG, 280, 240, 'crown'),
     cloud1: S(() => cloudSVG(31), 220, 100, 'cloud1'), cloud2: S(() => cloudSVG(37), 220, 100, 'cloud2'),
     curtain: S(curtainSVG, CURTAIN_W, CURTAIN_H, 'curtain'), leaves: S(plantLeavesSVG, 320, 360, 'leaves'), pot: S(potSVG, 160, 130, 'pot'),
@@ -723,11 +727,16 @@ export async function loadLevel2Art(toyList) {
     for (const m of ['idle', 'open', 'happy', 'hmm']) jobs[`bk-face${m}-${k}`] = S(() => faceSVG(k, m), FACE_W, FACE_H, `face-${m}-${k}`);
   }
   const need = new Set(toyList.map(t => `${t.type}-${t.col}`));
-  for (const key of need) { const [type, col] = key.split('-'); jobs['toy-' + key] = S(() => toySVG(type, col), TOY_W, TOY_H, 'toy-' + key); }
+  for (const key of need) {
+    const [type, col] = key.split('-');
+    jobs['toy-' + key] = S(() => toySVG(type, col), TOY_W, TOY_H, 'toy-' + key);
+    jobs['toyb-' + key] = S(() => toySVG(type, col, true), TOY_W, TOY_H, 'toyb-' + key);
+  }
   const keys = Object.keys(jobs), vals = await Promise.all(keys.map(k => jobs[k]));
   const out = { toys: {}, baskets: {} };
   keys.forEach((k, i) => {
     if (k.startsWith('toy-')) out.toys[k.slice(4)] = vals[i];
+    else if (k.startsWith('toyb-')) (out.toysBold ||= {})[k.slice(5)] = vals[i];
     else if (k.startsWith('bk-')) { const [, part, col] = k.split('-'); (out.baskets[col] ||= {})[part] = vals[i]; }
     else out[k] = vals[i];
   });

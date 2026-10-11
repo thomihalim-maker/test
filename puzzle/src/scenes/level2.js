@@ -15,23 +15,23 @@ const BASKETS = [{ col: 'red', x: 585 }, { col: 'yellow', x: 865 }, { col: 'blue
 const BASKET_Y = 640;
 const ROW_BACK = 768, ROW_FRONT = 824;
 const TOYS = [
-  { type: 'ball', col: 'red', x: 495, y: ROW_BACK, rot: -0.12 },
-  { type: 'duck', col: 'yellow', x: 610, y: ROW_FRONT, rot: 0.06 },
-  { type: 'car', col: 'blue', x: 725, y: ROW_BACK, rot: -0.07 },
-  { type: 'block', col: 'red', x: 840, y: ROW_FRONT, rot: 0.13 },
-  { type: 'rings', col: 'yellow', x: 955, y: ROW_BACK, rot: 0.02 },
-  { type: 'duck', col: 'blue', x: 1070, y: ROW_FRONT, rot: -0.07 },
-  { type: 'car', col: 'red', x: 1185, y: ROW_BACK, rot: 0.06 },
-  { type: 'ball', col: 'yellow', x: 1300, y: ROW_FRONT, rot: 0.1 },
-  { type: 'block', col: 'blue', x: 1415, y: ROW_BACK + 6, rot: -0.12 },
+  { type: 'ball', col: 'red', x: 540, y: ROW_BACK, rot: -0.12 },
+  { type: 'duck', col: 'yellow', x: 647, y: ROW_FRONT, rot: 0.06 },
+  { type: 'car', col: 'blue', x: 754, y: ROW_BACK, rot: -0.07 },
+  { type: 'block', col: 'red', x: 861, y: ROW_FRONT, rot: 0.13 },
+  { type: 'rings', col: 'yellow', x: 968, y: ROW_BACK, rot: 0.02 },
+  { type: 'duck', col: 'blue', x: 1075, y: ROW_FRONT, rot: -0.07 },
+  { type: 'car', col: 'red', x: 1182, y: ROW_BACK, rot: 0.06 },
+  { type: 'ball', col: 'yellow', x: 1289, y: ROW_FRONT, rot: 0.1 },
+  { type: 'block', col: 'blue', x: 1396, y: ROW_BACK + 16, rot: -0.12 },
 ];
 // resting slots inside a basket (basket-local; origin = basket bottom centre). The third toy sits on top of the pile.
-const SLOTS = [{ x: -66, y: -128, r: -0.2 }, { x: 66, y: -124, r: 0.18 }, { x: 0, y: -158, r: 0.03 }];
+const SLOTS = [{ x: -68, y: -142, r: -0.18 }, { x: 68, y: -138, r: 0.16 }, { x: 0, y: -176, r: 0.03 }];
 const TYPE_DY = { rings: -16, car: -16, ball: 0, block: -4, duck: -6 };
-const SLOT_S = 0.9;
+const SLOT_S = 0.95;
 const LIFT_Y = -50, LIFT_S = 1.15;
 const DAD = { x: 235, s: 0.88, drop: 24 };
-const BOUNCER = { x: 1460, y: 690 };
+const BOUNCER = { x: 1430, y: 690 };
 const PRAISE = ['Pintar!', 'Hebat!', 'Bagus sekali!', 'Hore!'];
 const DUST = '#f3e3c8';
 
@@ -80,9 +80,10 @@ export default class Level2 extends LevelScene {
       n.col = b.col; n.items = []; n.hover = 0; n.hv = 0; n.base = { x: b.x, y: BASKET_Y };
       n.faces = { idle: A.faceidle, open: A.faceopen, happy: A.facehappy, hmm: A.facehmm };
       n.back = n.add(spr(A.back, { ax: 0.5, ay: BASKET_BASE / BASKET_H }));
+      n.glowB = n.add(new Node({ alpha: 0, drawFn: c => drawRimGlow(c, 'back') }));
       n.inner = n.add(new Node());
       n.front = n.add(spr(A.front, { ax: 0.5, ay: BASKET_BASE / BASKET_H }));
-      n.glowN = n.add(new Node({ alpha: 0, drawFn: c => drawRimGlow(c) }));
+      n.glowN = n.add(new Node({ alpha: 0, drawFn: c => drawRimGlow(c, 'front') }));
       n.face = n.front.add(spr(A.faceidle, { x: 0, y: -72, rot: -0.052, ax: 0.5, ay: FACE_CY / FACE_H }));
       n.faceMood = 'idle'; n.faceHold = 0;
       return n;
@@ -141,6 +142,9 @@ export default class Level2 extends LevelScene {
     this.stage.y = Math.round((v.h - 900) * 0.33); // curtain rod ~12% from the top on 4:3
     const bottom = v.h - this.stage.y; // stage-space y of the screen's bottom edge
     this.dad.y = bottom + DAD.drop;
+    // upright (portrait) letterbox: rounded card corners — keep Ayah's raised hands inside
+    this.dad.x = DAD.x + (game.portrait ? (v.safe?.l || 0) + 70 : 0);
+    this.dadHit.x = this.dad.x;
     this.dadHit.y = this.dad.y - 330;
     const right = v.w - this.stage.x;
     this.cushion.visible = bottom > 1040; // only where there is floor below the rug for the whole cushion
@@ -301,6 +305,7 @@ export default class Level2 extends LevelScene {
     const lp = b.inner.toLocal(wpt.x, wpt.y);
     n.x = lp.x; n.y = lp.y;
     n.shadow.visible = false; n.glow.alpha = 0;
+    n.art.setImage(this.art.toysBold[`${n.type}-${n.col}`]);
     if (instant) {
       Object.assign(n, { x: slot.x, y: sy0, rot: slot.r, sx: SLOT_S, sy: SLOT_S });
       Object.assign(n.art, { y: 0, rot: 0, sx: 1, sy: 1 });
@@ -346,15 +351,15 @@ export default class Level2 extends LevelScene {
     audio.sfx('wrong');
     this.lower(n);
     b.shake = { t: 0, dur: 0.6, amp: 0.07, freq: 26 };
-    this.dad.react('think', 1.5);
+    this.dad.react('surprised', 1.3);
     const bw = b.toWorld(0, -140); this.dad.lookAt(bw.x, bw.y);
     audio.voice('Hmm... coba lagi ya!');
     const sx = n.x, sy = n.y, h = n.home;
     n._k = 0;
     tween(n, { _k: 1, rot: h.rot }, {
       dur: 0.75, ease: 'linear', tag: 'drag',
-      onUpdate: (e, k) => { const q = Ease.inOutSine(k); n.x = lerp(sx, h.x, q); n.y = lerp(sy, h.y, q) - Math.sin(k * Math.PI) * 300; },
-    }).then(() => { if (n.x === h.x && n.y === h.y) this.land(n, 0.8); });
+      onUpdate: (e, k) => { const q = Ease.inOutSine(k); n.x = lerp(sx, h.x, q); n.y = lerp(sy, h.y, q) - Math.sin(k * Math.PI) * 340; n.shA = k < 0.8 ? 0 : (k - 0.8) / 0.2; },
+    }).then(() => { n.shA = 1; if (n.x === h.x && n.y === h.y) this.land(n, 0.8); });
     const right = this.baskets.find(x => x.col === n.col);
     wait(0.75).then(() => this.nudgeBasket(right));
     wait(1.4).then(() => { if (!this.dragging) this.dad.lookAt(null); });
@@ -370,15 +375,17 @@ export default class Level2 extends LevelScene {
   showHint() {
     // back-row toys first so the pointing hand (above the toy) never hides another toy
     // the most central unplaced toy (well away from Ayah); back row first so the hand never hides another toy
+    const bx = t => this.baskets.find(x => x.col === t.col).x;
     const score = t => Math.abs(t.x - 900) + (t.y > 800 ? 160 : 0);
-    const toy = this.toys.filter(t => !t.placed && Math.abs(t.x - DAD.x) >= 250).sort((a, c) => score(a) - score(c))[0]
-      || this.toys.find(t => !t.placed);
+    const free = this.toys.filter(t => !t.placed && Math.abs(t.x - this.dad.x) >= 250);
+    const toy = free.filter(t => Math.abs(t.x - bx(t)) >= 250).sort((a, c) => score(a) - score(c))[0]
+      || free.sort((a, c) => Math.abs(c.x - bx(c)) - Math.abs(a.x - bx(a)))[0] || this.toys.find(t => !t.placed);
     if (!toy) return;
     const b = this.baskets.find(x => x.col === toy.col);
     const token = this.hintToken = {};
     const h = this.hand, g = this.ghost;
     const cx = toy.x, cy = toy.y - 62; // toy centre
-    this.trailPts = { x0: cx, y0: cy, x1: b.x, y1: b.y - 175, k: 0 };
+    this.trailPts = { x0: cx, y0: cy, x1: b.x, y1: b.y - 185, k: 0 };
     h.x = cx; h.y = cy; h.alpha = 0; h.sx = h.sy = 0.6; h.rot = Math.PI - 0.18; // pointing down at the toy
     g.img = toy.art.img; g.w = toy.art.w; g.h = toy.art.h; g.alpha = 0; g.x = toy.x; g.y = toy.y; g.sx = g.sy = 1; g.rot = 0;
     toy.pulse = 1;
@@ -400,13 +407,15 @@ export default class Level2 extends LevelScene {
         dur: 1.25, ease: 'linear', tag: 'hint',
         onUpdate: (e, k) => {
           const q = Ease.inOutSine(k), p = arcPt(T, q);
-          T.k = q; g.x = p.x; g.y = p.y + 62; g.sx = g.sy = lerp(1, SLOT_S, q);
+          T.k = q; g.sx = g.sy = lerp(1, SLOT_S, q);
+          if (q > 0.85 && g.parent !== b.inner) b.inner.add(g); // last stretch: the ghost sinks behind the rim
+          if (g.parent === b.inner) { g.x = p.x - b.x; g.y = p.y + 62 - b.y + (q - 0.85) * 300; } else { g.x = p.x; g.y = p.y + 62; }
           h.x = p.x; h.y = p.y; h.rot = Math.PI - 0.18 + Math.sin(k * Math.PI) * 0.25;
         },
       });
       if (!alive()) return;
       this.nudgeBasket(b);
-      tween(g, { alpha: 0 }, { dur: 0.35, tag: 'hint' });
+      tween(g, { alpha: 0 }, { dur: 0.35, tag: 'hint' }).then(() => { this.hintLayer.add(g); this.hintLayer.add(this.hand); });
       tween(this.trail, { alpha: 0 }, { dur: 0.6, delay: 0.3, tag: 'hint' });
       await tween(h, { alpha: 0 }, { dur: 0.35, delay: 0.25, tag: 'hint' });
       if (!alive()) return;
@@ -421,6 +430,7 @@ export default class Level2 extends LevelScene {
     if (!this.hintToken) return;
     this.hintToken = null;
     for (const n of [this.hand, this.ghost, this.trail]) { killTweensOf(n, 'hint'); tween(n, { alpha: 0 }, { dur: 0.15 }); }
+    if (this.ghost.parent !== this.hintLayer) { this.ghost.alpha = 0; this.hintLayer.add(this.ghost); this.hintLayer.add(this.hand); }
     for (const t of this.toys) { t.pulse = 0; killTweensOf(t.glow, 'hint'); tween(t.glow, { alpha: 0 }, { dur: 0.2 }); }
   }
 
@@ -514,6 +524,7 @@ export default class Level2 extends LevelScene {
       const near = this.basketAt(d);
       for (const b of this.baskets) { b.hover = b === near ? 1 : 0; b.match = b.col === d.col; }
     }
+    this.maxHv = Math.max(0, ...this.baskets.map(b => b.hv || 0));
     for (const n of this.toys) {
       if (n !== d && !n.placed) { n.tilt = lerp(n.tilt, 0, Math.min(1, dt * 10)); if (!n.shake) n.art.rot = n.tilt + n.spin; }
       if (n.shake) {
@@ -530,7 +541,7 @@ export default class Level2 extends LevelScene {
         const h = clamp(-n.art.y / 150, 0, 1);
         n.shadow.sx = n.shadow.sy = lerp(0.75 * (1 - h * 0.4), 0.97, n.shOff);
         n.shadow.x = n.shOff * 20; n.shadow.y = n.shOff * 20;
-        n.shadow.alpha = lerp(0.6 * (1 - h * 0.5), 1, n.shOff) * n.shA;
+        n.shadow.alpha = lerp(0.6 * (1 - h * 0.5), n === d ? 1 - 0.65 * this.maxHv : 1, n.shOff) * n.shA;
       }
     }
     for (const b of this.baskets) {
@@ -545,7 +556,7 @@ export default class Level2 extends LevelScene {
       b.front.sx = b.back.sx = b.inner.sx = hs;
       b.front.sy = b.back.sy = b.inner.sy = hs;
       if (!b.shake) b.rot = b.hv * (m ? Math.sin(t * 11) * 0.035 : -0.03);
-      b.glowN.alpha = b.hv * m * (0.8 + 0.2 * Math.sin(t * 8));
+      b.glowN.alpha = b.glowB.alpha = b.hv * m * (0.8 + 0.2 * Math.sin(t * 8));
       if (b.faceHold > 0) b.faceHold -= dt;
       else this.setFace(b, b.hover ? (m ? 'open' : 'hmm') : 'idle');
       if (b.faceMood === 'open') b.face.y = -72 - 2 * b.hv;
@@ -598,7 +609,7 @@ export default class Level2 extends LevelScene {
 const PAL_STAR = '#f6cf3e';
 const cap = s => s[0].toUpperCase() + s.slice(1);
 /** point on the hint arc from toy to basket */
-function arcPt(T, q) { return { x: lerp(T.x0, T.x1, q), y: lerp(T.y0, T.y1, q) - Math.sin(q * Math.PI) * 120 }; }
+function arcPt(T, q) { return { x: lerp(T.x0, T.x1, q), y: lerp(T.y0, T.y1, q) - Math.sin(q * Math.PI) * 180 }; }
 
 /** warm white-gold pulsing ring with a thin pencil outline around a hinted toy */
 function drawHintRing(c) {
@@ -613,18 +624,17 @@ function drawHintRing(c) {
   c.beginPath(); c.ellipse(0, cy, r - 5.5, r * 0.92 - 5.5, -0.03, 0.2, Math.PI * 2 - 0.3); c.stroke();
 }
 
-/** warm cream/gold halo around a basket rim (hover feedback on the matching basket) */
-function drawRimGlow(c) {
-  const cy = -(BASKET_BASE - BASKET_RIM);
+/** warm cream/gold halo hugging a basket rim (~150x44). part 'back' = far arc (behind the toys), 'front' = near arc. */
+function drawRimGlow(c, part) {
+  const cy = -(BASKET_BASE - BASKET_RIM), a0 = part === 'back' ? Math.PI : 0, a1 = a0 + Math.PI;
   c.save();
-  c.shadowColor = '#ffd86a'; c.shadowBlur = 40;
-  c.strokeStyle = '#fff3c4'; c.lineWidth = 20;
-  c.beginPath(); c.ellipse(0, cy, 156, 46, 0, 0, Math.PI * 2); c.stroke();
-  c.beginPath(); c.ellipse(0, cy, 156, 46, 0, 0, Math.PI * 2); c.stroke();
+  c.lineCap = 'round';
+  c.shadowColor = '#ffd86a'; c.shadowBlur = 28;
+  c.strokeStyle = '#fff3c4'; c.lineWidth = 12;
+  for (let i = 0; i < 2; i++) { c.beginPath(); c.ellipse(0, cy, 150, 44, 0, a0, a1); c.stroke(); }
   c.shadowBlur = 0;
   c.strokeStyle = '#c99a3c'; c.lineWidth = 2.4;
-  c.beginPath(); c.ellipse(0, cy, 166, 55, 0.01, 0, Math.PI * 2); c.stroke();
-  c.beginPath(); c.ellipse(0, cy, 146, 37, -0.01, 0.15, Math.PI * 2 - 0.2); c.stroke();
+  c.beginPath(); c.ellipse(0, cy, 158, 51, 0.01, a0, a1); c.stroke();
   c.restore();
 }
 

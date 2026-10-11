@@ -9,20 +9,34 @@ import { burst, warmFx } from '../art/fx.js';
 import { PAL } from '../art/style.js';
 import { crayonWord, makeButton, press, release, safeInset } from './ui.js';
 import {
-  makeSprite, crayonShape, circlePts, ellipsePts, starPts, nightSky, hillSprite, moonSprite, glowSprite, buntingSprite,
+  makeSprite, crayonShape, circlePts, ellipsePts, roundRectPts, starPts, roundCorners, tracePath, crayonFill, pencil, nightSky, hillSprite, moonSprite, glowSprite, buntingSprite,
   Starfield, Fireflies, ShootingStar,
 } from '../art/backgrounds.js';
 
 const FW_COLS = [[PAL.yellow, '#ffe58a'], ['#f7a9b8', '#f47a92'], ['#a9c8ff', PAL.blue], ['#9fe0c0', PAL.green], ['#d2b8ff', PAL.purple], [PAL.orange, '#ffc98a']];
 
 function rugSprite() {
-  return makeSprite(1000, 190, (x) => {
-    x.save(); x.filter = 'blur(10px)'; x.fillStyle = 'rgba(20,30,40,0.25)'; x.beginPath(); x.ellipse(500, 120, 470, 50, 0, 0, 7); x.fill(); x.restore();
-    crayonShape(x, ellipsePts(500, 92, 470, 78, 72), '#fbd6e3', { seed: 7, lw: 3.2, light: '#fff0f5', shade: '#eab0c6' });
-    crayonShape(x, ellipsePts(500, 92, 400, 58, 72), '#fff1c9', { seed: 8, lw: 2.4, light: '#fffbe8', shade: '#f2dca0' });
-    for (let i = 0; i < 13; i++) { const a = (i / 13) * Math.PI * 2; crayonShape(x, circlePts(500 + Math.cos(a) * 435, 92 + Math.sin(a) * 68, 8, 12), ['#f7a9b8', PAL.blue, PAL.green, PAL.yellow][i % 4], { seed: i, lw: 1.2, hatch: false }); }
-    for (let i = 0; i < 7; i++) crayonShape(x, starPts(260 + i * 80, 92 + Math.sin(i * 1.7) * 18, 11, 5, 5, -1.57, 2), ['#f6cf3e', '#f7a9b8', '#a9c8ff'][i % 3], { seed: 30 + i, lw: 1.2, hatch: false });
-  }, { key: 'finaleRug2' });
+  // gingham picnic blanket seen from the front; its flat-ish top edge covers the characters' body cut evenly
+  return makeSprite(1040, 200, (x) => {
+    x.save(); x.filter = 'blur(10px)'; x.fillStyle = 'rgba(20,30,40,0.22)'; x.beginPath(); x.ellipse(520, 150, 500, 40, 0, 0, 7); x.fill(); x.restore();
+    const shape = []; // slightly wavy top, wider bottom (perspective), soft corners
+    for (let i = 0; i <= 24; i++) { const t = i / 24; shape.push([70 + t * 900, 22 + Math.sin(t * Math.PI * 3) * 4]); }
+    for (let i = 24; i >= 0; i--) { const t = i / 24; shape.push([20 + t * 1000, 170 + Math.sin(t * Math.PI * 4) * 5]); }
+    const base = crayonShape(x, roundCorners(shape, 30, 3), '#f6b8c9', { seed: 7, lw: 3, light: '#ffd9e3', shade: '#e79ab0' });
+    // gingham checks clipped to the blanket
+    x.save(); tracePath(x, base); x.clip();
+    for (let r = 0; r < 6; r++) for (let c = 0; c < 22; c++) {
+      if ((r + c) % 2) continue;
+      const y0 = 22 + r * 25, y1 = y0 + 25, k0 = (y0 - 22) / 148, k1 = (y1 - 22) / 148;
+      const xa = (k) => 70 - 50 * k, wa = (k) => 900 + 100 * k;
+      const p = [[xa(k0) + c / 22 * wa(k0), y0], [xa(k0) + (c + 1) / 22 * wa(k0), y0], [xa(k1) + (c + 1) / 22 * wa(k1), y1], [xa(k1) + c / 22 * wa(k1), y1]];
+      crayonFill(x, p, '#fff4f6', { seed: r * 30 + c, hatch: false, wobble: 0.6, grain: 0.35 });
+    }
+    x.restore();
+    pencil(x, base, { w: 3, seed: 12, raw: true });
+    // a few stars sewn on
+    for (let i = 0; i < 6; i++) crayonShape(x, starPts(170 + i * 140, 95 + Math.sin(i * 1.9) * 22, 12, 5.5, 5, -1.57, 2), ['#f6cf3e', '#a9c8ff', '#9fe0c0'][i % 3], { seed: 30 + i, lw: 1.3, hatch: false });
+  }, { key: 'finaleRug4' });
 }
 
 export default class Finale {
@@ -47,7 +61,7 @@ export default class Finale {
     this.dad = this.fam.add(await createCharacter('dad'));
     this.baby = this.fam.add(await createCharacter('baby'));
     // picnic blanket in FRONT of the family: grounds them and hides the flat body cut-offs
-    this.rug = this.fam.add(new Node({ y: 34, sx: 0.86, sy: 0.8 }).setImage(rugSprite()));
+    this.rug = this.fam.add(new Node({ y: 42 }).setImage(rugSprite())); // top edge 40 above the body cut
     this.mom.sx = this.mom.sy = 0.78; this.dad.sx = this.dad.sy = 0.78; this.baby.sx = this.baby.sy = 1.0;
     this.title = R.add(crayonWord('Terima kasih sudah bermain!', 92, ['#ffe27a', '#ffb3c7', '#9fe0c0', '#a9c8ff', '#ffc98a', '#d2b8ff'], { line: '#3c3466', halo: 0.75, track: 2 }));
     this.home = R.add(await makeButton({ icon: 'home', size: 130, color: PAL.blue }, () => this._leave()));
@@ -65,9 +79,11 @@ export default class Finale {
     this.flies.layout(0, H * 0.45, W, H * 0.45);
     this.bunting.x = W / 2; this.bunting.y = -6; this.bunting.sx = Math.max(1, W / 1700);
     this.title.x = W / 2; this.title.y = oy + 205;
-    this.fam.x = W / 2; this.fam.y = H - 96; this.fam.sx = this.fam.sy = Math.min(1.2, Math.max(1, H / 900));
+    const fs = Math.min(1.2, Math.max(1, H / 900)); this.fam.x = W / 2; this.fam.sx = this.fam.sy = fs;
+    this.fam.y = H - 20 - (v.safe?.b || 0) * 0.5 - 142 * fs; // rug bottom (local +142) stays on screen
+    this.famTop = this.fam.y - 600 * 0.78 * fs;
     this.mom.x = -250; this.dad.x = 250; this.baby.x = 0; this.baby.y = -26;
-    this.home.x = W - 110 - safeInset(v, 'r'); this.home.y = H - 110;
+    this.home.x = W - 110 - safeInset(v, 'r'); this.home.y = H - 110 - (v.safe?.b || 0) * 0.6;
   }
   enter() {
     audio.music('finale');
@@ -88,11 +104,17 @@ export default class Finale {
     }, 3200);
   }
   _launch() {
-    const W = this.v.w, H = this.v.h, x0 = W * (0.1 + Math.random() * 0.8), ty = this.title.y, y1 = Math.random() < 0.45 ? 60 + Math.random() * Math.max(30, ty - 170) : ty + 120 + Math.random() * 150; // keep bursts off the thank-you line
+    // burst zones: above the title line, or between title and family; sides when the centre band is too thin
+    const W = this.v.w, H = this.v.h, ty = this.title.y, top = [150, ty - 120], mid = [ty + 90, this.famTop - 80];
+    const zones = [];
+    if (top[1] - top[0] > 40) zones.push({ y: top, x: [0.12, 0.88] });
+    if (mid[1] - mid[0] > 40) zones.push({ y: mid, x: [0.2, 0.8] });
+    zones.push({ y: [ty + 90, Math.min(H * 0.55, ty + 300)], x: Math.random() < 0.5 ? [0.05, 0.5 - 480 / W] : [0.5 + 480 / W, 0.95] });
+    const z = zones[(Math.random() * zones.length) | 0], x0 = W * (z.x[0] + Math.random() * (z.x[1] - z.x[0])), y1 = z.y[0] + Math.random() * (z.y[1] - z.y[0]);
     const col = FW_COLS[(Math.random() * FW_COLS.length) | 0];
-    const r = { size: 0.8 + Math.random() * 0.45, x: x0, y: H * 0.72, x1: x0 + (Math.random() - 0.5) * 160, y1, t: 0, dur: 0.85 + Math.random() * 0.3, col, trail: [] };
+    const r = { size: 1.0 + Math.random() * 0.4, x: x0 + (Math.random() - 0.5) * 120, y: H + 20, x1: x0, y1, t: 0, dur: 0.85 + Math.random() * 0.3, col, trail: [] };
     this.rockets.push(r);
-    audio.sfx('whoosh', { vol: 0.35 });
+    audio.sfx('launch', { vol: 0.5, pitch: Math.round(Math.random() * 3) });
   }
   _tick(dt, t) {
     if (!this.v) return;
@@ -101,11 +123,11 @@ export default class Finale {
     this.bunting.rot = Math.sin(t * 0.9) * 0.006;
     if (this.home.ready && !this.home.held) this.home.sx = this.home.sy = 1 + Math.sin(t * 4) * 0.05;
     // fireworks
-    this.fwT -= dt; if (this.fwT <= 0) { this.fwT = game.time - this.t0 < 4 ? 0.42 + Math.random() * 0.25 : 0.7 + Math.random() * 0.8; this._launch(); if (Math.random() < 0.3) setTimeout(() => game.scene === this && this._launch(), 200); }
+    this.fwT -= dt; if (this.fwT <= 0) { this.fwT = game.time - this.t0 < 4 ? 0.6 + Math.random() * 0.3 : 1.1 + Math.random() * 0.6; this._launch(); if (Math.random() < 0.25) setTimeout(() => game.scene === this && this._launch(), 280); }
     for (const r of [...this.rockets]) {
       r.t += dt; const k = Math.min(1, r.t / r.dur), e = 1 - Math.pow(1 - k, 2.2);
       r.cx = r.x + (r.x1 - r.x) * e; r.cy = r.y + (r.y1 - r.y) * e;
-      r.trail.push([r.cx, r.cy]); if (r.trail.length > 14) r.trail.shift();
+      r.trail.push([r.cx, r.cy]); if (r.trail.length > 28) r.trail.shift();
       if (k >= 1) {
         this.rockets.splice(this.rockets.indexOf(r), 1);
         // big even ring + inner ring, a glow flash and slow falling glitter
@@ -115,14 +137,16 @@ export default class Finale {
         burst(this.sky2, r.cx, r.cy, 'sparkle', { count: 22, spread: 0.7 * r.size, colors: ['#ffffff', r.col[0]], gravity: 50, life: 2.6 });
         const fl = this.sky2.add(new Node({ x: r.cx, y: r.cy, composite: 'lighter', alpha: 0.95, sx: 0.4, sy: 0.4 }).setImage(glowSprite(64, '#fff6d0')));
         fl.w = fl.h = 420 * r.size; tween(fl, { alpha: 0, sx: 1.2, sy: 1.2 }, { dur: 0.55, ease: 'outCubic' }).then(() => fl.removeSelf());
-        audio.sfx(Math.random() < 0.5 ? 'sparkle' : 'pop', { vol: 0.6, pitch: Math.round(Math.random() * 4) });
+        audio.sfx('crackle', { vol: 0.7, pitch: Math.round(Math.random() * 4) });
+        const core = this.sky2.add(new Node({ x: r.cx, y: r.cy, composite: 'lighter', alpha: 1, sx: 0.2, sy: 0.2 }).setImage(glowSprite(64, '#ffffff')));
+        core.w = core.h = 160 * r.size; tween(core, { alpha: 0, sx: 1, sy: 1 }, { dur: 0.3, ease: 'outQuad' }).then(() => core.removeSelf());
       }
     }
     if (!this.sky2.drawFn) this.sky2.drawFn = (ctx) => {
       const g = glowSprite(64, '#fff1b0');
       for (const r of this.rockets) {
         ctx.globalCompositeOperation = 'lighter';
-        r.trail.forEach(([x, y], i) => { const a = i / r.trail.length; ctx.globalAlpha = a * 0.6; const s = 10 + a * 24; ctx.drawImage(g.img, x - s / 2, y - s / 2, s, s); });
+        r.trail.forEach(([x, y], i) => { const a = i / r.trail.length; ctx.globalAlpha = a * a * 0.75; const s = 8 + a * 34; ctx.drawImage(g.img, x - s / 2 + Math.sin(i * 1.7) * 2, y - s / 2, s, s); });
         ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = '#fffbe8'; ctx.beginPath(); ctx.arc(r.cx, r.cy, 4.5, 0, 7); ctx.fill();
       }
     };
