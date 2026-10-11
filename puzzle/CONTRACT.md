@@ -32,7 +32,7 @@ Big touch targets (≥ 120 design units). Pieces pick up with a lift (scale 1.1,
 ## Design space / engine (src/engine — owned by the orchestrator; ask before changing)
 - Landscape design space, height 900, width ≥ 1600 (`game.view.w` grows on wide phones, e.g. ~1950 on iPhone).
   Lay out relative to `view` in `onLayout(view)` / `layout(view)`; keep important content inside the central 1600×900.
-  Portrait screens are auto-rotated — never assume portrait.
+  Portrait screens show the landscape stage upright (never rotated), letterboxed up to 4:3 with a "turn your phone" hint in the bands.
 - `Node` (node.js): scene graph; x,y,rot,sx,sy,alpha,z,ax,ay,w,h,img,drawFn(ctx,node), interactive, hitR, hitPad,
   draggable, children, pick(), toLocal(), toWorld(), toTop().
 - `svgSprite(svgString, w, h, cacheKey)` (raster.js) → Promise<{img,w,h}>; `node.setImage(sprite)`.

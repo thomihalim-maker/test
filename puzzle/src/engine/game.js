@@ -46,16 +46,16 @@ class Game {
     const W = innerWidth, H = innerHeight, dpr = Math.min(window.devicePixelRatio || 1, 3);
     this.dpr = dpr;
     this.canvas.width = Math.round(W * dpr); this.canvas.height = Math.round(H * dpr);
-    // Portrait screens: render the landscape game rotated 90° so turning the phone always works,
-    // even inside webviews that lock orientation.
-    this.rotated = H > W;
-    const LW = this.rotated ? H : W, LH = this.rotated ? W : H;
-    this.scale = LW / LH >= DESIGN_W / DESIGN_H ? LH / DESIGN_H : LW / DESIGN_W;
-    this.view = { w: LW / this.scale, h: LH / this.scale };
-    // Notch / rounded-corner insets (CSS env safe-area-inset-*), in design units, in landscape game orientation.
+    // The game is never rotated. On tall (portrait) screens the landscape stage is shown upright, as tall as
+    // 4:3 at most, centred vertically; the bands above/below show a "turn your phone" hint (drawn in render()).
+    this.rotated = false;
+    this.portrait = H > W * 0.9;
+    if (W / H >= DESIGN_W / DESIGN_H) { this.scale = H / DESIGN_H; this.view = { w: W / this.scale, h: DESIGN_H }; }
+    else { this.scale = W / DESIGN_W; this.view = { w: DESIGN_W, h: Math.min(H / this.scale, DESIGN_W * 0.75) }; }
+    this.offY = Math.max(0, (H - this.view.h * this.scale) / 2); // css px band above the stage
+    // Notch / rounded-corner insets (CSS env safe-area-inset-*), in design units.
     const si = this._safeInsets();
-    const L = this.rotated ? si.b : si.l, R = this.rotated ? si.t : si.r, T = this.rotated ? si.l : si.t, B = this.rotated ? si.r : si.b;
-    this.view.safe = { l: L / this.scale, r: R / this.scale, t: T / this.scale, b: B / this.scale };
+    this.view.safe = { l: si.l / this.scale, r: si.r / this.scale, t: this.offY ? 0 : si.t / this.scale, b: this.offY ? 0 : si.b / this.scale };
     this.cssW = W; this.cssH = H;
     if (this.scene && this.scene.layout) this.scene.layout(this.view);
     if (this.overlayLayout) this.overlayLayout(this.view);
@@ -77,9 +77,7 @@ class Game {
   // Screen (client css px) -> design space.
   toDesign(cx, cy) {
     const r = this.canvas.getBoundingClientRect();
-    let sx = cx - r.left, sy = cy - r.top, lx, ly;
-    if (this.rotated) { lx = sy; ly = this.cssW - sx; } else { lx = sx; ly = sy; }
-    return { x: lx / this.scale, y: ly / this.scale };
+    return { x: (cx - r.left) / this.scale, y: (cy - r.top - this.offY) / this.scale };
   }
 
   _bindInput() {
@@ -155,16 +153,58 @@ class Game {
     ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = '#fbf3e6'; ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     const d = this.dpr;
-    if (this.rotated) ctx.setTransform(0, d, -d, 0, this.canvas.width, 0);
-    else ctx.setTransform(d, 0, 0, d, 0, 0);
+    if (this.offY > 0) this._drawPortraitBands(ctx, d);
+    ctx.setTransform(d, 0, 0, d, 0, this.offY * d);
     ctx.scale(this.scale, this.scale);
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    ctx.save();
+    if (this.offY > 0) { ctx.beginPath(); ctx.rect(0, 0, this.view.w, this.view.h); ctx.clip(); }
     if (this.scene?.root) this.scene.root.render(ctx);
     this.overlay.render(ctx);
     if (this.coverK > 0) {
       if (this.transition) this.transition.draw(ctx, this.coverK, this.view);
       else { ctx.globalAlpha = this.coverK; ctx.fillStyle = '#fbf3e6'; ctx.fillRect(0, 0, this.view.w, this.view.h); ctx.globalAlpha = 1; }
     }
+    ctx.restore();
+  }
+
+  // Portrait: night-sky bands around the upright stage, with an animated "turn your phone" hint below it.
+  _drawPortraitBands(ctx, d) {
+    const W = this.cssW, H = this.cssH, top = this.offY, stageH = this.view.h * this.scale, bot = top + stageH;
+    ctx.setTransform(d, 0, 0, d, 0, 0);
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#2b3a78'); g.addColorStop(1, '#4a3f86');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    // a few twinkling stars in the bands
+    for (let i = 0; i < 28; i++) {
+      const x = ((i * 0.61803) % 1) * W, y = ((i * 0.38197 * 3.7) % 1) * H;
+      if (y > top - 6 && y < bot + 6) continue;
+      ctx.globalAlpha = 0.35 + 0.35 * Math.sin(this.time * 1.7 + i * 1.9);
+      ctx.fillStyle = '#fff3c4'; ctx.beginPath(); ctx.arc(x, y, 1.4 + (i % 3) * 0.6, 0, 7); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    const band = H - bot;
+    if (band < 90) return;
+    // phone that tips from upright to sideways, then rests
+    const cx = W / 2, cy = bot + Math.min(band * 0.42, 120), t = (this.time % 3.2) / 3.2;
+    const k = t < 0.15 ? 0 : t < 0.45 ? (1 - Math.cos(((t - 0.15) / 0.3) * Math.PI)) / 2 : 1;
+    const ph = Math.min(64, band * 0.32), pw = ph * 0.56;
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(-k * Math.PI / 2);
+    ctx.fillStyle = '#fbf3e6'; ctx.strokeStyle = '#f6cf3e'; ctx.lineWidth = 3.5;
+    ctx.beginPath(); ctx.roundRect(-pw / 2, -ph / 2, pw, ph, 8); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#2f57b8'; ctx.beginPath(); ctx.roundRect(-pw / 2 + 5, -ph / 2 + 7, pw - 10, ph - 16, 4); ctx.fill();
+    ctx.fillStyle = '#f6cf3e'; ctx.beginPath(); ctx.arc(0, 0, ph * 0.12, 0, 7); ctx.fill();
+    ctx.restore();
+    // curved arrow
+    ctx.save(); ctx.strokeStyle = 'rgba(255,243,196,0.85)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    const r = ph * 0.85; ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI * 0.85, -Math.PI * 0.35); ctx.stroke();
+    const ax = cx + Math.cos(-Math.PI * 0.35) * r, ay = cy + Math.sin(-Math.PI * 0.35) * r;
+    ctx.beginPath(); ctx.moveTo(ax - 9, ay - 6); ctx.lineTo(ax, ay); ctx.lineTo(ax - 2, ay + 10); ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = '#fff3c4'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.font = `600 ${Math.max(15, Math.min(20, W / 22))}px Fredoka, system-ui, sans-serif`;
+    const ty = cy + ph * 0.75 + 10;
+    if (ty + 24 < H) ctx.fillText('Putar HP-mu supaya gambarnya lebih besar', cx, ty);
   }
 }
 
