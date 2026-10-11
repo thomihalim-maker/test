@@ -189,7 +189,8 @@ function windowArt(night = true) {
     <!-- wall shadow behind frame -->
     <rect x="94" y="44" width="262" height="290" rx="10" fill="#8b5a48" opacity="0.18" filter="url(#mglow)"/>
     ${ol(`<rect x="86" y="34" width="268" height="282" rx="10"/>`, C.cream, 3.4)}
-    <rect x="103" y="50" width="234" height="248" fill="url(#sky)" filter="url(#crayon)"/>
+    <rect x="103" y="50" width="234" height="248" fill="url(#sky)"/>
+    <g opacity="${night ? 0.16 : 0.2}" stroke="#ffffff" stroke-width="5" stroke-linecap="round" fill="none" filter="url(#crayon)"><path d="M108 70 L180 58 M110 104 L240 82 M112 140 L300 108 M118 176 L330 140 M120 214 L332 178 M200 230 L334 212"/></g>
     ${night ? `${fixedStars}
     <circle cx="276" cy="100" r="46" fill="#fff1b8" opacity="0.45" filter="url(#mglow)"/>
     <g mask="url(#moonm)"><circle cx="276" cy="100" r="31" fill="#fbe7a0" filter="url(#crayon)"/></g>
@@ -418,6 +419,35 @@ function basketArt() {
   `, 155);
 }
 
+export const BLANKET_SLEEP = { w: 300, h: 170 };
+function blanketSleepArt() {
+  const r = rng(43); let stars = '';
+  const cols = ['#86aef0', C.pink, '#fff6d8', '#9ad3b9'];
+  for (let i = 0; i < 14; i++) stars += star(70 + (i % 7) * 32 + (i > 6 ? 14 : 0), 70 + (i > 6 ? 40 : 0) + r() * 8, 6 + r() * 3, cols[i % 4], 0.95);
+  const body = 'M30 60 Q34 36 62 34 Q120 20 190 26 Q262 30 286 70 L292 170 L24 170 Z';
+  return svg(300, 170, `
+    ${ol(`<path d="${body}"/>`, C.butter)}
+    ${tone(`<path d="M24 120 Q160 136 292 120 L292 170 L24 170 Z"/>`, C.butterShade, 0.6)}
+    ${tone(`<path d="M190 30 Q262 32 286 70 L290 120 Q240 90 196 70 Z"/>`, C.butterShade, 0.45)}
+    ${stars}
+    ${ol(`<path d="M30 60 Q34 36 62 34 L86 32 Q70 70 76 170 L24 170 Z"/>`, '#fff3c7', 2.8)}
+    <path d="M44 48 Q40 100 44 160" fill="none" stroke="#e8a5a0" stroke-width="3" stroke-dasharray="7 7" stroke-linecap="round" filter="url(#pencil)"/>
+    ${scrib('M100 34 Q190 22 270 50', '#fff', 5, 0.6)}
+  `, 171);
+}
+export const BUNTING = { w: 1800, h: 130 };
+function buntingArt() {
+  const cols = [C.coral, C.butter, C.mint, '#9bbcf0', C.pink, C.lilac];
+  const y = x => 30 + Math.sin((x / 1800) * Math.PI) * 50;
+  let flags = '';
+  for (let i = 0; i < 22; i++) {
+    const x = 40 + i * 80, y0 = y(x), y1 = y(x + 56);
+    flags += ol(`<path d="M${x} ${y0} L${x + 56} ${y1} L${x + 28} ${(y0 + y1) / 2 + 58} Z"/>`, cols[i % cols.length], 2.6);
+  }
+  let rope = 'M0 ' + y(0); for (let x = 30; x <= 1800; x += 30) rope += ` L${x} ${y(x).toFixed(1)}`;
+  return svg(1800, 130, `<path d="${rope}" ${stroke(3)}/>${flags}`, 173);
+}
+
 export const TIDY = 150;
 function clothesArt() {
   return svg(150, 150, `
@@ -463,10 +493,11 @@ const PADS = 18, PADG = 34, PADW = 56;
 function silhouetteArt(it) {
   const w = it.w + PADS * 2, h = it.h + PADS * 2;
   return svg(w, h, `<g transform="translate(${PADS} ${PADS})">
-    <path d="${it.outline}" fill="#5d3d5e" fill-opacity="0.82" fill-rule="evenodd"/>
-    <path d="${it.outline}" fill="#7a557a" fill-opacity="0.5" fill-rule="evenodd" filter="url(#crayon)"/>
-    <g fill="none" stroke="#f3dfe0" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" opacity="0.7" filter="url(#pencil)">${it.features || ''}</g>
-    <path d="${it.outline}" fill="none" stroke="#fff6ea" stroke-width="7.5" stroke-dasharray="16 11" stroke-linecap="round" stroke-linejoin="round" filter="url(#pencil)"/></g>`, 141);
+    <path d="${it.outline}" fill="#9a8cbc" fill-opacity="0.34" fill-rule="evenodd"/>
+    <path d="${it.outline}" fill="#ffffff" fill-opacity="0.18" fill-rule="evenodd" filter="url(#crayon)"/>
+    <g fill="none" stroke="#6e5f8a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.55" filter="url(#pencil)">${it.features || ''}</g>
+    <path d="${it.outline}" fill="none" stroke="#fffaf2" stroke-width="10" stroke-dasharray="15 10" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+    <path d="${it.outline}" fill="none" stroke="#5a4a72" stroke-width="5.5" stroke-dasharray="15 10" stroke-linecap="round" stroke-linejoin="round" filter="url(#pencil)"/></g>`, 141);
 }
 function shadowArt(it) {
   const w = it.w + PADG * 2, h = it.h + PADG * 2;
@@ -503,7 +534,7 @@ export async function loadLevel1Art() {
     wallpaper: [wallpaperTile(), 180, 180],
     window: [windowArt(true), WINDOW.w, WINDOW.h], windowDusk: [windowArt(false), WINDOW.w, WINDOW.h],
     tidy_clothes: [clothesArt(), 150, 150], tidy_bunny: [bunnyArt(), 150, 150], tidy_socks: [socksArt(), 150, 150], tidy_ball: [ballArt(), 150, 150],
-    slippers: [slippersArt(), 190, 80], blocks: [blocksArt(), 190, 150], basket: [basketArt(), 300, 170],
+    slippers: [slippersArt(), 190, 80], blanketSleep: [blanketSleepArt(), 300, 170], bunting: [buntingArt(), 1800, 130], blocks: [blocksArt(), 190, 150], basket: [basketArt(), 300, 170],
     lamp: [lampArt(), LAMP.w, LAMP.h],
     shelf: [shelfArt(), SHELF.w, SHELF.h],
     shelfTop: [shelfTopArt(), SHELFTOP.w, SHELFTOP.h],
