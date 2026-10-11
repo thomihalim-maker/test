@@ -202,7 +202,7 @@ export function scribble(ctx, pts, color, w = 4, o = {}) { pencil(ctx, pts, { ..
  * cream "sticker" halo. opts: {line, halo, haloColor, weight, hatch}
  */
 export function crayonText(text, size, color, o = {}) {
-  const key = o.key ?? `txt3|${text}|${size}|${color}|${o.halo ?? 1}|${o.line ?? PAL.lineDark}|${o.haloColor ?? ''}`;
+  const key = o.key ?? `txt4|${text}|${size}|${color}|${o.halo ?? 1}|${o.line ?? PAL.lineDark}|${o.haloColor ?? ''}`;
   const weight = o.weight ?? 700, font = `${weight} ${size}px ${FONT}`;
   const mc = document.createElement('canvas').getContext('2d'); mc.font = font;
   const tw = Math.ceil(mc.measureText(text).width), pad = Math.ceil(size * 0.22);
@@ -226,7 +226,35 @@ export function crayonText(text, size, color, o = {}) {
       const g = l.createLinearGradient(0, cy - size * 0.5, 0, cy + size * 0.5); g.addColorStop(0, 'rgba(255,255,255,0.25)'); g.addColorStop(0.5, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(0,0,0,0.12)');
       l.globalAlpha = 1; l.fillStyle = g; l.fillRect(0, 0, w, h);
     }, 0.28);
+    if (o.halo !== 0) openCounters(x, text, font, cx, cy, o.line ?? PAL.lineDark, size);
   }, { key });
+}
+
+/** Cut glyph counters (holes of B, e, a, o…) back out of the halo, then line their inner edge thinly. */
+function openCounters(x, text, font, cx, cy, line, size) {
+  try {
+    const C = x.canvas, W = C.width, H = C.height, T = x.getTransform();
+    const m = document.createElement('canvas'); m.width = W; m.height = H;
+    const mx = m.getContext('2d'); mx.setTransform(T); mx.font = font; mx.textAlign = 'center'; mx.textBaseline = 'middle'; mx.fillText(text, cx, cy);
+    const id = mx.getImageData(0, 0, W, H), d = id.data, N = W * H, outside = new Uint8Array(N), stack = [];
+    const solid = i => d[i * 4 + 3] > 110;
+    for (let X = 0; X < W; X++) { stack.push(X, (H - 1) * W + X); }
+    for (let Y = 0; Y < H; Y++) { stack.push(Y * W, Y * W + W - 1); }
+    while (stack.length) {
+      const i = stack.pop(); if (outside[i] || solid(i)) continue; outside[i] = 1;
+      const X = i % W; if (X > 0) stack.push(i - 1); if (X < W - 1) stack.push(i + 1); if (i >= W) stack.push(i - W); if (i < N - W) stack.push(i + W);
+    }
+    let any = false;
+    for (let i = 0; i < N; i++) { const hole = !outside[i] && d[i * 4 + 3] < 250; const a = hole ? 255 - d[i * 4 + 3] : 0; d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = 0; d[i * 4 + 3] = a; if (a) any = true; }
+    if (!any) return;
+    mx.setTransform(1, 0, 0, 1, 0, 0); mx.clearRect(0, 0, W, H); mx.putImageData(id, 0, 0); // m = hole mask
+    x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.globalCompositeOperation = 'destination-out'; x.drawImage(m, 0, 0); x.restore();
+    // thin pencil line on the counter edge (only the half that lies inside the hole)
+    const l = document.createElement('canvas'); l.width = W; l.height = H; const lx = l.getContext('2d');
+    lx.setTransform(T); lx.font = font; lx.textAlign = 'center'; lx.textBaseline = 'middle'; lx.strokeStyle = line; lx.lineJoin = 'round'; lx.lineWidth = Math.max(2, size * 0.04); lx.globalAlpha = 0.85; lx.strokeText(text, cx, cy);
+    lx.setTransform(1, 0, 0, 1, 0, 0); lx.globalAlpha = 1; lx.globalCompositeOperation = 'destination-in'; lx.drawImage(m, 0, 0);
+    x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.drawImage(l, 0, 0); x.restore();
+  } catch (_) {}
 }
 
 // ---------------------------------------------------------------- paper

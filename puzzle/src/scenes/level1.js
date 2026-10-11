@@ -26,13 +26,13 @@ const L = {
   baby: { x: 872, y: 618, s: 0.76, rot: -0.06 },
   babySleep: { x: 778, y: 600, rot: -1.57 },
   blanketSleep: { x: 806, y: 588, rot: 0, s: 0.8 },
-  mobile: { x: 826, y: 150, ring: 70, R: 112 }, // hangs from the crib's mobile arm (hook at y 150)
-  arm: { post: 1170, top: 150, hookX: 826 },
+  mobile: { x: 826, y: 176, ring: 70, R: 112 }, // hangs from the crib's mobile arm (hook at y 176)
+  arm: { post: 1170, top: 176, hookX: 826 },
 };
 // The five items: slot = where it belongs (centre) at placed scale ps; home = shelf cubby (col,row); foot = local y of its base.
 const DEFS = [
   { key: 'bottle', slot: { x: 482, y: 629, rot: 0.03 }, ps: 0.9, layer: 'top', home: { col: 0, row: 0, s: 0.78, rot: -0.04 }, foot: 188 },
-  { key: 'rattle', slot: { x: 1062, y: 268, rot: Math.PI + 0.04 }, ps: 0.72, layer: 'top', home: { col: 1, row: 0, s: 0.8, rot: 0.05 }, foot: 185 },
+  { key: 'rattle', slot: { x: 1062, y: 294, rot: Math.PI + 0.04 }, ps: 0.72, layer: 'top', home: { col: 1, row: 0, s: 0.8, rot: 0.05 }, foot: 185 },
   { key: 'teddy', slot: { x: 1072, y: 570, rot: 0.03 }, ps: 0.78, layer: 'front', home: { col: 0, row: 1, s: 0.84, rot: -0.03 }, foot: 189 },
   { key: 'pillow', slot: { x: 668, y: 590, rot: -0.04 }, ps: 0.8, layer: 'back', home: { col: 1, row: 1, s: 0.72, rot: -0.1 }, foot: 116 },
   { key: 'blanket', slot: { x: 724, y: 704, rot: 0.02 }, ps: 0.66, layer: 'top', home: { col: 0, row: 2, s: 0.62, rot: 0.03 }, foot: 148 },
@@ -151,10 +151,10 @@ export default class Level1 extends LevelScene {
     // Ibu: cropped by the bottom edge like the reference (half figure). On tall screens she grows a little and stays
     // anchored to the bottom edge; on narrow screens she steps inward so her knot stays in frame.
     const tall = Math.max(0, this.oy);
-    const ms = L.mom.s + Math.min(0.12, tall * 0.0008);
+    const ms = L.mom.s + Math.min(0.05, tall * 0.0004);
     this.mom.sx = this.mom.sy = ms;
     this.mom.y = L.mom.y + tall;
-    if (!this.finaleStarted) this.mom.x = L.mom.x + Math.max(0, 50 - this.ox) * 1.1 + (ms - L.mom.s) * 120;
+    if (!this.finaleStarted) this.mom.x = L.mom.x + Math.max(0, 50 - this.ox) * 0.6;
   }
 
   applyCam() {
@@ -617,7 +617,7 @@ export default class Level1 extends LevelScene {
     ctx.fillStyle = C.mint; ctx.strokeStyle = PAL.line; ctx.lineWidth = 2.6;
     ctx.beginPath(); ctx.arc(A.hookX - 14, top, 9, 0, 7); ctx.fill(); ctx.stroke();
     // ribbon for the rattle
-    const rx = 1062, ry0 = top + 6, ry1 = 222;
+    const rx = 1062, ry0 = top + 6, ry1 = 248;
     ctx.strokeStyle = C.coral; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(rx, ry0); ctx.quadraticCurveTo(rx + 6, (ry0 + ry1) / 2, rx, ry1); ctx.stroke();
     ctx.fillStyle = C.coral; ctx.strokeStyle = PAL.line; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(rx, ry0 + 4); ctx.quadraticCurveTo(rx - 22, ry0 - 8, rx - 18, ry0 + 12); ctx.closePath(); ctx.fill(); ctx.stroke();
