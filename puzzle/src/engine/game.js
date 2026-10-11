@@ -158,7 +158,8 @@ class Game {
     ctx.scale(this.scale, this.scale);
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
     ctx.save();
-    if (this.offY > 0) { ctx.beginPath(); ctx.rect(0, 0, this.view.w, this.view.h); ctx.clip(); }
+    const rr = 22 / this.scale; // rounded "picture card" corners in portrait (css px → design units)
+    if (this.offY > 0) { ctx.beginPath(); ctx.roundRect(0, 0, this.view.w, this.view.h, rr); ctx.clip(); }
     if (this.scene?.root) this.scene.root.render(ctx);
     this.overlay.render(ctx);
     if (this.coverK > 0) {
@@ -166,6 +167,10 @@ class Game {
       else { ctx.globalAlpha = this.coverK; ctx.fillStyle = '#fbf3e6'; ctx.fillRect(0, 0, this.view.w, this.view.h); ctx.globalAlpha = 1; }
     }
     ctx.restore();
+    if (this.offY > 0) { // soft cream crayon rim around the card
+      ctx.save(); ctx.lineWidth = 5 / this.scale; ctx.strokeStyle = 'rgba(255,243,214,0.9)';
+      ctx.beginPath(); ctx.roundRect(0, 0, this.view.w, this.view.h, rr); ctx.stroke(); ctx.restore();
+    }
   }
 
   // Portrait: night-sky bands around the upright stage, with an animated "turn your phone" hint below it.
@@ -183,6 +188,9 @@ class Game {
       ctx.fillStyle = '#fff3c4'; ctx.beginPath(); ctx.arc(x, y, 1.4 + (i % 3) * 0.6, 0, 7); ctx.fill();
     }
     ctx.globalAlpha = 1;
+    // soft drop shadow under the stage card
+    ctx.save(); ctx.shadowColor = 'rgba(10,8,40,0.55)'; ctx.shadowBlur = 28; ctx.shadowOffsetY = 8;
+    ctx.fillStyle = '#2b3a78'; ctx.beginPath(); ctx.roundRect(2, top, W - 4, stageH, 22); ctx.fill(); ctx.restore();
     const band = H - bot;
     if (band < 90) return;
     // phone that tips from upright to sideways, then rests

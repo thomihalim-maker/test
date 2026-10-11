@@ -193,16 +193,21 @@ export default class Level3 extends LevelScene {
       ext[HOME_OF[i]] = { top: Math.min(...ys) * k, bot: Math.max(...ys) * k, halfW: Math.max(...n.data.edge.map(p => Math.abs(p[0] - this.geo.SW / 2))) * k };
     });
     const garlandBottom = 150 * fy;
-    for (const [t, l, c, hgt] of [[0, 1, this.mom, 560], [4, 5, this.dad, 600]]) {
+    this.sink = { mom: 0, dad: 0 };
+    for (const [t, l, c, hgt, key] of [[0, 1, this.mom, 560, 'mom'], [4, 5, this.dad, 600, 'dad']]) {
       const T = spots[t], Lw = spots[l];
       T.y = Math.max(T.y, garlandBottom - ext[t].top + 8);
-      Lw.y = Math.max(Lw.y, T.y + ext[t].bot - ext[l].top + 16);
-      const headTop = this.charBase - hgt * cs, charHalfW = 165 * cs / CHAR_S;
+      Lw.y = Math.max(Lw.y, T.y + ext[t].bot - ext[l].top + 30);
+      const charHalfW = 165 * cs / CHAR_S;
       if (Math.abs(Lw.x - c.x) < ext[l].halfW + charHalfW) {
-        Lw.y = Math.min(Lw.y, headTop - ext[l].bot - 20);
-        T.y = Math.max(garlandBottom - ext[t].top, Math.min(T.y, Lw.y + ext[l].top - ext[t].bot - 16));
+        // the parent sinks behind the counter just enough for the low piece to clear the head (face stays visible)
+        const headTop = this.charBase - hgt * cs, need = Lw.y + ext[l].bot + 20 - headTop;
+        const maxSink = Math.max(0, (this.tableY - 175 * cs / CHAR_S) - headTop);
+        this.sink[key] = clamp(need, 0, maxSink);
+        if (need > maxSink) Lw.y -= need - maxSink;   // last resort: nudge the piece up
       }
     }
+    this.placeChars();
     this.pieces.forEach((n, i) => {
       const h = spots[HOME_OF[i]];
       n.home = { x: h.x / k, y: h.y / k, rot: HOME_ROT[i], sx: 1, sy: 1 };
@@ -225,8 +230,9 @@ export default class Level3 extends LevelScene {
   placeChars() {
     if (this.charBase == null) return;
     const r = this.charRise;
-    this.mom.y = this.charBase + (1 - r) * 300;
-    this.dad.y = this.charBase + 8 + (1 - Math.min(1, r * 1.08)) * 310;
+    const sk = this.sink || { mom: 0, dad: 0 };
+    this.mom.y = this.charBase + sk.mom + (1 - r) * 300;
+    this.dad.y = this.charBase + sk.dad + 8 + (1 - Math.min(1, r * 1.08)) * 310;
   }
 
   slotWorld(n) { return this.frameG.toWorld(n.data.slot.x, n.data.slot.y); }
