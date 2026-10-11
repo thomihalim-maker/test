@@ -19,7 +19,7 @@ const HINT_AFTER = 6;       // seconds of no interaction before a hint
 const PHOTO_CY = 362;       // photo centre (design y at height 900)
 const CHAR_S = 0.62;
 // home spot per piece index: spots = [L-top, L-low, counter-L, counter-R, R-top, R-low]
-const HOME_OF = [4, 1, 0, 3, 5, 2];   // pieces 3 & 5 have no vertical tabs: they rest flat on the counter
+const HOME_OF = [5, 0, 1, 3, 4, 2];   // pieces 3 & 5 have no vertical tabs: they rest flat on the counter
 const HOME_ROT = [-0.14, 0.1, -0.08, 0.12, -0.1, 0.07];
 
 export default class Level3 extends LevelScene {
@@ -105,61 +105,40 @@ export default class Level3 extends LevelScene {
     this.dragging = null; this.celebrating = false; this.winPose = false; this.sparkT = 0;
   }
 
-  /** Photo backdrop for the live payoff: characters.js export if present, else our own studio backdrop. */
+  /** Photo backdrop for the live payoff: the character builder's portrait backdrop if exported, else our own. */
   async loadBackdrop(w, h) {
     try {
-      const fn = CH.portraitBackdrop || CH.portraitBackground || CH.portraitBgSprite;
+      const fn = CH.portraitBackdropSprite || CH.portraitBackdrop;
       if (typeof fn === 'function') { const sp = await fn(w, h); if (sp && sp.img) return sp; }
     } catch (e) { /* fall through */ }
     return svgSprite(A.photoBackdropSVG(w, h), w, h, 'l3-photo-bd');
   }
-  /** Where each family member sits inside the photo (photo-local px). Uses characters.js PORTRAIT_LAYOUT if exported. */
-  portraitLayout(w, h) {
-    const s = h / 600;
-    const def = {
-      mom: { x: w * 0.225, y: h + 46 * s, s: 0.86 * s, rot: 0.11 },
-      dad: { x: w * 0.785, y: h + 46 * s, s: 0.86 * s, rot: -0.11 },
-      baby: { x: w * 0.5, y: h - 26 * s, s: 1.0 * s, rot: 0 },
-    };
-    try {
-      let L = CH.PORTRAIT_LAYOUT;
-      if (typeof L === 'function') L = L(w, h);
-      if (L && typeof L === 'object') {
-        for (const k of ['mom', 'dad', 'baby']) {
-          const e = L[k]; if (!e) continue;
-          const fx = v => (Math.abs(v) <= 1.5 ? v * w : v), fy = v => (Math.abs(v) <= 1.5 ? v * h : v);
-          const sc = e.s ?? e.scale ?? e.k;
-          def[k] = {
-            x: e.x != null ? fx(e.x) : def[k].x, y: e.y != null ? fy(e.y) : def[k].y,
-            s: sc != null ? (L.relative || e.relative ? sc * s : sc) : def[k].s, rot: e.rot ?? def[k].rot,
-          };
-        }
-      }
-    } catch (_) {}
-    return def;
+  /** Place a live character exactly like the printed portrait (PORTRAIT_LAYOUT via applyPortraitPose if exported). */
+  posePortrait(ch, kind, w, h) {
+    if (typeof CH.applyPortraitPose === 'function' && CH.PORTRAIT_LAYOUT?.[kind]) { CH.applyPortraitPose(ch, kind, w, h); return; }
+    const s = h / 600, d = { mom: [0.225, 1 + 46 / 600, 0.86, 0.11, [0.75, 0.75], 0.1], dad: [0.785, 1 + 46 / 600, 0.86, -0.11, [-0.75, 0.75], -0.1], baby: [0.5, 1 - 26 / 600, 1, 0, [0, 0], 0.04] }[kind];
+    ch.x = d[0] * w; ch.y = d[1] * h; ch.sx = ch.sy = d[2] * s; ch.rot = d[3];
+    ch.setMood?.('adore'); ch.gazeOverride = d[4]; ch.tiltOverride = d[5];
   }
   buildLivePhoto(backdrop, mom, dad, baby) {
     const { PW, PH } = L3;
-    // container clips its children to the photo rect (drawFn runs inside the node's save/restore)
-    const lp = new Node({ x: this.photoX, y: this.photoY, visible: false, drawFn: ctx => { ctx.beginPath(); ctx.rect(0, 0, PW, PH); ctx.clip(); } });
-    const bd = lp.add(new Node({ ax: 0, ay: 0 }).setImage(backdrop)); bd.w = PW; bd.h = PH;
-    const L = this.portraitLayout(PW, PH);
     this.live = { mom, dad, baby };
-    for (const k of ['mom', 'dad', 'baby']) {
-      const c = this.live[k], e = L[k];
-      if (k === 'baby') lp.add(new Node({ drawFn: ctx => { ctx.globalAlpha *= 0.16; ctx.fillStyle = '#8a5a3a'; ctx.beginPath(); ctx.ellipse(e.x, PH - 28 * PH / 600, 120 * PH / 600, 14 * PH / 600, 0, 0, Math.PI * 2); ctx.fill(); } }));
-      c.x = e.x; c.y = e.y; c.sx = c.sy = e.s; c.rot = e.rot; c.home = { ...e };
-      c.setMood?.('adore');
-      lp.add(c);
-    }
-    mom.gazeOverride = [0.75, 0.75]; dad.gazeOverride = [-0.75, 0.75]; baby.gazeOverride = [0, 0];
-    mom.tiltOverride = 0.1; dad.tiltOverride = -0.1; baby.tiltOverride = 0.04;
-    // warm photo-paper border like the printed portrait
-    lp.add(new Node({ drawFn: ctx => {
-      const s = PH / 600; ctx.strokeStyle = '#fffaf0'; ctx.lineWidth = 18 * s; ctx.strokeRect(0, 0, PW, PH);
-      ctx.strokeStyle = 'rgba(120,90,70,.3)'; ctx.lineWidth = 2 * s; ctx.strokeRect(10 * s, 10 * s, PW - 20 * s, PH - 20 * s);
-    } }));
-    return lp;
+    for (const k of ['mom', 'dad', 'baby']) this.posePortrait(this.live[k], k, PW, PH);
+    const layer = (c, l) => (c.renderLayer ? c.renderLayer.bind(c) : (x, ly) => { if (ly !== 'front') c.render(x); });
+    const B = CH.PORTRAIT_LAYOUT?.baby;
+    // Same layering as portraitSprite: parents' bodies, baby, then the parents' front arms — clipped to the photo.
+    // The live characters are not children (they are drawn here); their rigs still update every frame.
+    return new Node({ x: this.photoX, y: this.photoY, visible: false, drawFn: ctx => {
+      ctx.beginPath(); ctx.rect(0, 0, PW, PH); ctx.clip();
+      ctx.drawImage(backdrop.img, 0, 0, PW, PH);
+      layer(mom)(ctx, 'base'); layer(dad)(ctx, 'base');
+      const s = PH / 600, bx = baby.x, by = B ? B.y * PH + 2 * s : baby.y;
+      ctx.save(); ctx.globalAlpha *= 0.16; ctx.fillStyle = '#2f5a5a'; ctx.beginPath(); ctx.ellipse(bx, by, 120 * s, 12 * s, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      baby.render(ctx);
+      layer(mom)(ctx, 'front'); layer(dad)(ctx, 'front');
+      if (typeof CH.drawPortraitFrame === 'function') CH.drawPortraitFrame(ctx, PW, PH);
+      else { ctx.strokeStyle = '#fffaf0'; ctx.lineWidth = 18 * s; ctx.strokeRect(0, 0, PW, PH); }
+    } });
   }
 
   // ------------------------------------------------------------------------------------------- layout
@@ -413,7 +392,7 @@ export default class Level3 extends LevelScene {
     const lx = off * Math.sin(n.rot) + n.art.x, ly = off * Math.cos(n.rot) + n.art.y * 0.3;
     const w = this.geo.SW * sc, h = this.geo.SH * sc, ga = ctx.globalAlpha;
     if (L < 0.98) { ctx.globalAlpha = ga * 0.5 * (1 - L); ctx.drawImage(n.shadowImg, lx - w / 2, ly - h / 2, w, h); }
-    if (L > 0.02) { ctx.globalAlpha = ga * 0.38 * L; ctx.drawImage(n.shadowSoftImg, lx - w / 2, ly - h / 2, w, h); }
+    if (L > 0.02) { ctx.globalAlpha = ga * 0.44 * L; ctx.drawImage(n.shadowSoftImg, lx - w / 2, ly - h / 2, w, h); }
     ctx.globalAlpha = ga;
   }
   drawTrail(ctx) {
@@ -608,7 +587,7 @@ export default class Level3 extends LevelScene {
     setTimeout(() => dad.react?.('cheer', 1.8), 150);
     setTimeout(() => { baby.react?.('surprised', 0.6); audio.sfx('giggle'); }, 700);
     setTimeout(() => { baby.setMood?.('happy'); baby.react?.('cheer', 1.4); }, 1300);
-    const wp = c => this.livePhoto.toWorld(c.x, c.y - 300 * c.sy);
+    const wp = c => this.livePhoto.toWorld(c.x, c.y - 200 * c.sy);
     let next = 2.4, i = 0;
     game.onUpdate(dt => {
       next -= dt; if (next > 0) return;

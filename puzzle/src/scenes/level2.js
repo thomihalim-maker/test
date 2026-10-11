@@ -113,7 +113,7 @@ export default class Level2 extends LevelScene {
       n.shadow = n.add(spr(art.shadow, { sx: 0.75, sy: 0.75, alpha: 0.6 }));
       n.glow = n.add(new Node({ alpha: 0, drawFn: drawHintRing }));
       n.art = n.add(spr(art.toys[`${t.type}-${t.col}`], { ax: 0.5, ay: TOY_BASE / TOY_H }));
-      n.tilt = 0; n.shake = null; n.pulse = 0;
+      n.tilt = 0; n.shake = null; n.pulse = 0; n.spin = 0; n.shOff = 0;
       return n;
     });
     [...this.toys].sort((a, b) => a.y - b.y).forEach(n => this.toyLayer.add(n));
@@ -171,14 +171,14 @@ export default class Level2 extends LevelScene {
     // toys spring up out of the rug at their own spots: pop (outBack) + hop + spin, bounce on landing
     const order = [...this.toys].sort((a, b) => Math.abs(a.home.x - 900) - Math.abs(b.home.x - 900));
     order.forEach((n, i) => {
-      const d = 0.08 * i, spin = (n.idx % 2 ? 1 : -1) * Math.PI * 2;
-      n.rot = n.home.rot + spin;
+      const d = 0.08 * i;
+      n.spin = (n.idx % 2 ? 1 : -1) * 1.3;
+      tween(n, { spin: 0 }, { dur: 0.9, delay: d, ease: 'outElastic' });
       wait(d).then(() => { if (!n.placed) { audio.sfx('pop', { volume: 0.45 }); this.puff(n.x, n.y, 0.6); } });
       tween(n, { sx: 1, sy: 1 }, { dur: 0.45, delay: d, ease: 'outBack' });
-      tween(n, { rot: n.home.rot }, { dur: 0.7, delay: d, ease: 'outCubic' });
       tween(n.shadow, { alpha: 0.6 }, { dur: 0.4, delay: d + 0.1 });
       n.art.y = 0;
-      tween(n.art, { y: -120 }, { dur: 0.28, delay: d, ease: 'outQuad' })
+      tween(n.art, { y: n.home.y < 800 ? -55 : -100 }, { dur: 0.26, delay: d, ease: 'outQuad' })
         .then(() => tween(n.art, { y: 0 }, { dur: 0.5, ease: 'outBounce' }))
         .then(() => { if (!n.placed) { audio.sfx('drop', { volume: 0.4 }); this.puff(n.x, n.y, 0.8); } });
     });
@@ -199,11 +199,11 @@ export default class Level2 extends LevelScene {
     n.k = 0;
     n.drawFn = c => {
       const e = Ease.outCubic(n.k);
-      c.fillStyle = DUST; c.strokeStyle = '#dcc7a3'; c.lineWidth = 1.6;
-      c.globalAlpha *= (1 - n.k) * 0.9;
+      c.fillStyle = DUST;
+      c.globalAlpha *= (1 - n.k) * 0.7;
       for (const p of parts) {
-        const d = (18 + 44 * e) * k, x2 = Math.cos(p.a) * d * 1.4, y2 = Math.sin(p.a) * d * 0.35;
-        c.beginPath(); c.arc(x2, y2, (p.r + 10 * e) * k, 0, Math.PI * 2); c.fill(); c.stroke();
+        const d = (14 + 46 * e) * k, x2 = Math.cos(p.a) * d * 1.5, y2 = Math.sin(p.a) * d * 0.3 - 6 * e;
+        c.beginPath(); c.ellipse(x2, y2, (p.r + 16 * e) * k * 1.3, (p.r + 16 * e) * k * 0.8, 0, 0, Math.PI * 2); c.fill();
       }
     };
     tween(n, { k: 1 }, { dur: 0.55, ease: 'linear' }).then(() => n.removeSelf());
@@ -513,22 +513,26 @@ export default class Level2 extends LevelScene {
       for (const b of this.baskets) b.hover = b === near ? 1 : 0;
     }
     for (const n of this.toys) {
-      if (n !== d && !n.placed) { n.tilt = lerp(n.tilt, 0, Math.min(1, dt * 10)); if (!n.shake) n.art.rot = n.tilt; }
+      if (n !== d && !n.placed) { n.tilt = lerp(n.tilt, 0, Math.min(1, dt * 10)); if (!n.shake) n.art.rot = n.tilt + n.spin; }
       if (n.shake) {
         const s = n.shake; s.t += dt; const k = s.t / s.dur;
         n.art.rot = k >= 1 ? 0 : Math.sin(s.t * s.freq) * s.amp * (1 - k);
         if (k >= 1) n.shake = null;
       }
       if (n.pulse && n !== d) { const s = 1 + 0.06 * (1 - Math.cos(t * 6.5)); n.art.sx = n.art.sy = s; n.art.rot = Math.sin(t * 13) * 0.06; }
-      if (!n.placed) { // shadow: grows darker/larger and drops away down-right as the toy lifts
-        const lift = clamp(-n.art.y / -LIFT_Y, 0, 1.4);
-        n.shadow.sx = n.shadow.sy = 0.75 + lift * 0.22;
-        n.shadow.x = lift * 20; n.shadow.y = lift * 20;
-        if (n.sx > 0.9) n.shadow.alpha = 0.6 + lift * 0.4;
+      if (!n.placed) {
+        // held: a bigger, darker drop shadow offset down-right (reads over the baskets too);
+        // hopping on its own (intro / tap / bounce): the floor shadow just shrinks and fades
+        const held = n === d ? 1 : 0;
+        n.shOff = lerp(n.shOff, held, Math.min(1, dt * 12));
+        const h = clamp(-n.art.y / 150, 0, 1);
+        n.shadow.sx = n.shadow.sy = lerp(0.75 * (1 - h * 0.4), 0.97, n.shOff);
+        n.shadow.x = n.shOff * 20; n.shadow.y = n.shOff * 20;
+        if (n.sx > 0.9) n.shadow.alpha = lerp(0.6 * (1 - h * 0.5), 1, n.shOff);
       }
     }
     for (const b of this.baskets) {
-      b.hv = lerp(b.hv, b.hover, Math.min(1, dt * 10));
+      b.hv = lerp(b.hv, b.hover, Math.min(1, dt * 10)); if (b.hv < 0.01 && !b.hover) b.hv = 0;
       if (b.shake) {
         const s = b.shake; s.t += dt; const k = s.t / s.dur;
         b.rot = k >= 1 ? 0 : Math.sin(s.t * s.freq) * s.amp * (1 - k);

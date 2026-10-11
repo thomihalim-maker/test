@@ -841,7 +841,7 @@ export async function createCharacter(kind, opts = {}) {
  */
 export const PORTRAIT_LAYOUT = {
   mom: { x: 0.185, y: 0.965, scale: 0.99, rot: 0.1, mood: 'adore', gaze: [0.75, 0.55], tilt: 0.1 },
-  dad: { x: 0.815, y: 0.99, scale: 0.97, rot: -0.1, mood: 'adore', gaze: [-0.75, 0.55], tilt: -0.1 },
+  dad: { x: 0.815, y: 1.0, scale: 0.95, rot: -0.1, mood: 'adore', gaze: [-0.75, 0.55], tilt: -0.1 },
   baby: { x: 0.5, y: 0.735, scale: 1.15, rot: 0, mood: 'adore', gaze: [0, 0], tilt: 0.04 },
 };
 export function applyPortraitPose(ch, kind, w = 900, h = 600, ox = 0, oy = 0) {

@@ -4,37 +4,40 @@
 import { Node } from '../engine/node.js';
 import { canvasSprite } from '../engine/raster.js';
 import { tween, wait, killTweensOf, clamp, lerp, rand, rng } from '../engine/tween.js';
-import { createCharacter } from '../art/characters.js';
+import { createCharacter, MOODS } from '../art/characters.js';
 import { burst } from '../art/fx.js';
 import { LevelScene, game, audio } from './base.js';
 import { PAL } from '../art/style.js';
-import { loadLevel1Art, ITEMS, C, WINDOW, LAMP, SHELF, CRIB, STOOL, RUG, FRAME, ORN } from '../art/props_level1.js';
+import { loadLevel1Art, ITEMS, C, WINDOW, LAMP, SHELF, ORN } from '../art/props_level1.js';
 
 // ---- layout in the central 1600×900 design box (C-space) -------------------------------------
 const FLOOR_Y = 640;
 const L = {
-  window: { x: 262, y: 22 },
-  frame: { x: 1112, y: 178 },
-  shelf: { x: 1190, y: 444 },
-  lamp: { x: 1482, y: 452 },          // bottom centre
-  shelfTop: { x: 1206, y: 332 },
-  cribBack: { x: 500, y: 375 },
-  cribFront: { x: 480, y: 375 },
-  stool: { x: 330, y: 690 },
-  rug: { x: 800, y: 868 },
-  mom: { x: 222, y: 880, s: 0.94 },
-  baby: { x: 818, y: 618, s: 0.86, rot: -0.34 },
-  mobile: { x: 806, y: 0, ring: 148, R: 112 },
+  window: { x: 170, y: 40 },
+  frame: { x: 1108, y: 168 },
+  shelf: { x: 1205, y: 284 },
+  lamp: { x: 1492, y: 292 },          // bottom centre
+  shelfTop: { x: 1222, y: 170 },
+  cribBack: { x: 520, y: 375 },
+  cribFront: { x: 500, y: 375 },
+  stool: { x: 375, y: 690 },
+  rug: { x: 820, y: 868 },
+  mom: { x: 238, y: 912, s: 0.95 },
+  baby: { x: 832, y: 618, s: 0.8, rot: -0.1 },
+  babySleep: { x: 878, y: 560, rot: -1.2 },
+  blanketSleep: { x: 858, y: 600, rot: -0.04, s: 0.74 },
+  mobile: { x: 826, y: 0, ring: 148, R: 112 },
 };
-// The five items: slot = where it belongs (centre, scale 1); home = shelf cubby; foot = local y of its base.
+// The five items: slot = where it belongs (centre) at placed scale ps; home = shelf cubby (col,row); foot = local y of its base.
 const DEFS = [
-  { key: 'bottle', slot: { x: 410, y: 622, rot: 0.04 }, layer: 'front', home: { cx: SHELF.upper[0], floor: SHELF.upperFloor, s: 0.74 }, foot: 188 },
-  { key: 'rattle', slot: { x: 1110, y: 494, rot: -0.22 }, layer: 'top', home: { cx: SHELF.upper[1], floor: SHELF.upperFloor, s: 0.78 }, foot: 185 },
-  { key: 'teddy', slot: { x: 992, y: 534, rot: 0.03 }, layer: 'front', home: { cx: SHELF.upper[2], floor: SHELF.upperFloor, s: 0.6 }, foot: 189 },
-  { key: 'pillow', slot: { x: 652, y: 556, rot: -0.08 }, layer: 'back', home: { cx: SHELF.lower[0], floor: SHELF.lowerFloor, s: 0.7 }, foot: 116 },
-  { key: 'blanket', slot: { x: 850, y: 628, rot: 0.02 }, layer: 'top', home: { cx: SHELF.lower[1], floor: SHELF.lowerFloor, s: 0.6 }, foot: 148 },
+  { key: 'bottle', slot: { x: 455, y: 629, rot: 0.03 }, ps: 0.9, layer: 'top', home: { col: 0, row: 0, s: 0.78, rot: -0.04 }, foot: 188 },
+  { key: 'rattle', slot: { x: 1176, y: 470, rot: 0.2 }, ps: 0.78, layer: 'top', home: { col: 1, row: 0, s: 0.8, rot: 0.05 }, foot: 185 },
+  { key: 'teddy', slot: { x: 1046, y: 568, rot: 0.03 }, ps: 0.8, layer: 'front', home: { col: 0, row: 1, s: 0.84, rot: -0.03 }, foot: 189 },
+  { key: 'pillow', slot: { x: 648, y: 556, rot: -0.08 }, ps: 0.8, layer: 'back', home: { col: 1, row: 1, s: 0.72, rot: -0.1 }, foot: 116 },
+  { key: 'blanket', slot: { x: 840, y: 632, rot: 0.02 }, ps: 0.7, layer: 'top', home: { col: 0, row: 2, s: 0.62, rot: 0.03 }, foot: 148 },
 ];
 const SNAP_R = 125, MAGNET_R = 175, ORN_KINDS = ['star', 'moon', 'cloud', 'starPink', 'heart'];
+const ROOM_STARS = [[120, 120, 9], [180, 330, 6], [740, 80, 7], [960, 300, 8], [1010, 90, 6], [1250, 80, 9], [1330, 300, 6], [60, 420, 7], [1560, 140, 7], [-120, 200, 8], [1720, 260, 8], [700, 340, 5], [1180, 230, 5]];
 const MELODY = [0, 2, 4, 2, 0, 4, 7, 4, 2, 0]; // music-box lullaby (semitone steps)
 
 export default class Level1 extends LevelScene {
@@ -55,8 +58,10 @@ export default class Level1 extends LevelScene {
     const st = this.stage = this.world.add(new Node());
     const sp = (key, o) => st.add(new Node({ ax: 0, ay: 0, ...o }).setImage(S[key]));
 
-    this.windowNode = sp('window', L.window);
-    this.windowNode.drawFn = (ctx) => this.drawWindowLife(ctx);
+    this.windowNode = sp('windowDusk', L.window);
+    this.windowNight = this.windowNode.add(new Node({ ax: 0, ay: 0, alpha: 0 }).setImage(S.window));
+    this.windowNode.add(new Node({ drawFn: ctx => this.drawWindowLife(ctx) }));
+    this.nightK = 0;
     sp('frame', { x: L.frame.x, y: L.frame.y, ax: 0.5, ay: 0.5 });
     this.mobile = st.add(new Node({ x: L.mobile.x, y: L.mobile.y, drawFn: ctx => this.drawMobile(ctx) }));
     sp('shelf', L.shelf);
@@ -68,7 +73,6 @@ export default class Level1 extends LevelScene {
     this.mom = st.add(await createCharacter('mom'));
     Object.assign(this.mom, { x: L.mom.x, y: L.mom.y, sx: L.mom.s, sy: L.mom.s });
     this.mom.interactive = true;
-    sp('stool', L.stool);
     sp('cribBack', L.cribBack);
     this.layers = {};
     this.layers.back = st.add(new Node());
@@ -77,14 +81,20 @@ export default class Level1 extends LevelScene {
     this.baby.interactive = true;
     this.layers.front = st.add(new Node());
     sp('cribFront', L.cribFront);
+    sp('stool', L.stool);
     this.layers.top = st.add(new Node());
     this.shadowLayer = st.add(new Node());
     this.itemLayer = st.add(new Node());
     this.fxLayer = st.add(new Node());
+    // floor props, only visible on tall (4:3) screens; the basket hides Ibu's hem there
+    sp('slippers', { x: 470, y: 948, ax: 0.5, ay: 0.5 });
+    sp('blocks', { x: 1330, y: 950, ax: 0.5, ay: 0.5 });
+    sp('basket', { x: 250, y: 990, ax: 0.5, ay: 0.5 });
 
     // full-view dim for the "lights out" moment, then a top stage layer (moonbeam, Zzz, notes, hint hand)
     this.dim = this.world.add(new Node({ drawFn: ctx => this.drawDim(ctx) }));
     this.top = this.world.add(new Node());
+    this.roomStars = this.top.add(new Node({ drawFn: ctx => this.drawRoomStars(ctx) }));
     this.beam = this.top.add(new Node({ drawFn: ctx => this.drawBeam(ctx) }));
     this.topFx = this.top.add(new Node());
     this.ghost = this.top.add(new Node({ alpha: 0 }));
@@ -106,35 +116,22 @@ export default class Level1 extends LevelScene {
     this.motes = Array.from({ length: 18 }, () => ({ a: r() * 6.28, d: 40 + r() * 230, sp: 0.05 + r() * 0.12, ph: r() * 6.28, s: 1.2 + r() * 2.2, vy: 3 + r() * 6 }));
     this.shoot = { t: -1, next: 4 + r() * 4 };
 
-    // progress pips (UI) on a little paper tab
-    this.pipBar = this.uiLayer.add(new Node({ alpha: 0, drawFn: ctx => {
-      const w = DEFS.length * 66 + 34, h = 78;
-      ctx.save();
-      ctx.fillStyle = 'rgba(90,50,40,0.16)'; ctx.beginPath(); ctx.roundRect(-w / 2 + 3, -h / 2 + 6, w, h, 39); ctx.fill();
-      ctx.fillStyle = '#fff8ee'; ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h, 39); ctx.fill();
-      ctx.strokeStyle = PAL.line; ctx.lineWidth = 3.2; ctx.stroke();
-      ctx.restore();
-    } }));
-    this.pips = DEFS.map((d, i) => {
-      const n = this.uiLayer.add(new Node({ alpha: 0 }).setImage(S.pipEmpty));
-      n.fill = n.add(new Node({ alpha: 0, sx: 0.2, sy: 0.2 }).setImage(S.pipFull));
-      return n;
-    });
-
     game.onUpdate((dt, t) => this.tick(dt, t));
   }
 
   makeItem(d, i) {
-    const S = this.S, def = ITEMS[d.key];
-    const hx = L.shelf.x + d.home.cx, hy = L.shelf.y + d.home.floor - (d.foot - def.h / 2) * d.home.s;
-    const sil = this.layers[d.layer].add(new Node({ x: d.slot.x, y: d.slot.y, rot: d.slot.rot, alpha: 0 }).setImage(S['sil_' + d.key]));
+    const S = this.S, def = ITEMS[d.key], h = d.home;
+    const hx = L.shelf.x + SHELF.cols[h.col], hy = L.shelf.y + SHELF.floors[h.row] - (d.foot - def.h / 2) * h.s - 2;
+    const layer = this.layers[d.layer];
+    const silGlow = layer.add(new Node({ x: d.slot.x, y: d.slot.y, rot: d.slot.rot, sx: d.ps, sy: d.ps, alpha: 0, composite: 'lighter' }).setImage(S['glow_' + d.key]));
+    const sil = layer.add(new Node({ x: d.slot.x, y: d.slot.y, rot: d.slot.rot, alpha: 0 }).setImage(S['sil_' + d.key]));
     const shadow = this.shadowLayer.add(new Node({ alpha: 0 }).setImage(S['shadow_' + d.key]));
     const glow = this.shadowLayer.add(new Node({ alpha: 0, composite: 'lighter' }).setImage(S['glow_' + d.key]));
-    const n = this.itemLayer.add(new Node({ x: hx, y: hy, sx: 0, sy: 0, rot: (i % 2 ? 0.05 : -0.04) }).setImage(S['item_' + d.key]));
+    const n = this.itemLayer.add(new Node({ x: hx, y: hy, sx: 0, sy: 0, rot: h.rot }).setImage(S['item_' + d.key]));
     n.interactive = n.draggable = true;
-    n.hitPad = Math.max(18, (130 - Math.min(def.w, def.h) * d.home.s) / 2);
-    n.home = { x: hx, y: hy, rot: n.rot, sx: d.home.s, sy: d.home.s };
-    const it = { ...d, def, node: n, sil, shadow, glow, placed: false, silS: 1, lift: 0, glowK: 0, raw: { x: hx, y: hy }, prev: { x: hx, y: hy }, vx: 0, dragging: false, i };
+    n.hitPad = Math.max(18, (140 - Math.min(def.w, def.h) * h.s) / 2);
+    n.home = { x: hx, y: hy, rot: h.rot, sx: h.s, sy: h.s };
+    const it = { ...d, def, node: n, sil, silGlow, shadow, glow, placed: false, silS: 1, silHover: 0, lift: 0, glowK: 0, raw: { x: hx, y: hy }, prev: { x: hx, y: hy }, vx: 0, dragging: false, i };
     n.item = it;
     return it;
   }
@@ -145,10 +142,8 @@ export default class Level1 extends LevelScene {
     const key = v.w.toFixed(0) + 'x' + v.h.toFixed(0);
     if (this.bgKey !== key) { this.bgKey = key; this.bg.setImage(this.bakeBackground(v)); }
     this.applyCam();
-    const n = this.pips.length;
-    const bw = n * 66 + 34, bx = v.w - 56 - bw / 2;
-    this.pips.forEach((p, i) => { p.x = bx + (i - (n - 1) / 2) * 66; p.y = 72; p.sx = p.sy = 0.72; });
-    this.pipBar.x = bx; this.pipBar.y = 70;
+    // Ibu stands inward a bit more on narrow (4:3) screens so her knot never leaves the frame
+    if (!this.finaleStarted) this.mom.x = L.mom.x + Math.max(0, 40 - this.ox);
   }
 
   applyCam() {
@@ -226,8 +221,7 @@ export default class Level1 extends LevelScene {
     mom.x = mx - 260; mom.alpha = 0;
     tween(mom, { alpha: 1 }, { dur: 0.3, delay: 0.2 });
     tween(mom, { x: mx }, { dur: 1.1, delay: 0.2, ease: 'outCubic' });
-    tween(this.pipBar, { alpha: 1 }, { dur: 0.4, delay: 1.5 });
-    this.pips.forEach((p, i) => tween(p, { alpha: 1 }, { dur: 0.4, delay: 1.6 + i * 0.06 }));
+    this.hud.setProgress?.(0, DEFS.length);
     await wait(0.75);
     if (this.finaleStarted) return;
     this.items.forEach((it, i) => {
@@ -277,7 +271,7 @@ export default class Level1 extends LevelScene {
     } else if (n.tapKind === 'lamp') {
       audio.sfx('pop');
       tween(this.lamp, { sy: 0.9, sx: 1.06 }, { dur: 0.08 }).then(() => tween(this.lamp, { sy: 1, sx: 1 }, { dur: 0.5, ease: 'outElastic' }));
-      tween(this, { lampK: 1.6 }, { dur: 0.1 }).then(() => tween(this, { lampK: this.finaleStarted ? 0.35 : 1 }, { dur: 0.6 }));
+      tween(this, { lampK: 1.6 }, { dur: 0.1 }).then(() => tween(this, { lampK: this.finaleStarted ? 0.8 : 1 }, { dur: 0.6 }));
     }
   }
 
@@ -286,12 +280,11 @@ export default class Level1 extends LevelScene {
     killTweensOf(n); killTweensOf(it);
     it.dragging = true; this.dragItem = it;
     it.raw = { x: n.x, y: n.y }; it.prev = { ...it.raw };
-    tween(n, { sx: 1.1, sy: 1.1 }, { dur: 0.22, ease: 'outBack' });
+    tween(n, { sx: it.ps * 1.1, sy: it.ps * 1.1 }, { dur: 0.22, ease: 'outBack' });
     tween(it, { lift: 1 }, { dur: 0.2, ease: 'outQuad' });
     audio.sfx('pick');
     this.mom.lookAt(...this.w(n.x, n.y));
     this.mom.setMood?.('idle');
-    tween(it, { silS: 1.08 }, { dur: 0.25, ease: 'outBack' });
   }
 
   onMove(n) {
@@ -361,25 +354,22 @@ export default class Level1 extends LevelScene {
     // move the item (and its shadow) into its depth layer — same transform, so coordinates are unchanged
     layer.add(it.shadow); layer.add(n); it.glow.alpha = 0;
     this.placedCount++;
-    const pip = this.pips[this.placedCount - 1];
     if (instant) {
-      Object.assign(n, { x: s.x, y: s.y, rot: s.rot, sx: 1, sy: 1 }); it.sil.alpha = 0;
-      if (pip) { pip.alpha = 1; Object.assign(pip.fill, { alpha: 1, sx: 1, sy: 1 }); }
+      Object.assign(n, { x: s.x, y: s.y, rot: s.rot, sx: it.ps, sy: it.ps }); it.sil.alpha = 0; it.silGlow.alpha = 0;
+      this.hud.setProgress?.(this.placedCount, DEFS.length);
       return;
     }
-    tween(n, { x: s.x, y: s.y, rot: s.rot, sx: 1.06, sy: 1.06 }, { dur: 0.14, ease: 'outQuad' }).then(() => {
-      tween(n, { sx: 1.16, sy: 0.84 }, { dur: 0.07 }).then(() => tween(n, { sx: 1, sy: 1 }, { dur: 0.6, ease: 'outElastic' }));
+    const ps = it.ps;
+    tween(n, { x: s.x, y: s.y, rot: s.rot, sx: ps * 1.06, sy: ps * 1.06 }, { dur: 0.14, ease: 'outQuad' }).then(() => {
+      tween(n, { sx: ps * 1.16, sy: ps * 0.84 }, { dur: 0.07 }).then(() => tween(n, { sx: ps, sy: ps }, { dur: 0.6, ease: 'outElastic' }));
       this.itemFlourish(it);
     });
-    tween(it.sil, { alpha: 0, sx: 1.25, sy: 1.25 }, { dur: 0.35, ease: 'outQuad' });
+    tween(it.sil, { alpha: 0 }, { dur: 0.35, ease: 'outQuad' }); tween(it, { silS: 1.25 }, { dur: 0.35 });
+    tween(it.silGlow, { alpha: 0 }, { dur: 0.4 });
     audio.sfx('snap'); setTimeout(() => audio.sfx('sparkle'), 90);
     burst(this.fxLayer, s.x, s.y, 'sparkle', { count: 14 });
     setTimeout(() => burst(this.fxLayer, s.x, s.y - 20, 'stars', { count: 6 }), 120);
-    if (pip) {
-      pip.fill.alpha = 1;
-      tween(pip.fill, { sx: 1.35, sy: 1.35 }, { dur: 0.2, ease: 'outBack', delay: 0.25 }).then(() => tween(pip.fill, { sx: 1, sy: 1 }, { dur: 0.4, ease: 'outElastic' }));
-      setTimeout(() => { audio.sfx('star'); burst(this.uiLayer, pip.x, pip.y, 'sparkle', { count: 8 }); }, 260);
-    }
+    setTimeout(() => this.hud.setProgress?.(this.placedCount, DEFS.length), 200);
     const done = this.items.every(o => o.placed);
     this.mom.react('cheer', done ? 1.8 : 1.3); this.mom.lookAt(...this.w(s.x, s.y));
     this.baby.react('happy', 1.3); setTimeout(() => audio.sfx('giggle'), 300);
@@ -417,12 +407,12 @@ export default class Level1 extends LevelScene {
       })
       .then(() => {
         if (!this.hinting) return;
-        const x0 = h.x, y0 = h.y, x1 = s.x + 20, y1 = s.y + 20, g = this.ghost, s0 = n.home.sx;
+        const x0 = h.x, y0 = h.y, x1 = s.x + 20, y1 = s.y + 20, g = this.ghost, s0 = n.home.sx, s1 = it.ps;
         g.setImage(this.S['item_' + it.key]);
         return tween({ k: 0 }, { k: 1 }, { dur: 1.5, ease: 'inOutSine', onUpdate: (e) => {
           if (!this.hinting) return;
           h.x = lerp(x0, x1, e); h.y = lerp(y0, y1, e) - Math.sin(e * Math.PI) * 270;
-          g.x = h.x - 30; g.y = h.y - 30; g.sx = g.sy = lerp(s0, 1, e); g.rot = lerp(n.home.rot, s.rot, e) + Math.sin(e * Math.PI) * 0.15;
+          g.x = h.x - 30; g.y = h.y - 30; g.sx = g.sy = lerp(s0, s1, e); g.rot = lerp(n.home.rot, s.rot, e) + Math.sin(e * Math.PI) * 0.15;
           g.alpha = 0.6 * Math.min(1, e * 6);
         } });
       })
@@ -454,25 +444,40 @@ export default class Level1 extends LevelScene {
     audio.voice('Selamat tidur, Bintang!');
     burst(this.fxLayer, L.baby.x, L.baby.y - 160, 'hearts', { count: 8 });
     await wait(1.2);
-    // lights down, moon up, music box starts
-    tween(this, { dimK: 1 }, { dur: 2.4, ease: 'inOutSine' });
-    tween(this, { lampK: 0.4 }, { dur: 2.4, ease: 'inOutSine' });
+    // dusk -> night: the sky darkens, the room cools to blue, the lamp settles into a warm night-light
+    tween(this, { nightK: 1 }, { dur: 3.0, ease: 'inOutSine' });
+    tween(this, { dimK: 1 }, { dur: 2.6, ease: 'inOutSine' });
+    this.top.add(this.glow); this.top.add(this.lamp); // keep the night-light glowing above the dim
+    tween(this, { lampK: 0.8 }, { dur: 2.4, ease: 'inOutSine' });
     tween(this, { beamK: 1 }, { dur: 2.8, ease: 'inOutSine' });
     tween(this, { mobSpeed: 1.3 }, { dur: 1.5, ease: 'inOutSine' });
     this.lullaby = true; this.noteT = 0; this.noteI = 0;
-    this.mom.setMood('idle'); this.mom.lookAt(...this.w(L.baby.x, L.baby.y - 120));
-    await wait(1.0);
+    // Ibu leans in with a soft "shh"
+    const mom = this.mom;
+    mom.setMood(MOODS.includes('soft') ? 'soft' : 'idle');
+    mom.lookAt(...this.w(L.babySleep.x - 120, L.babySleep.y - 30));
+    tween(mom, { x: mom.x + 70, rot: 0.07 }, { dur: 1.6, ease: 'inOutSine' });
+    await wait(0.8);
+    // Bintang lies down with the head on the pillow
     this.baby.setMood('sleep');
-    tween(this.baby, { rot: L.baby.rot - 0.12 }, { dur: 1.8, ease: 'inOutSine' });
-    this.zzz = true; this.zT = 0.2;
-    burst(this.fxLayer, L.baby.x - 40, L.baby.y - 190, 'stars', { count: 8 });
-    tween(this.cam, { s: 1.07, fx: 780, fy: 560 }, { dur: 3.2, ease: 'inOutSine' });
+    tween(this.baby, { x: L.babySleep.x, y: L.babySleep.y, rot: L.babySleep.rot }, { dur: 1.7, ease: 'inOutSine' });
+    await wait(1.3);
+    // ...and the blanket is pulled up to the chin
+    const bl = this.items.find(o => o.key === 'blanket').node, B = L.blanketSleep;
+    tween(bl, { x: B.x, y: B.y, rot: B.rot, sx: B.s, sy: B.s }, { dur: 1.1, ease: 'inOutSine' });
+    audio.sfx('whoosh', { volume: 0.4 });
+    this.zzz = true; this.zT = 0.6;
+    await wait(0.6);
+    burst(this.fxLayer, L.babySleep.x - 140, L.babySleep.y - 80, 'stars', { count: 6 });
+    // camera eases onto Ibu + the crib
+    tween(this.cam, { s: 1.12, fx: 650, fy: 560, dx: 150 }, { dur: 3.2, ease: 'inOutSine' });
     await wait(3.4);
     this.complete();
   }
 
   complete() {
-    for (const n of [this.pipBar, ...this.pips]) tween(n, { alpha: 0 }, { dur: 0.4 });
+    this.winOpts = { calm: true };
+    tween(this.mobile, { alpha: 0 }, { dur: 0.6 });
     return super.complete();
   }
 
@@ -486,7 +491,6 @@ export default class Level1 extends LevelScene {
     }
     // make sure the remaining items are visible even if the intro is still running
     for (const it of this.items) if (!it.placed) { killTweensOf(it.node); Object.assign(it.node, { sx: it.node.home.sx, sy: it.node.home.sy }); killTweensOf(it.sil); killTweensOf(it); it.sil.alpha = 1; it.silS = 1; }
-    this.pips.forEach(p => { killTweensOf(p); p.alpha = 1; }); killTweensOf(this.pipBar); this.pipBar.alpha = 1;
     if (this.items.every(o => o.placed)) this.finale();
     else { this.drag.enabled = true; this.introDone = true; }
   }
@@ -498,6 +502,7 @@ export default class Level1 extends LevelScene {
     this.mobBoost = Math.max(0, this.mobBoost - dt * 1.6);
     this.mobile.rot = Math.sin(t * 0.7) * 0.025 + Math.sin(t * 1.9) * 0.008;
     if (this.cam) this.applyCam();
+    this.windowNight.alpha = this.nightK;
 
     for (const it of this.items) {
       const n = it.node;
@@ -521,7 +526,16 @@ export default class Level1 extends LevelScene {
       gl.x = n.x; gl.y = n.y; gl.rot = n.rot; gl.sx = n.sx; gl.sy = n.sy;
       gl.alpha = it.placed ? 0 : it.glowK * (0.75 + Math.sin(t * 8) * 0.25);
       // silhouettes breathe gently so they read as "put me here"
-      if (!it.placed) it.sil.sx = it.sil.sy = it.silS * (1 + Math.sin(t * 2.4 + it.i * 1.3) * 0.025);
+      if (!it.placed) {
+        const drag = this.dragItem, mine = drag === it;
+        it.silHover = lerp(it.silHover, mine ? 1 : 0, Math.min(1, dt * 8));
+        const breathe = 1 + (0.5 + 0.5 * Math.sin(t * 2.2 + it.i * 1.3)) * 0.03;
+        const sc = it.silS * breathe * (1 + it.silHover * (0.05 + Math.sin(t * 9) * 0.02)) * it.ps;
+        it.sil.sx = it.sil.sy = sc; it.silGlow.sx = it.silGlow.sy = sc;
+        it.sil.rot = it.slot.rot + it.silHover * Math.sin(t * 11) * 0.05;
+        it.silGlow.alpha = it.silHover * (0.7 + Math.sin(t * 8) * 0.2);
+        if (this.introDone) it.sil.alpha = lerp(it.sil.alpha, drag && !mine ? 0.45 : 1, Math.min(1, dt * 8));
+      }
     }
 
     // idle hint
@@ -533,7 +547,7 @@ export default class Level1 extends LevelScene {
     // shooting star timer
     const sh = this.shoot;
     if (sh.t >= 0) { sh.t += dt; if (sh.t > 1.1) { sh.t = -1; sh.next = 7 + Math.random() * 6; } }
-    else { sh.next -= dt; if (sh.next <= 0) sh.t = 0; }
+    else if (this.nightK > 0.5) { sh.next -= dt; if (sh.next <= 0) sh.t = 0; }
 
     // dust motes drift
     for (const m of this.motes) { m.a += m.sp * dt; m.ph += dt; }
@@ -577,7 +591,7 @@ export default class Level1 extends LevelScene {
       const [x, y, s] = WINDOW.twinkles[i];
       const k = 0.5 + 0.5 * Math.sin(t * (1.3 + i * 0.37) + i * 2.1);
       const r = (3 + 5 * s) * (0.6 + 0.5 * k);
-      ctx.globalAlpha = 0.35 + 0.65 * k;
+      ctx.globalAlpha = (0.35 + 0.65 * k) * (0.15 + 0.85 * this.nightK);
       ctx.fillStyle = '#fff6d2';
       ctx.beginPath();
       ctx.moveTo(x, y - r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.quadraticCurveTo(x, y, x, y + r);
@@ -658,14 +672,27 @@ export default class Level1 extends LevelScene {
 
   drawDim(ctx) {
     if (this.dimK <= 0.001) return;
-    const v = game.view, c = this.stage.toWorld(L.baby.x, L.baby.y - 60);
+    const v = game.view, c = this.stage.toWorld(600, 560), k = this.dimK, sc = this.stage.sx;
+    const mix = (a, r = 52, g = 56, b = 128) => `rgb(${Math.round(255 - (255 - r) * a * k)},${Math.round(255 - (255 - g) * a * k)},${Math.round(255 - (255 - b) * a * k)})`;
     ctx.save();
-    const R = Math.max(v.w, v.h) * 0.62, k = this.dimK;
-    const mix = (a) => `rgb(${Math.round(255 - (255 - 104) * a * k)},${Math.round(255 - (255 - 100) * a * k)},${Math.round(255 - (255 - 168) * a * k)})`;
-    const g = ctx.createRadialGradient(c.x, c.y, 80, c.x, c.y, R);
-    g.addColorStop(0, mix(0.25)); g.addColorStop(0.3, mix(0.7)); g.addColorStop(1, mix(1));
     ctx.globalCompositeOperation = 'multiply';
-    ctx.fillStyle = g; ctx.fillRect(0, 0, v.w, v.h);
+    ctx.translate(c.x, c.y); ctx.scale(1.75, 1);
+    const R = 620 * sc, gr = ctx.createRadialGradient(0, 0, 40, 0, 0, R);
+    gr.addColorStop(0, mix(0.08, 200, 190, 230)); gr.addColorStop(0.45, mix(0.35, 120, 120, 200)); gr.addColorStop(0.8, mix(0.8)); gr.addColorStop(1, mix(1));
+    ctx.fillStyle = gr; ctx.fillRect(-v.w, -v.h, v.w * 2 + 4000, v.h * 3);
+    ctx.restore();
+  }
+
+  drawRoomStars(ctx) {
+    if (this.dimK <= 0.01) return;
+    const t = this.t || 0;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = '#fff3c4';
+    for (let i = 0; i < ROOM_STARS.length; i++) {
+      const [x, y, s] = ROOM_STARS[i], k = 0.5 + 0.5 * Math.sin(t * (1.1 + (i % 5) * 0.3) + i * 1.7), r = s * (0.6 + 0.6 * k);
+      ctx.globalAlpha = this.dimK * (0.25 + 0.6 * k);
+      ctx.beginPath(); ctx.moveTo(x, y - r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.quadraticCurveTo(x, y, x, y + r);
+      ctx.quadraticCurveTo(x, y, x - r, y); ctx.quadraticCurveTo(x, y, x, y - r); ctx.fill();
+    }
     ctx.restore();
   }
 
@@ -683,6 +710,11 @@ export default class Level1 extends LevelScene {
       ctx.moveTo(wx + 20 + sp * 0.3, wy + 20); ctx.lineTo(wx + p.w - 20 - sp * 0.3, wy + 10);
       ctx.lineTo(L.baby.x + 260 - sp, 780); ctx.lineTo(L.baby.x - 200 + sp, 800); ctx.closePath(); ctx.fill();
     }
+    // warm night-light pool on Ibu's face
+    const mx = this.mom.x + 20, my = this.mom.y - 360;
+    const wg = ctx.createRadialGradient(mx, my, 10, mx, my, 260);
+    wg.addColorStop(0, 'rgba(255,190,140,0.16)'); wg.addColorStop(1, 'rgba(255,190,140,0)');
+    ctx.fillStyle = wg; ctx.fillRect(mx - 260, my - 260, 520, 520);
     // a soft pool of moonlight on the crib
     const r = ctx.createRadialGradient(L.baby.x, L.baby.y - 60, 10, L.baby.x, L.baby.y - 60, 300);
     r.addColorStop(0, 'rgba(200,205,255,0.20)'); r.addColorStop(1, 'rgba(200,205,255,0)');

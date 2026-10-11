@@ -13,8 +13,8 @@ export const C = {
   cream: '#fff8ee', creamShade: '#efe1cf',
   mint: '#a8dcc5', mintShade: '#86c6ab',
   coral: '#f39d95', coralShade: '#e27f78',
-  lilac: '#ebe5fb', lilacShade: '#d2c6f2',
-  butter: '#fbe49e', butterShade: '#f1cd6c',
+  lilac: '#d9cffa', lilacShade: '#b9a8ee',
+  butter: '#fbd970', butterShade: '#eebb45',
   honey: '#e2a66c', honeyShade: '#c98a50', fawn: '#f8e3c3',
   pink: '#f8b9cb', pinkShade: '#ef9db4',
   sheet: '#fbdfe4', sheetShade: '#f1c4ce',
@@ -47,6 +47,7 @@ const star = (cx, cy, R, col, op = 1, r = R * 0.5) => `<path d="${starPath(cx, c
 export const ITEMS = {
   bottle: {
     w: 120, h: 200,
+    features: '<path d="M46 48 C46 30 52 15 60 15 C68 15 74 30 74 48"/><path d="M34 70 H86"/><path d="M74 120 H84 M74 140 H84 M74 160 H84"/><path d="M52 148 C44 140 46 132 52 134 C55 135 56 138 56 140 C56 138 57 135 60 134 C66 132 68 140 60 148 L56 152 Z"/>',
     outline: 'M40 44 L46 44 C46 28 52 12 60 12 C68 12 74 28 74 44 L80 44 Q86 44 86 50 L86 68 Q92 74 92 90 L92 166 Q92 188 70 188 L50 188 Q28 188 28 166 L28 90 Q28 74 34 68 L34 50 Q34 44 40 44 Z',
     art: () => `
       ${ol(`<path d="M46 48 C46 30 52 13 60 13 C68 13 74 30 74 48 Z"/>`, '#f6c79d')}
@@ -65,6 +66,7 @@ export const ITEMS = {
   },
   teddy: {
     w: 170, h: 190,
+    features: '<circle cx="46" cy="42" r="9"/><circle cx="124" cy="42" r="9"/><ellipse cx="85" cy="88" rx="20" ry="15"/><ellipse cx="85" cy="150" rx="25" ry="23"/><path d="M36 110 Q48 112 56 104 M134 110 Q122 112 114 104"/><path d="M85 116 L64 106 L64 126 Z M85 116 L106 106 L106 126 Z"/><circle cx="65" cy="66" r="3"/><circle cx="105" cy="66" r="3"/><path d="M52 176 h0 M118 176 h0"/><path d="M85 120 V125"/>',
     outline: 'M33 55 A20 20 0 1 1 60 30 Q85 20 110 30 A20 20 0 1 1 137 55 Q140 85 122 104 C140 108 156 130 148 146 C144 154 138 152 136 150 C146 162 146 186 120 189 L50 189 C24 186 24 162 34 150 C32 152 26 154 22 146 C14 130 30 108 48 104 Q30 85 33 55 Z',
     art: () => `
       ${ol(`<ellipse cx="42" cy="132" rx="16" ry="27" transform="rotate(32 42 132)"/><ellipse cx="128" cy="132" rx="16" ry="27" transform="rotate(-32 128 132)"/>`, C.honey)}
@@ -91,6 +93,7 @@ export const ITEMS = {
   },
   pillow: {
     w: 220, h: 130,
+    features: '<path d="M30 84 Q110 104 192 84"/><path d="M24 30 l-10 -8 M196 30 l10 -8 M24 100 l-10 8 M196 100 l10 8"/><path d="M64 56 l4 8 l-8 0 Z M150 50 l4 8 l-8 0 Z"/>',
     outline: 'M24 30 Q110 6 196 30 Q214 65 196 100 Q110 124 24 100 Q6 65 24 30 Z',
     art: () => `
       ${ol(`<path d="M24 30 Q110 6 196 30 Q214 65 196 100 Q110 124 24 100 Q6 65 24 30 Z"/>`, C.lilac)}
@@ -104,6 +107,7 @@ export const ITEMS = {
   },
   rattle: {
     w: 110, h: 190,
+    features: '<path d="M18 42 Q55 62 92 42 M18 72 Q55 92 92 72"/><path d="M40 94 H70"/><circle cx="55" cy="162" r="17"/><path d="M55 52 l0 0"/>',
     outline: 'M55 10 A42 42 0 0 1 65 93 L65 140 A23 23 0 1 1 45 140 L45 93 A42 42 0 0 1 55 10 Z M55 151 A11 11 0 1 0 55 173 A11 11 0 1 0 55 151 Z',
     art: () => `
       ${ol(`<rect x="46" y="86" width="18" height="64" rx="8"/>`, C.mint)}
@@ -120,6 +124,7 @@ export const ITEMS = {
   },
   blanket: {
     w: 260, h: 160,
+    features: '<path d="M14 50 Q130 26 246 50"/><path d="M24 60 Q22 90 22 118 M236 60 Q238 90 238 118"/><path d="M70 80 l5 10 l-10 0 Z M130 70 l5 10 l-10 0 Z M190 84 l5 10 l-10 0 Z M100 104 l5 10 l-10 0 Z M160 106 l5 10 l-10 0 Z"/>',
     outline: 'M16 30 Q130 4 244 30 Q252 80 250 128 Q235 146 220 132 Q205 150 190 134 Q175 152 160 136 Q145 154 130 138 Q115 154 100 136 Q85 152 70 134 Q55 150 40 132 Q25 146 10 128 Q8 80 16 30 Z',
     art: () => {
       const r = rng(42); let stars = '';
@@ -152,7 +157,7 @@ function wallpaperTile() {
 
 export const WINDOW = { w: 440, h: 380, pane: { x: 103, y: 50, w: 234, h: 248 },
   twinkles: [[130, 84, 1], [178, 128, 0.8], [160, 66, 0.7], [236, 140, 1], [306, 160, 0.8], [232, 206, 0.7], [128, 196, 0.9], [300, 226, 0.6], [196, 80, 0.6], [140, 140, 0.5]] };
-function windowArt() {
+function windowArt(night = true) {
   const { w, h } = WINDOW;
   const curtain = `<path d="M26 22 L132 22 C124 94 108 172 100 228 C108 266 128 318 138 366 L20 366 C28 316 34 268 36 228 C32 164 26 94 26 22 Z"/>`;
   const dots = (() => { let s = ''; const r = rng(9); for (let i = 0; i < 22; i++) { const x = 36 + r() * 86, y = 40 + r() * 310; s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(2.5 + r() * 2).toFixed(1)}" fill="#fff4ef" opacity="0.85"/>`; } return s; })();
@@ -175,7 +180,9 @@ function windowArt() {
   for (let i = 0; i < 26; i++) fixedStars += `<circle cx="${(108 + r() * 224).toFixed(1)}" cy="${(56 + r() * 180).toFixed(1)}" r="${(0.9 + r() * 1.6).toFixed(1)}" fill="#fff8e0" opacity="${(0.5 + r() * 0.5).toFixed(2)}"/>`;
   return svg(w, h, `
     <defs>
-      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${C.sky1}"/><stop offset="0.55" stop-color="${C.sky2}"/><stop offset="1" stop-color="${C.sky3}"/></linearGradient>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">${night
+        ? `<stop offset="0" stop-color="${C.sky1}"/><stop offset="0.55" stop-color="${C.sky2}"/><stop offset="1" stop-color="${C.sky3}"/>`
+        : `<stop offset="0" stop-color="#8a64b0"/><stop offset="0.45" stop-color="#e98d92"/><stop offset="0.8" stop-color="#fbbf74"/><stop offset="1" stop-color="#ffd68a"/>`}</linearGradient>
       <mask id="moonm"><circle cx="276" cy="100" r="31" fill="#fff"/><circle cx="291" cy="90" r="27" fill="#000"/></mask>
       <filter id="mglow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="9"/></filter>
     </defs>
@@ -183,12 +190,17 @@ function windowArt() {
     <rect x="94" y="44" width="262" height="290" rx="10" fill="#8b5a48" opacity="0.18" filter="url(#mglow)"/>
     ${ol(`<rect x="86" y="34" width="268" height="282" rx="10"/>`, C.cream, 3.4)}
     <rect x="103" y="50" width="234" height="248" fill="url(#sky)" filter="url(#crayon)"/>
-    ${fixedStars}
+    ${night ? `${fixedStars}
     <circle cx="276" cy="100" r="46" fill="#fff1b8" opacity="0.45" filter="url(#mglow)"/>
     <g mask="url(#moonm)"><circle cx="276" cy="100" r="31" fill="#fbe7a0" filter="url(#crayon)"/></g>
-    <path d="M262 74 A31 31 0 1 0 306 118 A27 27 0 0 1 262 74 Z" ${stroke(2.4, '#c9a85a')}/>
-    ${houses}
-    ${tone(`<rect x="103" y="50" width="234" height="22"/>`, '#2a2d66', 0.35)}
+    <path d="M262 74 A31 31 0 1 0 306 118 A27 27 0 0 1 262 74 Z" ${stroke(2.4, '#c9a85a')}/>` : `
+    <circle cx="190" cy="262" r="70" fill="#fff0b0" opacity="0.6" filter="url(#mglow)"/>
+    <circle cx="190" cy="262" r="34" fill="#ffb057" filter="url(#crayon)"/>
+    <path d="M120 110 Q150 96 180 108 Q200 100 222 112" fill="none" stroke="#f7b3b0" stroke-width="10" stroke-linecap="round" opacity="0.8" filter="url(#crayon)"/>
+    <path d="M250 150 Q280 140 312 152" fill="none" stroke="#f9c9a4" stroke-width="8" stroke-linecap="round" opacity="0.8" filter="url(#crayon)"/>
+    <circle cx="286" cy="80" r="2" fill="#fff8e0" opacity="0.8"/>`}
+    ${night ? houses : houses.replaceAll(C.hill, '#b07aa6').replaceAll(C.roof, '#7c5590')}
+    ${night ? tone(`<rect x="103" y="50" width="234" height="22"/>`, '#2a2d66', 0.35) : ''}
     <g ${fill(C.cream)}><rect x="213" y="50" width="14" height="248"/><rect x="103" y="166" width="234" height="14"/></g>
     <g ${stroke(2.4)}><rect x="213" y="50" width="14" height="248"/><rect x="103" y="166" width="234" height="14"/><rect x="103" y="50" width="234" height="248"/></g>
     ${scrib('M92 44 V306', '#fff', 5, 0.7)}
@@ -198,7 +210,7 @@ function windowArt() {
     ${ol(`<circle cx="14" cy="20" r="11"/><circle cx="426" cy="20" r="11"/>`, C.wood, 2.8)}
     ${curtainSide}
     <g transform="translate(${w} 0) scale(-1 1)">${curtainSide}</g>
-  `, 21);
+  `, night ? 21 : 22);
 }
 
 export const LAMP = { w: 210, h: 250, glow: { x: 105, y: 92 } };
@@ -221,29 +233,34 @@ function lampArt() {
   `, 31);
 }
 
-export const SHELF = { w: 400, h: 424, upperFloor: 210, lowerFloor: 400, upper: [81, 200, 319], lower: [110, 290] };
+export const SHELF = { w: 392, h: 594, floors: [196, 382, 568], cols: [103, 289] };
 function shelfArt() {
-  const back = (x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${C.woodBack}" filter="url(#crayon)"/>
-    <rect x="${x}" y="${y}" width="${w}" height="16" fill="#9c6740" opacity="0.28" filter="url(#crayon)"/>
-    <rect x="${x}" y="${y}" width="12" height="${h}" fill="#9c6740" opacity="0.2" filter="url(#crayon)"/>`;
+  const back = (x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#b98258" filter="url(#crayon)"/>
+    <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#a06c45" opacity="0.5"/>
+    <rect x="${x}" y="${y}" width="${w}" height="22" fill="#6f4529" opacity="0.32" filter="url(#crayon)"/>
+    <rect x="${x}" y="${y}" width="14" height="${h}" fill="#6f4529" opacity="0.25" filter="url(#crayon)"/>`;
+  const cub = [[18, 26], [204, 26], [18, 212], [204, 212], [18, 398], [204, 398]];
   return svg(SHELF.w, SHELF.h, `
     <defs><filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="8"/></filter></defs>
-    <rect x="20" y="30" width="370" height="392" rx="10" fill="#6b4630" opacity="0.22" filter="url(#sh)"/>
-    ${ol(`<rect x="12" y="18" width="376" height="392" rx="8"/>`, C.wood)}
-    ${back(26, 26, 110, 182)}${back(146, 26, 108, 182)}${back(264, 26, 110, 182)}
-    ${back(26, 226, 169, 172)}${back(205, 226, 169, 172)}
-    <g ${stroke(2.4)}><rect x="26" y="26" width="110" height="182"/><rect x="146" y="26" width="108" height="182"/><rect x="264" y="26" width="110" height="182"/><rect x="26" y="226" width="169" height="172"/><rect x="205" y="226" width="169" height="172"/></g>
-    ${scrib('M40 60 Q60 120 50 190 M300 50 Q320 120 310 196 M220 250 Q236 320 228 390 M60 250 Q70 320 64 390', C.woodDeep, 3, 0.35)}
-    ${tone(`<rect x="14" y="208" width="372" height="18"/><rect x="14" y="398" width="372" height="12"/>`, C.woodShade, 0.9)}
-    ${line('M14 208 H386 M14 226 H386', 2.2)}
-    ${ol(`<rect x="0" y="4" width="400" height="26" rx="9"/>`, C.wood)}
-    ${scrib('M14 12 H380', '#fff2dc', 5, 0.6)}
-    ${tone(`<rect x="2" y="22" width="396" height="8" rx="4"/>`, C.woodShade, 0.8)}
-    ${ol(`<rect x="28" y="404" width="30" height="18" rx="5"/><rect x="342" y="404" width="30" height="18" rx="5"/>`, C.woodShade, 2.4)}
+    <rect x="16" y="30" width="370" height="566" rx="10" fill="#6b4630" opacity="0.24" filter="url(#sh)"/>
+    ${ol(`<rect x="6" y="16" width="380" height="566" rx="8"/>`, C.wood)}
+    ${cub.map(([x, y]) => back(x, y, 170, 170)).join('')}
+    <g ${stroke(2.4)}>${cub.map(([x, y]) => `<rect x="${x}" y="${y}" width="170" height="170"/>`).join('')}</g>
+    ${scrib('M40 60 Q56 120 48 180 M232 250 Q244 320 238 370 M60 430 Q70 500 64 556', '#7d5032', 3, 0.3)}
+    ${tone(`<rect x="8" y="196" width="376" height="16"/><rect x="8" y="382" width="376" height="16"/><rect x="8" y="568" width="376" height="12"/>`, C.woodShade, 0.9)}
+    ${line('M8 196 H384 M8 212 H384 M8 382 H384 M8 398 H384', 2.2)}
+    ${ol(`<rect x="0" y="4" width="392" height="26" rx="9"/>`, C.wood)}
+    ${scrib('M14 12 H378', '#fff2dc', 5, 0.6)}
+    ${tone(`<rect x="2" y="22" width="388" height="8" rx="4"/>`, C.woodShade, 0.8)}
+    ${ol(`<rect x="24" y="578" width="30" height="16" rx="5"/><rect x="338" y="578" width="30" height="16" rx="5"/>`, C.woodShade, 2.4)}
+    <!-- decor cubby: books + a little duck -->
+    ${ol(`<rect x="222" y="470" width="24" height="98" rx="4"/>`, '#9bbcf0', 2.4)}${ol(`<rect x="248" y="486" width="22" height="82" rx="4"/>`, C.pink, 2.4)}
+    ${ol(`<rect x="272" y="478" width="20" height="90" rx="4" transform="rotate(8 282 568)"/>`, C.mint, 2.4)}
+    ${ol(`<path d="M312 568 Q300 540 318 530 Q314 506 336 506 Q356 508 354 528 L366 524 Q362 538 352 540 Q366 556 352 568 Z"/>`, '#ffd85e', 2.4)}
+    <circle cx="340" cy="518" r="2.6" fill="${PAL.lineDark}"/>
   `, 41);
 }
 
-/** Small decorations that sit on top of the shelf (books + plant). */
 export const SHELFTOP = { w: 150, h: 120 };
 function shelfTopArt() {
   return svg(150, 120, `
@@ -305,10 +322,11 @@ function cribFrontArt() {
 
 export const STOOL = { w: 160, h: 175, top: 20 };
 function stoolArt() {
+  const leg = (x0, x1, w) => `<path d="M${x0 - w / 2} 48 L${x0 + w / 2} 48 L${x1 + w / 2} 168 L${x1 - w / 2} 168 Z"/>`;
   return svg(160, 175, `
-    ${ol(`<path d="M34 50 L22 166 M126 50 L138 166 M60 56 L56 160 M100 56 L104 160"/>`, C.mintShade, 2.6)}
-    <g ${stroke(9, C.mint)}><path d="M34 52 L22 164 M126 52 L138 164 M60 58 L56 158 M100 58 L104 158"/></g>
-    <g ${stroke(2.4)}><path d="M28 52 L16 164 M40 52 L28 166 M120 52 L132 166 M132 52 L144 164"/></g>
+    ${ol(leg(60, 54, 12) + leg(100, 106, 12), C.mintShade, 2.4)}
+    ${ol(leg(32, 18, 14) + leg(128, 142, 14), C.mint, 2.6)}
+    ${ol(`<path d="M24 120 Q80 132 136 120 L136 128 Q80 140 24 128 Z"/>`, C.mintShade, 2.2)}
     ${ol(`<path d="M12 22 Q80 0 148 22 L146 52 Q80 72 14 52 Z"/>`, C.mint)}
     ${ol(`<ellipse cx="80" cy="20" rx="68" ry="15"/>`, '#c6ead9')}
     ${scrib('M30 18 Q70 8 110 12', '#fff', 5, 0.8)}
@@ -363,17 +381,17 @@ function ornArt(kind) {
 }
 
 function handArt() {
+  const L = PAL.lineDark;
   return svg(130, 160, `
     <defs><filter id="hs" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter></defs>
-    <path d="M44 14 Q57 4 70 14 L72 66 Q100 60 112 76 Q124 92 116 120 Q108 146 80 148 L60 148 Q36 146 34 120 L32 92 Q30 76 44 72 Z" fill="#3b2a22" opacity="0.25" filter="url(#hs)" transform="translate(6 8)"/>
-    ${ol(`<rect x="44" y="10" width="28" height="78" rx="14"/>`, '#ffffff', 3.4)}
-    ${ol(`<path d="M36 80 Q34 66 48 66 L100 66 Q122 66 122 90 L120 118 Q118 144 90 146 L66 146 Q38 144 36 118 Z"/>`, '#ffffff', 3.4)}
-    <rect x="46" y="40" width="24" height="44" fill="#fff"/>
-    ${line('M72 66 Q74 82 72 92 M92 68 Q96 82 94 92', 2.6)}
-    ${ol(`<path d="M36 96 Q14 92 14 108 Q16 122 38 120 Z"/>`, '#ffffff', 3.4)}
+    <path d="M44 14 Q57 4 70 14 L72 66 Q100 60 112 76 Q124 92 116 120 Q108 146 80 148 L60 148 Q36 146 34 120 L32 92 Q30 76 44 72 Z" fill="#2a1a14" opacity="0.38" filter="url(#hs)" transform="translate(8 10)"/>
+    ${ol(`<rect x="44" y="10" width="28" height="78" rx="14"/>`, '#ffffff', 4.6, L)}
+    ${ol(`<path d="M36 80 Q34 66 48 66 L100 66 Q122 66 122 90 L120 118 Q118 144 90 146 L66 146 Q38 144 36 118 Z"/>`, '#ffffff', 4.6, L)}
+    <rect x="46.5" y="40" width="23" height="44" fill="#fff"/>
+    ${line('M72 66 Q74 82 72 92 M92 68 Q96 82 94 92', 3, L)}
+    ${ol(`<path d="M36 96 Q14 92 14 108 Q16 122 38 120 Z"/>`, '#ffffff', 4.6, L)}
     ${blush(98, 120, 9, 6)}
-    ${ol(`<rect x="56" y="138" width="56" height="20" rx="8"/>`, '#9bbcf0', 2.8)}
-    ${line('M50 18 Q58 12 66 18', 2, '#d8cfc8')}
+    ${ol(`<rect x="56" y="138" width="56" height="20" rx="8"/>`, '#7fa6ee', 3.6, L)}
   `, 101);
 }
 
@@ -381,6 +399,28 @@ function pipArt(full) {
   return svg(84, 84, full
     ? `${ol(`<path d="${starPath(42, 45, 34, 16)}"/>`, PAL.yellow, 3.2)}${scrib('M28 36 L36 24', '#fff', 5, 0.85)}`
     : `<path d="${starPath(42, 45, 34, 16)}" fill="#efe3d3" filter="url(#crayon)"/><path d="${starPath(42, 45, 34, 16)}" fill="none" stroke="#9a8a7c" stroke-width="4" stroke-dasharray="0.5 9" stroke-linecap="round" stroke-linejoin="round" filter="url(#pencil)"/>`, full ? 111 : 113);
+}
+
+export const FLOORPROPS = { slippers: [190, 80], blocks: [190, 150], basket: [300, 170] };
+function slippersArt() {
+  const one = (x, r) => `<g transform="rotate(${r} ${x} 50)">${ol(`<path d="M${x - 26} 54 Q${x - 30} 26 ${x} 22 Q${x + 30} 26 ${x + 26} 54 Q${x} 72 ${x - 26} 54 Z"/>`, C.pink, 2.8)}
+    ${ol(`<ellipse cx="${x - 10}" cy="18" rx="7" ry="16"/><ellipse cx="${x + 10}" cy="18" rx="7" ry="16"/>`, C.pink, 2.4)}
+    <circle cx="${x - 8}" cy="38" r="2.4" fill="${PAL.lineDark}"/><circle cx="${x + 8}" cy="38" r="2.4" fill="${PAL.lineDark}"/>${blush(x, 46, 6, 4)}</g>`;
+  return svg(190, 80, one(56, -12) + one(132, 10), 151);
+}
+function blocksArt() {
+  const blk = (x, y, w, col, ch) => `${ol(`<rect x="${x}" y="${y}" width="${w}" height="${w}" rx="8"/>`, col, 2.8)}<text x="${x + w / 2}" y="${y + w * 0.7}" font-family="Fredoka, sans-serif" font-weight="700" font-size="${w * 0.6}" text-anchor="middle" fill="#fff" opacity="0.9">${ch}</text>`;
+  return svg(190, 150, blk(14, 80, 64, PAL.red, 'A') + blk(84, 82, 62, PAL.blue, 'B') + blk(48, 18, 62, PAL.yellow, 'C') + ol(`<circle cx="166" cy="128" r="18"/>`, PAL.green, 2.6), 153);
+}
+function basketArt() {
+  let weave = ''; for (let x = 40; x < 270; x += 26) weave += `M${x} 66 Q${x + 6} 110 ${x} 160 `;
+  return svg(300, 170, `
+    ${ol(`<path d="M62 50 Q150 -10 238 50" fill="none"/>`, 'none', 7, '#b0784a')}
+    ${ol(`<circle cx="120" cy="52" r="26"/>`, C.coral, 2.6)}${ol(`<circle cx="176" cy="48" r="22"/>`, '#9bbcf0', 2.6)}
+    ${ol(`<path d="M20 60 L280 60 L262 164 L38 164 Z"/>`, '#e2b072')}
+    ${scrib(weave, '#b07a48', 3, 0.6)}
+    ${ol(`<rect x="12" y="52" width="276" height="22" rx="10"/>`, '#d29e62', 2.8)}
+  `, 155);
 }
 
 function zArt() {
@@ -391,14 +431,14 @@ function noteArt() {
 }
 
 // --- derived sprites for items: silhouette, shadow, glow ------------------------------------
-const PADS = 18, PADG = 34;
+const PADS = 18, PADG = 34, PADW = 56;
 function silhouetteArt(it) {
   const w = it.w + PADS * 2, h = it.h + PADS * 2;
   return svg(w, h, `<g transform="translate(${PADS} ${PADS})">
-    <path d="${it.outline}" fill="#6b4f6e" fill-opacity="0.26" fill-rule="evenodd"/>
-    <path d="${it.outline}" fill="#4a3550" fill-opacity="0.18" fill-rule="evenodd" filter="url(#crayon)"/>
-    <path d="${it.outline}" fill="none" stroke="#5d4a6a" stroke-width="11" stroke-dasharray="0.5 16" stroke-linecap="round" opacity="0.55"/>
-    <path d="${it.outline}" fill="none" stroke="#fffaf0" stroke-width="6.5" stroke-dasharray="0.5 16" stroke-linecap="round"/></g>`, 141);
+    <path d="${it.outline}" fill="#5d3d5e" fill-opacity="0.82" fill-rule="evenodd"/>
+    <path d="${it.outline}" fill="#7a557a" fill-opacity="0.5" fill-rule="evenodd" filter="url(#crayon)"/>
+    <g fill="none" stroke="#f3dfe0" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" opacity="0.7" filter="url(#pencil)">${it.features || ''}</g>
+    <path d="${it.outline}" fill="none" stroke="#fff6ea" stroke-width="7.5" stroke-dasharray="16 11" stroke-linecap="round" stroke-linejoin="round" filter="url(#pencil)"/></g>`, 141);
 }
 function shadowArt(it) {
   const w = it.w + PADG * 2, h = it.h + PADG * 2;
@@ -406,9 +446,9 @@ function shadowArt(it) {
     <path transform="translate(${PADG} ${PADG})" d="${it.outline}" fill="#3b2418" fill-rule="evenodd" filter="url(#sb)"/>`);
 }
 function glowArt(it) {
-  const w = it.w + PADG * 2, h = it.h + PADG * 2;
-  return svg(w, h, `<defs><filter id="gb" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="8"/></filter></defs>
-    <path transform="translate(${PADG} ${PADG})" d="${it.outline}" fill="#fff6b8" stroke="#ffe980" stroke-width="22" stroke-linejoin="round" filter="url(#gb)"/>`);
+  const w = it.w + PADW * 2, h = it.h + PADW * 2;
+  return svg(w, h, `<defs><filter id="gb" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="9"/></filter></defs>
+    <path transform="translate(${PADW} ${PADW})" d="${it.outline}" fill="#fff6b8" stroke="#ffe980" stroke-width="18" stroke-linejoin="round" filter="url(#gb)"/>`);
 }
 
 /** Paper grain tile (procedural, deterministic). */
@@ -433,7 +473,8 @@ export async function loadLevel1Art() {
   const S = {};
   const jobs = {
     wallpaper: [wallpaperTile(), 180, 180],
-    window: [windowArt(), WINDOW.w, WINDOW.h],
+    window: [windowArt(true), WINDOW.w, WINDOW.h], windowDusk: [windowArt(false), WINDOW.w, WINDOW.h],
+    slippers: [slippersArt(), 190, 80], blocks: [blocksArt(), 190, 150], basket: [basketArt(), 300, 170],
     lamp: [lampArt(), LAMP.w, LAMP.h],
     shelf: [shelfArt(), SHELF.w, SHELF.h],
     shelfTop: [shelfTopArt(), SHELFTOP.w, SHELFTOP.h],
@@ -443,7 +484,6 @@ export async function loadLevel1Art() {
     rug: [rugArt(), RUG.w, RUG.h],
     frame: [frameArt(), FRAME.w, FRAME.h],
     hand: [handArt(), 130, 160],
-    pipEmpty: [pipArt(false), 84, 84], pipFull: [pipArt(true), 84, 84],
     z: [zArt(), 60, 60], note: [noteArt(), 56, 70],
   };
   for (const k of ['star', 'starPink', 'moon', 'cloud', 'heart']) jobs['orn_' + k] = [ornArt(k), ORN, ORN];
@@ -451,7 +491,7 @@ export async function loadLevel1Art() {
     jobs['item_' + k] = [svg(it.w, it.h, it.art(), 7 + k.length), it.w, it.h];
     jobs['sil_' + k] = [silhouetteArt(it), it.w + PADS * 2, it.h + PADS * 2];
     jobs['shadow_' + k] = [shadowArt(it), it.w + PADG * 2, it.h + PADG * 2];
-    jobs['glow_' + k] = [glowArt(it), it.w + PADG * 2, it.h + PADG * 2];
+    jobs['glow_' + k] = [glowArt(it), it.w + PADW * 2, it.h + PADW * 2];
   }
   await Promise.all(Object.entries(jobs).map(async ([k, [s, w, h]]) => { S[k] = await svgSprite(s, w, h, 'l1-' + k); }));
   S.grain = grainTile();
