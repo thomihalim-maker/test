@@ -1,7 +1,7 @@
 // Particles (owned by the UI/juice builder).
 // API: burst(parentNode, x, y, kind = 'sparkle', opts) -> Node (self-removing emitter)
 // kinds: sparkle, stars, confetti, hearts, dust, zzz.
-// opts: { count, spread (speed multiplier), scale, colors:[hex], angle (rad, centre of emission), cone (rad width),
+// opts: { spinK (spin multiplier), count, spread (speed multiplier), scale, colors:[hex], angle (rad, centre of emission), cone (rad width),
 //         gravity, life (seconds multiplier), delay (sec), z }
 // Particles are crayon sprites rasterized once (lazily), simulated with gravity, drag and spin; sparkles glow
 // additively. Emitters are children of parentNode and remove themselves when done. Coordinates are parent-local.
@@ -42,7 +42,7 @@ const spr = {
 const KINDS = {
   sparkle: o => ({ n: 14, make: () => ({ sp: Math.random() < 0.7 ? spr.glint(pick(o.colors || ['#fff6c2', '#ffffff', '#fde68a'])) : spr.dot(pick(o.colors || ['#fff1a0', '#ffffff'])),
     v: R(120, 520), life: R(0.45, 0.9), g: 120, drag: 3.2, s: R(0.5, 1.2), spin: R(-4, 4), add: true, pop: true, twinkle: true }) }),
-  stars: o => ({ n: 10, make: () => ({ sp: spr.star(pick(o.colors || [PAL.yellow, PAL.yellow, '#ffe58a', PAL.orange])), v: R(260, 700), life: R(0.8, 1.3), g: 900, drag: 1.4, s: R(0.6, 1.25), spin: R(-7, 7), pop: true, glow: true }) }),
+  stars: o => ({ n: 10, make: () => ({ sp: spr.star(pick(o.colors || [PAL.yellow, PAL.yellow, '#ffe58a', PAL.orange])), v: R(260, 700), life: R(0.8, 1.3), g: 900, drag: 1.4, s: R(0.6, 1.25), spin: R(-7, 7), pop: true }) }),
   confetti: o => ({ n: 34, make: () => ({ sp: spr.confetti(pick(o.colors || CONFETTI), (Math.random() * 3) | 0), v: R(300, 1050), life: R(1.8, 3.0), g: R(450, 750), s: R(0.7, 1.3), spin: R(-9, 9), flutter: R(6, 14), sway: R(40, 110), wob: R(2, 5), term: R(110, 320), drag: R(1.4, 3.2) }) }),
   hearts: o => ({ n: 7, cone: Math.PI * 0.7, angle: -Math.PI / 2, make: () => ({ sp: spr.heart(pick(o.colors || ['#f47a92', '#f7a9b8', PAL.red])), v: R(120, 260), life: R(1.2, 1.8), g: -140, drag: 1.6, s: R(0.6, 1.1), spin: 0, wob: R(1.5, 3), sway: R(20, 40), pop: true }) }),
   dust: o => ({ n: 9, cone: Math.PI * 0.9, angle: -Math.PI / 2, make: () => ({ sp: spr.puff(), v: R(80, 240), life: R(0.5, 0.9), g: -40, drag: 4, s: R(0.5, 1.0), grow: 1.6, spin: R(-1, 1), alpha: 0.85 }) }),
@@ -60,7 +60,7 @@ export function burst(parent, x, y, kind = 'sparkle', opts = {}) {
     const p = preset.make(i), a = cone >= Math.PI * 2 ? Math.random() * Math.PI * 2 : ang + (Math.random() - 0.5) * cone;
     const v = p.v * spread;
     Object.assign(p, { x: (opts.jitter ? R(-opts.jitter, opts.jitter) : 0), y: 0, vx: Math.cos(a) * v, vy: Math.sin(a) * v, age: -(opts.delay || 0) - (preset.stagger ? i * preset.stagger : 0),
-      rot: p.rot0 ?? R(0, 6.3), s: p.s * scale, life: p.life * lifeK, ph: Math.random() * 7, g: opts.gravity ?? p.g });
+      rot: p.rot0 ?? R(0, 6.3), spin: (p.spin || 0) * (opts.spinK ?? 1), s: p.s * scale, life: p.life * lifeK, ph: Math.random() * 7, g: opts.gravity ?? p.g });
     ps.push(p);
   }
   const glow = glowSprite(64, '#fff1b0');

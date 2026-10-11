@@ -164,7 +164,7 @@ class Audio {
     try { this._inst(inst, mtof(midi), this.ctx.currentTime + 0.005 + when, vel, this.sfxBus, rev); } catch (e) { dbg(e); }
   }
 
-  /** names: tap, pick, drop, snap, wrong, whoosh, sparkle, star, cheer, pop, giggle, win, unlock */
+  /** names: tap, pick, drop, snap, wrong, whoosh, sparkle, star, cheer, pop, giggle, win, unlock, chime (soft) */
   sfx(name, opts = {}) {
     if (!this.ready || this.muted) return;
     try {
@@ -269,6 +269,14 @@ class Audio {
           [96, 100, 103, 108, 103, 108].forEach((m, k) => I('bell', m - 12, 0.7 + k * 0.06, 0.08, 0.7, 0.7));
           this._noise(t + 0.5, 0.9, 0.03 * v, 'highpass', 8000, 0.4);
           this._duckMusic(0.25, 1.4);
+          break;
+        }
+        case 'chime': {
+          // calm music-box lullaby chime (bedtime win)
+          [[72, 0], [76, 0.28], [79, 0.56], [84, 0.84]].forEach(([m, d]) => I('musicbox', m, d, 0.22, 0.7, 1.6));
+          [64, 67, 72].forEach(m => I('musicbox', m, 1.2, 0.12, 0.7, 2));
+          I('bell', 96, 1.3, 0.04, 0.9, 1.2);
+          this._duckMusic(0.5, 1.6);
           break;
         }
         case 'unlock': {

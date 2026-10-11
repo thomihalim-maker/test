@@ -144,7 +144,7 @@ export async function createHud(scene) {
   const prog = new Node({ visible: false });
   scene.uiLayer.add(prog);
   let pressed = null, done = 0, total = 0, slots = [];
-  const empty = starSprite(56, '#e9dcc4', { line: '#a8957a' }), full = starSprite(56, PAL.yellow);
+  const empty = starSprite(56, '#dccbab', { line: '#7a664a', lw: 2.6 }), full = starSprite(56, PAL.yellow);
   // intro pop
   home.sx = home.sy = 0; tween(home, { sx: 1, sy: 1 }, { dur: 0.5, delay: 0.35, ease: 'outBack' });
   const hud = {
@@ -248,11 +248,12 @@ export function crayonWord(text, size, colors, o = {}) {
   return box;
 }
 
-export async function showWin(scene, { stars = 3, next } = {}) {
+export async function showWin(scene, { stars = 3, next, calm = false } = {}) {
+  // calm: quiet bedtime variant (soft falling stars + glow, music-box chime, no confetti/sunburst, gentle motion)
   const v = game.view, ui = scene.uiLayer, alive = () => game.scene === scene;
   try { warmFx(); } catch (_) {}
-  audio.sfx('win');
-  setTimeout(() => { if (alive()) audio.voice('Hebat!'); }, 500);
+  audio.sfx(calm ? 'chime' : 'win');
+  if (!calm) setTimeout(() => { if (alive()) audio.voice('Hebat!'); }, 500);
   scene.hud?.hide?.();
   const root = ui.add(new Node({ z: 1000 }));
   const W = () => game.view.w, H = () => game.view.h;
@@ -261,16 +262,25 @@ export async function showWin(scene, { stars = 3, next } = {}) {
   const dim = root.add(new Node({ alpha: 0, drawFn: ctx => {
     // dim only the top and bottom bands so the level's payoff in the centre stays visible
     const w = W(), h = H(), g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, 'rgba(44,40,92,0.5)'); g.addColorStop(0.28, 'rgba(44,40,92,0.08)'); g.addColorStop(0.42, 'rgba(44,40,92,0)');
-    g.addColorStop(0.74, 'rgba(44,40,92,0)'); g.addColorStop(1, 'rgba(44,40,92,0.45)');
+    // warm, light, and faded out before the character band so shirts keep their colour
+    g.addColorStop(0, 'rgba(74,48,34,0.36)'); g.addColorStop(0.26, 'rgba(74,48,34,0.06)'); g.addColorStop(0.36, 'rgba(74,48,34,0)');
+    g.addColorStop(0.86, 'rgba(74,48,34,0)'); g.addColorStop(1, 'rgba(74,48,34,0.22)');
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
   } }));
   tween(dim, { alpha: 1 }, { dur: 0.45 });
   const topY = Math.min(oy, 60) * 0.5;
-  const rays = root.add(new Node({ x: cx, y: topY + 120, alpha: 0, sx: 0.3, sy: 0.3 }).setImage(raysSprite()));
-  rays.w = rays.h = 1500;
-  tween(rays, { alpha: 0.4, sx: 0.55, sy: 0.55 }, { dur: 0.9, delay: 0.25, ease: 'outCubic' });
-  game.onUpdate((dt) => { rays.rot += dt * 0.12; });
+  if (calm) {
+    // soft moonlight glow instead of a sunburst
+    const glow = root.add(new Node({ x: cx, y: topY + 150, alpha: 0, composite: 'lighter' }).setImage(glowSprite(64, '#fff1c8')));
+    glow.w = 900; glow.h = 520;
+    tween(glow, { alpha: 0.5 }, { dur: 1.6, delay: 0.3, ease: 'inOutSine' });
+    game.onUpdate((dt, t) => { if (glow.alpha > 0.2) glow.alpha = 0.42 + Math.sin(t * 0.9) * 0.08; });
+  } else {
+    const rays = root.add(new Node({ x: cx, y: topY + 120, alpha: 0, sx: 0.3, sy: 0.3 }).setImage(raysSprite()));
+    rays.w = rays.h = 1500;
+    tween(rays, { alpha: 0.4, sx: 0.55, sy: 0.55 }, { dur: 0.9, delay: 0.25, ease: 'outCubic' });
+    game.onUpdate((dt) => { rays.rot += dt * 0.12; });
+  }
 
   const cardY = topY + 196;
 
@@ -280,17 +290,18 @@ export async function showWin(scene, { stars = 3, next } = {}) {
   const word = banner.add(crayonWord('Hebat!', 118, ['#fff3b0', '#ffe27a', '#fff3b0', '#ffe27a', '#fff3b0', '#ffffff'], { line: '#7a3b2e', halo: 0.5 }));
   word.y = -12;
   const bannerY = topY + 84;
-  tween(banner, { y: bannerY }, { dur: 0.75, delay: 0.35, ease: 'outBounce' }).then(() => {
-    if (!alive()) return; banner.sy = 0.78; banner.sx = 0.92; tween(banner, { sx: 0.86, sy: 0.86 }, { dur: 0.5, ease: 'outElastic' });
+  tween(banner, { y: bannerY }, { dur: calm ? 1.2 : 0.75, delay: 0.35, ease: calm ? 'outBack' : 'outBounce' }).then(() => {
+    if (!alive() || calm) return; banner.sy = 0.78; banner.sx = 0.92; tween(banner, { sx: 0.86, sy: 0.86 }, { dur: 0.5, ease: 'outElastic' });
   });
   game.onUpdate((dt, t) => {
-    for (const L of word.letters) { L.y = Math.sin(t * 5 - L.i * 0.7) * 7; L.rot = L.baseRot + Math.sin(t * 3 - L.i) * 0.05; }
-    banner.rot = Math.sin(t * 1.4) * 0.012;
+    const sp = calm ? 0.4 : 1;
+    for (const L of word.letters) { L.y = Math.sin(t * 5 * sp - L.i * 0.7) * (calm ? 4 : 7); L.rot = L.baseRot + Math.sin(t * 3 * sp - L.i) * 0.05; }
+    banner.rot = Math.sin(t * 1.4 * sp) * 0.012;
   });
 
   // star slots + filled stars
   const sY = cardY + 6, slots = [];
-  const emptyS = starSprite(150, '#efe4d0', { line: '#c2b192' }), fullS = starSprite(150, PAL.yellow, { line: '#b8892a' });
+  const emptyS = starSprite(150, '#e2d3b6', { line: '#8f7b5c' }), fullS = starSprite(150, PAL.yellow, { line: '#b8892a' });
   for (let i = 0; i < 3; i++) {
     const big = i === 1 ? 0.66 : 0.56, sx = cx + (i - 1) * 118, sy = sY - (i === 1 ? 8 : 0);
     const slot = root.add(new Node({ x: sx, y: sy, sx: 0, sy: 0, rot: (i - 1) * 0.18 }).setImage(emptyS));
@@ -299,26 +310,35 @@ export async function showWin(scene, { stars = 3, next } = {}) {
   }
   const btns = [];
   (async () => {
-    await wait(1.0); if (!alive()) return;
+    await wait(calm ? 1.3 : 1.0); if (!alive()) return;
+    if (calm) {
+      // soft falling stars drifting down across the whole scene
+      const fall = () => { if (!alive()) return; burst(root, W() * (0.05 + Math.random() * 0.9), -30, 'stars', { count: 1, angle: Math.PI / 2, cone: 0.5, spread: 0.12, gravity: 110, life: 4.5, scale: 0.45 + Math.random() * 0.35, spinK: 0.15, colors: [PAL.yellow, '#fff1a8', '#ffe58a'] }); };
+      for (let k = 0; k < 40; k++) setTimeout(fall, k * 380 + Math.random() * 200);
+    }
     for (let i = 0; i < 3; i++) {
       if (i < stars) {
-        const s = slots[i]; s.setImage(fullS); s.sx = s.sy = 0.1; s.rot = (i - 1) * 0.18 - 1.2;
-        tween(s, { sx: s.big * 1.9, sy: s.big * 1.9, rot: (i - 1) * 0.18 }, { dur: 0.26, ease: 'outCubic' }).then(() => tween(s, { sx: s.big, sy: s.big }, { dur: 0.45, ease: 'outElastic' }));
-        audio.sfx('star', { i });
-        burst(root, s.x, s.y, 'sparkle', { count: 16, spread: 0.9 });
-        burst(root, s.x, s.y, 'stars', { count: 7, spread: 1.2, scale: 0.6 });
+        const s = slots[i]; s.setImage(fullS); s.sx = s.sy = 0.1; s.rot = (i - 1) * 0.18 - (calm ? 0.4 : 1.2);
+        if (calm) tween(s, { sx: s.big, sy: s.big, rot: (i - 1) * 0.18 }, { dur: 0.7, ease: 'outBack' });
+        else tween(s, { sx: s.big * 1.9, sy: s.big * 1.9, rot: (i - 1) * 0.18 }, { dur: 0.26, ease: 'outCubic' }).then(() => tween(s, { sx: s.big, sy: s.big }, { dur: 0.45, ease: 'outElastic' }));
+        if (calm) audio.note([76, 79, 84][i], { inst: 'musicbox', vel: 0.2, rev: 0.7 });
+        else audio.sfx('star', { i });
+        burst(root, s.x, s.y, 'sparkle', calm ? { count: 7, spread: 0.4, life: 1.5 } : { count: 16, spread: 0.9 });
+        if (!calm) burst(root, s.x, s.y, 'stars', { count: 7, spread: 1.2, scale: 0.6 });
         // glow pulse behind the star
         const gl = new Node({ x: s.x, y: s.y, alpha: 0.9, sx: 0.5, sy: 0.5, composite: 'lighter' }).setImage(glowSprite(64, '#fff0a0'));
         gl.w = gl.h = 190; gl.parent = root; root.children.splice(root.children.indexOf(s), 0, gl);
         tween(gl, { sx: 1.3, sy: 1.3, alpha: 0.35 }, { dur: 0.6, ease: 'outCubic' });
-        await wait(0.38); if (!alive()) return;
+        await wait(calm ? 0.6 : 0.38); if (!alive()) return;
       }
     }
     // confetti from the top corners, then a gentle rain
+    if (!calm) {
     audio.sfx('cheer');
     burst(root, 40, -20, 'confetti', { angle: Math.PI * 0.3, cone: 0.9, count: 40, spread: 1.15 });
     burst(root, W() - 40, -20, 'confetti', { angle: Math.PI * 0.7, cone: 0.9, count: 40, spread: 1.15 });
-    for (let k = 0; k < 5; k++) setTimeout(() => { if (alive()) burst(root, W() * (0.15 + Math.random() * 0.7), -30, 'confetti', { angle: Math.PI / 2, cone: 1.2, count: 14, spread: 0.5 }); }, 350 + k * 420);
+    }
+    if (!calm) for (let k = 0; k < 5; k++) setTimeout(() => { if (alive()) burst(root, W() * (0.15 + Math.random() * 0.7), -30, 'confetti', { angle: Math.PI / 2, cone: 1.2, count: 14, spread: 0.5 }); }, 350 + k * 420);
     // buttons
     const defs = [['replay', PAL.green, 140, () => game.go(game.sceneName)], ['home', PAL.blue, 140, () => game.go('menu')]];
     if (next) defs.push(['next', PAL.orange, 178, () => game.go(next)]);
@@ -329,11 +349,11 @@ export async function showWin(scene, { stars = 3, next } = {}) {
       if (!alive()) return;
       b.x = cx + (i - (defs.length - 1) / 2) * gap + (icon === 'next' ? 18 : 0); b.y = by; b.sx = b.sy = 0;
       root.add(b); btns.push(b);
-      tween(b, { sx: 1, sy: 1 }, { dur: 0.5, delay: i * 0.12, ease: 'outBack' }).then(() => { b.ready = true; });
-      setTimeout(() => alive() && audio.sfx('pop', { pitch: i * 2 }), i * 120 + 60);
+      tween(b, { sx: 1, sy: 1 }, { dur: calm ? 0.8 : 0.5, delay: i * (calm ? 0.2 : 0.12), ease: 'outBack' }).then(() => { b.ready = true; });
+      if (!calm) setTimeout(() => alive() && audio.sfx('pop', { pitch: i * 2 }), i * 120 + 60);
       if (icon === 'next') b.pulse = true;
     }
-    game.onUpdate((dt, t) => { for (const b of btns) if (b.pulse && b.ready && !b.pressed) { const s = 1 + Math.sin(t * 4) * 0.05; b.sx = b.sy = s; } });
+    game.onUpdate((dt, t) => { for (const b of btns) if (b.pulse && b.ready && !b.pressed) { const s = calm ? 1 + Math.sin(t * 1.6) * 0.025 : 1 + Math.sin(t * 4) * 0.05; b.sx = b.sy = s; } });
   })();
   return {
     root,

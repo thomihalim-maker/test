@@ -439,10 +439,10 @@ function babyParts() {
 
 // ---------------------------------------------------------------- rig configs
 const CFG = {
-  mom: { parts: momParts, h: 560, w: 370, neck: [0, -232], face: -118, shoulder: [124, -200], L1: 92, L2: 88, handS: 1, facing: 13, faceR: [124, 114],
+  mom: { parts: momParts, h: 560, w: 370, neck: [0, -232], face: -118, shoulder: [136, -200], L1: 92, L2: 88, handS: 1, facing: 13, faceR: [124, 114], elbow: [186, -146],
     eye: [37, 4], brow: [41, -30], cheek: [80, 36], mouth: [3, 56], nose: [8, 27],
     arm: { upperW: 54, foreW: 50, fill: 'pink', line: 'pinkLine', toWrist: true } },
-  dad: { parts: dadParts, h: 600, w: 380, neck: [0, -236], face: -128, shoulder: [134, -198], L1: 96, L2: 92, handS: 1.1, facing: -13, faceR: [147, 126],
+  dad: { parts: dadParts, h: 600, w: 380, neck: [0, -236], face: -128, shoulder: [144, -198], L1: 96, L2: 92, handS: 1.1, facing: -13, faceR: [147, 126], elbow: [190, -146],
     eye: [42, 2], brow: [45, -34], cheek: [92, 34], mouth: [0, 64], nose: [-3, 28], stubble: [0, 58], ears: 146,
     arm: { upperW: 42, foreW: 40, fill: 'skin', line: 'line', sleeve: { w: 66, len: 0.62, fill: 'green', line: 'greenLine' } } },
   baby: { parts: babyParts, h: 230, w: 230, neck: [0, -92], face: -58, facing: 0, faceR: [106, 76],
@@ -565,7 +565,7 @@ export class Character extends Node {
   _target(side, type) {
     const c = this.cfg, [sx, sy] = c.shoulder, reach = c.L1 + c.L2, t = this._t;
     switch (type) {
-      case 'cheek': { const p = this._headXY(side * c.faceR[0] * 0.84 + c.facing * 0.4, c.faceR[1] * 0.92); return { x: p.x, y: p.y, hand: 'open', rot: -side * 0.2 + this.headPivot.rot, abs: true, down: true }; }
+      case 'cheek': { const p = this._headXY(side * c.faceR[0] * 0.84 + c.facing * 0.4, c.faceR[1] * 0.92); return { x: p.x, y: p.y, hand: 'open', rot: -side * 0.2 + this.headPivot.rot, abs: true, elbow: [side * c.elbow[0], c.elbow[1]] }; }
       case 'think': {
         const cs = c.facing >= 0 ? 1 : -1;
         const p = this._headXY(c.facing + cs * 4, c.faceR[1] * 0.97 + 64 * c.handS);
@@ -573,7 +573,7 @@ export class Character extends Node {
         if (side === cs) return { x: p.x, y: p.y, hand: 'point', rot: this.headPivot.rot, abs: true, down: true };
         return { x: ex + cs * 26, y: ey + 6, hand: 'rest', rot: cs * Math.PI / 2, abs: true, low: true };
       }
-      case 'clap': { const g = 6 + 34 * (0.5 + 0.5 * Math.cos(t * 14)); return { x: side * (g + 14), y: sy + 6, hand: 'open', rot: side * 0.15, abs: true, down: true }; }
+      case 'clap': { const g = 6 + 34 * (0.5 + 0.5 * Math.cos(t * 14)); return { x: side * (g + 14), y: sy + 6, hand: 'open', rot: side * 0.15, abs: true, elbow: [side * (c.elbow[0] - 22), c.elbow[1] + 40] }; }
       case 'up': { const w = Math.sin(t * 6 + side) * 12; return { x: side * (sx + 78) + w, y: sy - reach * 0.84, hand: 'open', rot: side * 0.18 + Math.sin(t * 6 + side) * 0.2, abs: true }; }
       case 'chest': return { x: side * 20, y: sy + 40, hand: 'rest', rot: -side * 0.35, low: true };
       case 'clasp': return { x: side * 18, y: sy + reach * 0.64, hand: 'rest', rot: -side * 0.2, low: true };
@@ -723,7 +723,8 @@ export class Character extends Node {
     const score = tg.low ? (e => e[1] + 0.3 * side * e[0]) : (e => side * e[0] + 0.35 * e[1]);
     let E = score(e1) > score(e2) ? e1 : e2;
     let Wx = Sx + Math.cos(ang) * dc, Wy = Sy + Math.sin(ang) * dc;
-    if (tg.down) { // tucked elbow: forearm hangs below the wrist; the upper arm foreshortens (hidden behind the torso)
+    if (tg.elbow) { E = [tg.elbow[0], tg.elbow[1] * breath]; Wx = a.x; Wy = a.y; }
+    else if (tg.down) { // tucked elbow: forearm hangs below the wrist; the upper arm foreshortens (hidden behind the torso)
       const Ed = [a.x + side * 10, a.y + L2 * 0.97];
       if (Math.hypot(Ed[0] - Sx, Ed[1] - Sy) < L1 * 1.05) { E = Ed; Wx = a.x; Wy = a.y; }
     }
@@ -841,7 +842,7 @@ export async function createCharacter(kind, opts = {}) {
 export const PORTRAIT_LAYOUT = {
   mom: { x: 0.185, y: 1.0, scale: 0.99, rot: 0.1, mood: 'adore', gaze: [0.75, 0.55], tilt: 0.1 },
   dad: { x: 0.815, y: 1.03, scale: 0.99, rot: -0.1, mood: 'adore', gaze: [-0.75, 0.55], tilt: -0.1 },
-  baby: { x: 0.5, y: 0.765, scale: 1.3, rot: 0, mood: 'adore', gaze: [0, 0], tilt: 0.04 },
+  baby: { x: 0.5, y: 0.765, scale: 1.15, rot: 0, mood: 'adore', gaze: [0, 0], tilt: 0.04 },
 };
 export function applyPortraitPose(ch, kind, w = 900, h = 600, ox = 0, oy = 0) {
   const L = PORTRAIT_LAYOUT[kind], s = h / 600;
