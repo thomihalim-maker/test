@@ -528,7 +528,7 @@ const CFG = {
   mom: { parts: momParts, h: 560, w: 370, neck: [0, -232], face: -118, shoulder: [136, -200], L1: 92, L2: 88, handS: 1, facing: 13, faceR: [124, 114], elbow: [186, -146],
     eye: [37, 4], brow: [41, -30], cheek: [80, 36], mouth: [3, 56], nose: [8, 27],
     arm: { upperW: 54, foreW: 50, fill: 'pink', line: 'pinkLine', toWrist: true, shadow: 'rgba(226,138,178,0.55)' } },
-  dad: { parts: dadParts, h: 600, w: 380, neck: [0, -236], face: -128, shoulder: [144, -198], L1: 96, L2: 92, handS: 1.1, facing: -13, faceR: [147, 126], elbow: [190, -146],
+  dad: { parts: dadParts, h: 600, w: 380, neck: [0, -236], face: -128, shoulder: [144, -198], L1: 96, L2: 92, handS: 1.1, facing: -13, faceR: [147, 126], elbow: [184, -116],
     eye: [42, 2], brow: [45, -34], cheek: [92, 34], mouth: [0, 64], nose: [-3, 28], stubble: [0, 58], ears: 146,
     arm: { upperW: 42, foreW: 40, fill: 'skin', line: 'line', shadow: 'rgba(240,214,204,0.55)', sleeve: { w: 66, len: 0.62, fill: 'green', line: 'greenLine' } } },
   baby: { parts: babyParts, h: 230, w: 230, neck: [0, -92], face: -58, facing: 0, faceR: [106, 76],
@@ -669,10 +669,10 @@ export class Character extends Node {
         return { x: m.x - (tx * cr - ty * sr), y: m.y - (tx * sr + ty * cr), hand: 'point', rot, abs: true, elbow: [side * (c.elbow[0] - 40), c.elbow[1] + 30] };
       }
       case 'clap': { const g = 6 + 34 * (0.5 + 0.5 * Math.cos(t * 14)); return this.kind === 'dad' ? { x: side * (g + 14), y: sy + 2, hand: 'open', rot: side * 0.15, abs: true, low: true, mode: 'whole' } : { x: side * (g + 14), y: sy + 6, hand: 'open', rot: side * 0.15, abs: true, elbow: [side * (c.elbow[0] - 22), c.elbow[1] + 40] }; }
-      case 'up': { const w = Math.sin(t * 6 + side) * 12; return { x: side * (sx + 78) + w, y: sy - reach * 0.84, hand: 'open', rot: side * 0.18 + Math.sin(t * 6 + side) * 0.2, abs: true }; }
-      case 'chest': return this.kind === 'mom' ? { x: side * 16, y: -86, hand: 'rest', rot: -side * 0.5, low: true, mode: 'whole' } : { x: side * 20, y: sy + 40, hand: 'rest', rot: -side * 0.35, low: true, mode: 'whole' };
-      case 'clasp': return { x: side * 18, y: sy + reach * 0.64, hand: 'rest', rot: -side * 0.2, low: true, mode: 'whole' };
-      default: return { x: side * (sx * 0.5), y: sy + reach * 0.7, hand: 'rest', rot: -side * 0.3, low: true, mode: 'whole' };
+      case 'up': { const w = Math.sin(t * 6 + side) * 12; if (this.kind === 'mom') { const a = 0.87, R = reach * 0.9; return { x: side * (sx + R * Math.sin(a)) + w, y: sy - R * Math.cos(a), hand: 'open', rot: side * 0.42 + Math.sin(t * 6 + side) * 0.15, abs: true }; } return { x: side * (sx + 78) + w, y: sy - reach * 0.84, hand: 'open', rot: side * 0.18 + Math.sin(t * 6 + side) * 0.2, abs: true }; }
+      case 'chest': return this.kind === 'mom' ? { x: side * 34, y: -88, hand: 'rest', rot: -side * 1.3, abs: true, low: true, mode: 'whole' } : { x: side * 20, y: sy + 40, hand: 'rest', rot: -side * 0.35, low: true, mode: 'whole' };
+      case 'clasp': return this.kind === 'mom' ? { x: side * 36, y: -82, hand: 'rest', rot: -side * 1.3, abs: true, low: true, mode: 'whole' } : { x: side * 40, y: -104, hand: 'rest', rot: -side * 1.3, abs: true, low: true, mode: 'whole' };
+      default: return this.kind === 'mom' ? { x: side * 60, y: -76, hand: 'rest', rot: -side * 1.32, abs: true, low: true, mode: 'whole' } : { x: side * 72, y: -100, hand: 'rest', rot: -side * 1.32, abs: true, low: true, mode: 'whole' };
     }
   }
   _set(nd, key) { if (nd._key !== key) { nd._key = key; nd.setImage(this.S[key]); nd.ax = this.S[key].ax; nd.ay = this.S[key].ay; } }
@@ -911,25 +911,40 @@ export class Character extends Node {
   }
   /** Whole arm shoulder→elbow→hand as ONE continuous silhouette (no end caps on the shirt). */
   _drawWhole(ctx, a) {
-    const A = this.cfg.arm, line = this._pat(ctx, A.line), fill = this._pat(ctx, A.fill), r = A.foreW / 2, soft = this.kind === 'mom' ? 0.85 : 1;
+    const A = this.cfg.arm, line = C.line, fill = this._pat(ctx, A.fill), r = A.foreW / 2;
+    if (A.sleeve) {
+      const dx = a.E[0] - a.S[0], dy = a.E[1] - a.S[1], L = Math.hypot(dx, dy) || 1, k = Math.min(22, L * 0.45) / L, S = [a.S[0] + dx * k, a.S[1] + dy * k];
+      if (a.W[1] < a.E[1] - 12) { // hand raised: upper arm, sleeve over it, then the forearm in FRONT from a visible elbow
+        this._limb(ctx, [S, a.E], r, line, fill, 1, a.side < 0 ? 0.4 : 2.9);
+        this._sleeve(ctx, a, true);
+        this._hand(ctx, a, 'o');
+        this._limb(ctx, [a.E, a.W], r - 1, line, fill, 1, a.side < 0 ? 1.7 : 3.3);
+        this._hand(ctx, a, 'f');
+        return;
+      }
+      this._hand(ctx, a, 'o');
+      this._limb(ctx, [S, a.E, a.W], r, line, fill, 1, a.side < 0 ? 0.4 : 2.9);
+      this._hand(ctx, a, 'f');
+      this._sleeve(ctx, a, true);
+      return;
+    }
     this._hand(ctx, a, 'o');
     if (A.toWrist) this._hand(ctx, a, 'f');
-    let S = a.S;
-    if (A.sleeve) { const dx = a.E[0] - a.S[0], dy = a.E[1] - a.S[1], L = Math.hypot(dx, dy) || 1, k = Math.min(22, L * 0.45) / L; S = [a.S[0] + dx * k, a.S[1] + dy * k]; }
-    this._limb(ctx, [S, a.E, a.W], r, line, fill, soft, a.side < 0 ? 0.4 : 2.9);
-    if (A.toWrist) this._cuff(ctx, a, r, line, fill); else this._hand(ctx, a, 'f');
-    if (A.sleeve) this._sleeve(ctx, a, true);
+    this._limb(ctx, [a.S, a.E, a.W], r, line, fill, 1, a.side < 0 ? 0.4 : 2.9);
+    if (A.toWrist) { this._cuff(ctx, a, r, line, fill); this._hand(ctx, a, 'o'); this._hand(ctx, a, 'f'); } else this._hand(ctx, a, 'f');
   }
   _cuff(ctx, a, r, line, fill) { // sleeve tapers into a little cuff over the wrist
     const dir = Math.atan2(a.W[1] - a.E[1], a.W[0] - a.E[0]), cx = a.W[0] - Math.cos(dir) * 4, cy = a.W[1] - Math.sin(dir) * 4;
     ctx.fillStyle = fill; ctx.beginPath(); ctx.ellipse(cx, cy, 7, r + 1.5, dir, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = line; ctx.lineCap = 'round'; ctx.lineWidth = 2.4;
+    ctx.strokeStyle = 'rgba(150,90,115,0.22)'; ctx.lineCap = 'round'; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.arc(a.W[0], a.W[1], r + 1, dir - 1.0, dir + 1.0); ctx.stroke();
+    ctx.strokeStyle = line; ctx.lineWidth = 2.6;
     ctx.beginPath(); ctx.arc(a.W[0], a.W[1], r - 2, dir - 1.2, dir + 1.2); ctx.stroke();
     const ga = ctx.globalAlpha; ctx.globalAlpha = ga * 0.45; ctx.lineWidth = 1.8;
     ctx.beginPath(); ctx.arc(cx - Math.cos(dir) * 8, cy - Math.sin(dir) * 8, r - 6, dir - 0.9, dir + 0.9); ctx.stroke(); ctx.globalAlpha = ga;
   }
   _drawBack(ctx) {
-    const A = this.cfg.arm, line = this._pat(ctx, A.line), fill = this._pat(ctx, A.fill);
+    const A = this.cfg.arm, line = C.line, fill = this._pat(ctx, A.fill);
     for (const a of this.arms) {
       if (!a.S || a.mode !== 'split') continue;
       this._limb(ctx, [a.S, a.E], A.upperW / 2, line, fill, 1, a.side < 0 ? 1.1 : 3.7);
@@ -941,7 +956,7 @@ export class Character extends Node {
     for (const i of this._order) { const a = this.arms[i]; if (a.S && a.mode === 'whole') this._drawWhole(ctx, a); }
   }
   _drawFront(ctx) {
-    const c = this.cfg, A = c.arm, line = this._pat(ctx, A.line), fill = this._pat(ctx, A.fill), rE = A.foreW / 2;
+    const c = this.cfg, A = c.arm, line = C.line, fill = this._pat(ctx, A.fill), rE = A.foreW / 2;
     for (const i of this._order) {
       const a = this.arms[i]; if (!a.E) continue;
       if (a.mode === 'whole') { if (this.kind !== 'mom') this._drawWhole(ctx, a); continue; }
