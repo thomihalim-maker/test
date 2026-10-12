@@ -53,22 +53,72 @@ function field(x, y) {
   return [1.15 * (Math.sin(x * 0.043 + y * 0.019 + 1.3) + 0.6 * Math.sin(-x * 0.021 + y * 0.047 + 4.1) + 0.35 * Math.sin(x * 0.09 + y * 0.07)),
     1.15 * (Math.sin(x * 0.024 - y * 0.041 + 2.2) + 0.6 * Math.sin(x * 0.051 + y * 0.016 + 0.7) + 0.35 * Math.sin(-x * 0.08 + y * 0.095))];
 }
+// Fast path flattener (absolute M L H V C Q A Z; relative commands fall back to the DOM).
+function flatten(sub) {
+  const tok = sub.match(/[MLHVCQAZmlhvcqaz]|-?\d*\.?\d+(?:e[-+]?\d+)?/g) || [];
+  const pts = []; let i = 0, cmd = '', x = 0, y = 0, x0 = 0, y0 = 0;
+  const num = () => parseFloat(tok[i++]);
+  const push = (px, py) => pts.push([px, py]);
+  while (i < tok.length) {
+    if (/[A-Za-z]/.test(tok[i])) cmd = tok[i++];
+    if (cmd !== cmd.toUpperCase() && cmd !== 'z') return null;
+    if (cmd === 'M') { x = x0 = num(); y = y0 = num(); push(x, y); cmd = 'L'; }
+    else if (cmd === 'L') { x = num(); y = num(); push(x, y); }
+    else if (cmd === 'H') { x = num(); push(x, y); }
+    else if (cmd === 'V') { y = num(); push(x, y); }
+    else if (cmd === 'C') {
+      const a1 = num(), b1 = num(), a2 = num(), b2 = num(), ex = num(), ey = num();
+      const n = Math.max(4, Math.ceil((Math.hypot(a1 - x, b1 - y) + Math.hypot(a2 - a1, b2 - b1) + Math.hypot(ex - a2, ey - b2)) / 4));
+      for (let k = 1; k <= n; k++) { const t = k / n, u = 1 - t; push(u * u * u * x + 3 * u * u * t * a1 + 3 * u * t * t * a2 + t * t * t * ex, u * u * u * y + 3 * u * u * t * b1 + 3 * u * t * t * b2 + t * t * t * ey); }
+      x = ex; y = ey;
+    } else if (cmd === 'Q') {
+      const a1 = num(), b1 = num(), ex = num(), ey = num();
+      const n = Math.max(4, Math.ceil((Math.hypot(a1 - x, b1 - y) + Math.hypot(ex - a1, ey - b1)) / 4));
+      for (let k = 1; k <= n; k++) { const t = k / n, u = 1 - t; push(u * u * x + 2 * u * t * a1 + t * t * ex, u * u * y + 2 * u * t * b1 + t * t * ey); }
+      x = ex; y = ey;
+    } else if (cmd === 'A') {
+      let rx = Math.abs(num()), ry = Math.abs(num()); const phi = num() * Math.PI / 180, fa = num(), fs = num(), ex = num(), ey = num();
+      const cp = Math.cos(phi), sp = Math.sin(phi), dx = (x - ex) / 2, dy = (y - ey) / 2;
+      const x1 = cp * dx + sp * dy, y1 = -sp * dx + cp * dy;
+      let lam = (x1 * x1) / (rx * rx) + (y1 * y1) / (ry * ry); if (lam > 1) { rx *= Math.sqrt(lam); ry *= Math.sqrt(lam); }
+      let sq = (rx * rx * ry * ry - rx * rx * y1 * y1 - ry * ry * x1 * x1) / (rx * rx * y1 * y1 + ry * ry * x1 * x1); sq = Math.sqrt(Math.max(0, sq)) * (fa === fs ? -1 : 1);
+      const cxp = sq * rx * y1 / ry, cyp = -sq * ry * x1 / rx, cx = cp * cxp - sp * cyp + (x + ex) / 2, cy = sp * cxp + cp * cyp + (y + ey) / 2;
+      const ang = (ux, uy, vx, vy) => Math.atan2(ux * vy - uy * vx, ux * vx + uy * vy);
+      const t1 = ang(1, 0, (x1 - cxp) / rx, (y1 - cyp) / ry); let dt = ang((x1 - cxp) / rx, (y1 - cyp) / ry, (-x1 - cxp) / rx, (-y1 - cyp) / ry);
+      if (!fs && dt > 0) dt -= 2 * Math.PI; else if (fs && dt < 0) dt += 2 * Math.PI;
+      const n = Math.max(4, Math.ceil(Math.abs(dt) * Math.max(rx, ry) / 4));
+      for (let k = 1; k <= n; k++) { const t = t1 + dt * k / n; push(cx + rx * Math.cos(t) * cp - ry * Math.sin(t) * sp, cy + rx * Math.cos(t) * sp + ry * Math.sin(t) * cp); }
+      x = ex; y = ey;
+    } else if (cmd === 'Z' || cmd === 'z') { if (x !== x0 || y !== y0) push(x0, y0); x = x0; y = y0; cmd = ''; if (i < tok.length && !/[A-Za-z]/.test(tok[i])) return null; }
+    else return null;
+  }
+  return pts;
+}
 let probe = null;
 function sample(d, step = 3, wobble = true) {
-  if (!probe) probe = document.createElementNS(NS, 'path');
   const out = [];
   for (const sub of d.trim().split(/(?=M)/)) {
     if (!sub.trim()) continue;
-    probe.setAttribute('d', sub);
-    const L = probe.getTotalLength();
-    const n = Math.max(2, Math.ceil(L / step));
-    const pts = [];
-    for (let i = 0; i <= n; i++) {
-      const p = probe.getPointAtLength(L * i / n);
-      const f = wobble ? field(p.x, p.y) : [0, 0];
-      pts.push([p.x + f[0], p.y + f[1]]);
+    const closed = /[zZ]\s*$/.test(sub);
+    let raw = flatten(sub), L = 0;
+    if (!raw) { // DOM fallback
+      if (!probe) probe = document.createElementNS(NS, 'path');
+      probe.setAttribute('d', sub); L = probe.getTotalLength(); raw = [];
+      const n = Math.max(2, Math.ceil(L / 2)); for (let k = 0; k <= n; k++) { const p = probe.getPointAtLength(L * k / n); raw.push([p.x, p.y]); }
     }
-    out.push({ pts, L, closed: /[zZ]\s*$/.test(sub) });
+    // resample by arc length
+    const cum = [0]; for (let k = 1; k < raw.length; k++) cum.push(cum[k - 1] + Math.hypot(raw[k][0] - raw[k - 1][0], raw[k][1] - raw[k - 1][1]));
+    L = cum[cum.length - 1];
+    const n = Math.max(2, Math.ceil(L / step)), pts = [];
+    let j = 0;
+    for (let k = 0; k <= n; k++) {
+      const sTarget = L * k / n; while (j < cum.length - 2 && cum[j + 1] < sTarget) j++;
+      const seg = (cum[j + 1] - cum[j]) || 1, u = Math.min(1, Math.max(0, (sTarget - cum[j]) / seg));
+      const px = raw[j][0] + (raw[Math.min(j + 1, raw.length - 1)][0] - raw[j][0]) * u, py = raw[j][1] + (raw[Math.min(j + 1, raw.length - 1)][1] - raw[j][1]) * u;
+      const f = wobble ? field(px, py) : [0, 0];
+      pts.push([px + f[0], py + f[1]]);
+    }
+    out.push({ pts, L, closed });
   }
   return out;
 }
@@ -86,7 +136,7 @@ function ribbon(run) {
 }
 /** Pencil line: wobbled path → filled ribbon with varying weight, tapered open ends and occasional tiny gaps. */
 function pencil(d, w = 3, col = C.line, op = 1, o = {}) {
-  const { taper = true, gaps = true, step = 2.2, vary = 1 } = o;
+  const { taper = true, gaps = false, step = 2.2, vary = 1 } = o;
   let out = '';
   for (const s of sample(d, step)) {
     const P = s.pts, n = P.length, L = s.L, ds = L / Math.max(1, n - 1);
@@ -110,7 +160,9 @@ function pencil(d, w = 3, col = C.line, op = 1, o = {}) {
     }
     flush();
   }
-  return out ? `<path d="${out}" fill="${col}" opacity="${op}" filter="url(#pgr)"/>` : '';
+  if (!out) return '';
+  const p = pat(col, 'speck', 0, 60);
+  return p.def + `<path d="${out}" fill="url(#${p.id})" opacity="${op}"/>`;
 }
 
 function filters(x, y, w, h, D, seed) {
@@ -141,16 +193,46 @@ function part(key, w, h, cx, cy, inner, seed = 5, extraDefs = '') {
   return { key: 'chr3-' + key, svg: s, w, h, ax: cx / w, ay: cy / h };
 }
 
-const grainLayers = (dd, shade, light, g, l, ang, rule) =>
-  (shade ? `<g transform="rotate(${ang})"><g filter="url(#grn)" opacity="${g}"><path transform="rotate(${-ang})" d="${dd}" fill-rule="${rule}" fill="${shade}"/></g></g>` : '') +
-  (light ? `<g transform="rotate(${ang + 8})"><g filter="url(#hil)" opacity="${l}"><path transform="rotate(${-ang - 8})" d="${dd}" fill-rule="${rule}" fill="${light}"/></g></g>` : '');
+// Crayon textures as tiny tileable canvas images (generated once per colour, embedded as SVG <pattern>s).
+// Much cheaper to rasterize than feTurbulence filters, so characters load fast on phones.
+const TEXC = {}; let PATN = 0;
+function texURL(col, type) {
+  const key = col + type;
+  if (TEXC[key]) return TEXC[key];
+  const S = 160, cv = document.createElement('canvas'); cv.width = cv.height = S;
+  const x = cv.getContext('2d'), R = rng(type.length * 31 + col.length * 7 + parseInt(col.slice(1, 4), 16));
+  const wrap = (fn) => { for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) { x.save(); x.translate(ox, oy); fn(); x.restore(); } };
+  x.strokeStyle = col; x.fillStyle = col; x.lineCap = 'round';
+  if (type === 'speck') { // pencil line: solid with pin-holes
+    x.fillRect(0, 0, S, S); x.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 900; i++) { x.globalAlpha = 0.25 + R() * 0.55; x.fillRect(R() * S, R() * S, 0.8 + R() * 1.4, 0.8 + R() * 1.2); }
+  } else { // crayon streaks: short, slightly curved strokes, mostly along x
+    const n = type === 'light' ? 520 : 700;
+    for (let i = 0; i < n; i++) {
+      const px = R() * S, py = R() * S, len = 3 + R() * 12, a = (R() - 0.5) * 0.35, w = 0.6 + R() * 1.5;
+      x.globalAlpha = 0.18 + R() * 0.62; x.lineWidth = w;
+      wrap(() => { x.beginPath(); x.moveTo(px, py); x.quadraticCurveTo(px + len * 0.5, py + (R() - 0.5) * 2, px + Math.cos(a) * len, py + Math.sin(a) * len); x.stroke(); });
+    }
+  }
+  return (TEXC[key] = cv.toDataURL('image/png'));
+}
+function pat(col, type, ang = 0, size = 80) {
+  const id = 'tp' + (++PATN);
+  return { id, def: `<defs><pattern id="${id}" patternUnits="userSpaceOnUse" width="${size}" height="${size}" patternTransform="rotate(${ang})"><image href="${texURL(col, type)}" width="${size}" height="${size}"/></pattern></defs>` };
+}
+const grainLayers = (dd, shade, light, g, l, ang, rule) => {
+  let o = '';
+  if (shade) { const p = pat(shade, 'shade', ang); o += p.def + `<path d="${dd}" fill-rule="${rule}" fill="url(#${p.id})" opacity="${Math.min(1, g * 1.25)}"/>`; }
+  if (light) { const p = pat(light, 'light', ang + 8, 72); o += p.def + `<path d="${dd}" fill-rule="${rule}" fill="url(#${p.id})" opacity="${Math.min(1, l * 1.2)}"/>`; }
+  return o;
+};
 /** Crayon-filled shape: wobbled opaque base + streak grain + pencil outline (registered by the wobble field). */
 function blob(d, col, o = {}) {
   const { shade, light, g = 0.42, l = 0.3, lw = 3.1, line = C.line, ang = -32, outline = true, open = null, rule = 'nonzero' } = o;
   const dd = polyD(sample(d, 3));
   return `<path d="${dd}" fill="${col}" fill-rule="${rule}"/>` + grainLayers(dd, shade, light, g, l, ang, rule) + (outline ? pencil(open || d, lw, line) : '');
 }
-const dot = (x, y, rx, ry, col = C.ink) => `<ellipse cx="${n1(x)}" cy="${n1(y)}" rx="${rx}" ry="${ry}" fill="${col}" filter="url(#pgr)"/>`;
+const dot = (x, y, rx, ry, col = C.ink) => `<ellipse cx="${n1(x)}" cy="${n1(y)}" rx="${rx}" ry="${ry}" fill="${col}"/>`;
 function ellD(cx, cy, rx, ry, rot = 0) {
   const a = rot * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
   const p = (t) => [cx + rx * Math.cos(t) * c - ry * Math.sin(t) * s, cy + rx * Math.cos(t) * s + ry * Math.sin(t) * c];
@@ -229,7 +311,7 @@ function handParts(k) {
   const out = [];
   for (const [name, h] of Object.entries(HANDS)) {
     const dd = polyD(sample(h.d, 2.4));
-    out.push(part(`${k}-hand-${name}-o`, 110, 130, 55, 98, `<path d="${dd}" fill="${C.line}" stroke="${C.line}" stroke-width="6" stroke-linejoin="round" filter="url(#pgr)"/>`, 9));
+    out.push(part(`${k}-hand-${name}-o`, 110, 130, 55, 98, `<path d="${dd}" fill="${C.line}" stroke="${C.line}" stroke-width="6" stroke-linejoin="round"/>`, 9));
     out.push(part(`${k}-hand-${name}-f`, 110, 130, 55, 98, `<path d="${dd}" fill="#fff"/>` + grainLayers(dd, C.skinGrain, null, 0.14, 0, -32, 'nonzero') +
       pencil(h.lines, 2.1, C.line, 0.85, { gaps: false }) + pencil(h.soft, 1.8, C.line, 0.45, { gaps: false }), 9));
   }
@@ -270,7 +352,7 @@ function momParts() {
   const loop = 'M-166 -50 C-186 -66 -206 -96 -222 -88 C-236 -80 -214 -56 -172 -44';
   const knot = blob(tail2, C.hijab, { shade: C.hijabShade, light: C.hijabLight, line: C.hijabLine, lw: 2.8 }) +
     blob(tail1, C.hijab, { shade: C.hijabShade, light: C.hijabLight, line: C.hijabLine, lw: 2.8 }) +
-    `<path d="${polyD(sample(loop, 3))}" fill="none" stroke="${C.hijabLine}" stroke-width="11" stroke-linecap="round" filter="url(#pgr)"/><path d="${polyD(sample(loop, 3))}" fill="none" stroke="${C.hijab}" stroke-width="6.5" stroke-linecap="round"/>` +
+    `<path d="${polyD(sample(loop, 3))}" fill="none" stroke="${C.hijabLine}" stroke-width="11" stroke-linecap="round"/><path d="${polyD(sample(loop, 3))}" fill="none" stroke="${C.hijab}" stroke-width="6.5" stroke-linecap="round"/>` +
     blob(ellD(-169, -44, 12, 14, 10), C.hijab, { shade: C.hijabShade, line: C.hijabLine, lw: 2.6 });
 
   // forehead band + scalloped lace cap peeking under it
@@ -380,7 +462,7 @@ function dadParts() {
     part('dad-face', 320, 280, 160, 138, blob(DAD_FACE, C.skin, { shade: C.skinGrain, g: 0.14 }), 8),
     part('dad-hair', 440, 310, 220, 274, hair.svgIn, 31, hair.defs),
     part('dad-nose', 40, 40, 20, 20, pencil('M5 -9 C-6 -11 -9 4 3 5', 2.8, C.inkSoft, 1, { gaps: false })),
-    part('dad-stubble', 130, 90, 65, 40, `<g filter="url(#pgr)">${stub}</g>`),
+    part('dad-stubble', 130, 90, 65, 40, `<g>${stub}</g>`),
     ...eyeParts(k, false), ...mouthParts(k, 1.08), brow(k, 3.7), cheek(k, 22, 12), question(k), ...handParts(k),
     texPart('skin', '#ffffff', C.skinGrain, null, 0.2), texPart('green', C.green, C.greenShade, C.greenLight, 0.5, 0.3),
     lineTex('line', C.line), lineTex('greenLine', C.greenLine),
@@ -883,7 +965,7 @@ const spriteCache = {};
 function loadSprites(kind) {
   if (!spriteCache[kind]) {
     PR = rng(kind.length * 977 + 13);
-    const parts = CFG[kind].parts();
+    const _t0 = performance.now(); const parts = CFG[kind].parts(); if (window.__prof) console.log('gen', kind, Math.round(performance.now() - _t0), parts.reduce((n, p) => n + p.svg.length, 0));
     spriteCache[kind] = Promise.all(parts.map(p => svgSprite(p.svg, p.w, p.h, p.key).then(sp => [p.key.slice(5), { img: sp.img, w: sp.w, h: sp.h, ax: p.ax, ay: p.ay }])))
       .then(list => Object.fromEntries(list));
     spriteCache[kind].catch(() => { delete spriteCache[kind]; });
@@ -937,8 +1019,7 @@ function backdropPart(w, h) {
   const inner = `<defs><radialGradient id="glow" cx="50%" cy="45%" r="62%"><stop offset="0" stop-color="#f4fbf8"/><stop offset="0.55" stop-color="#d6f0ec"/><stop offset="1" stop-color="#a9d8dc"/></radialGradient>
     <radialGradient id="vig" cx="50%" cy="48%" r="72%"><stop offset="0.62" stop-color="#5a8f9e" stop-opacity="0"/><stop offset="1" stop-color="#5a8f9e" stop-opacity=".38"/></radialGradient></defs>
     <rect width="${w}" height="${h}" fill="url(#glow)"/>` +
-    `<g transform="rotate(-32)"><g filter="url(#grn)" opacity=".2"><path transform="rotate(32)" d="${wallD}" fill="#7fb8c4"/></g></g>` +
-    `<g transform="rotate(-24)"><g filter="url(#hil)" opacity=".4"><path transform="rotate(24)" d="${wallD}" fill="#fff"/></g></g>` +
+    grainLayers(wallD, '#7fb8c4', '#ffffff', 0.2, 0.4, -32, 'nonzero') +
     cloud(w * 0.5, h * 0.33, 0.5) +
     blob(sofaBack, '#c9b2e8', { shade: '#9c80c9', g: 0.42, light: '#fff', l: 0.3, line: '#8a70b4', lw: 2.6 }) +
     pencil(`M${w * 0.36} ${h * 0.46} C${w * 0.35} ${h * 0.52} ${w * 0.35} ${h * 0.56} ${w * 0.36} ${h * 0.6} M${w * 0.64} ${h * 0.46} C${w * 0.65} ${h * 0.52} ${w * 0.65} ${h * 0.56} ${w * 0.64} ${h * 0.6}`, 2.2, '#8a70b4', 0.6) + stars +
@@ -1015,5 +1096,5 @@ export async function portraitSprite(w = 900, h = 600) {
     mom.renderLayer(x, 'front'); dad.renderLayer(x, 'front');
     x.restore();
     drawPortraitFrame(x, w, h);
-  });
+  }, `portrait-photo-${w}x${h}`); // replaceable: assets/custom/portrait-photo-WxH.png (510x340 = the level-3 jigsaw picture)
 }

@@ -19,6 +19,9 @@ npm run build:pc                                    # dist/BintangKecil-{windows
 - **Linux lite build:** needs `libwebkit2gtk-4.0`.
 - **macOS:** the app is unsigned, so open it the first time with right-click → Open.
 
+## Mengganti gambar secara manual
+Lihat **[ASSETS.md](ASSETS.md)**. Ringkasnya: `node tools/assets.mjs export`, lalu salin PNG yang ingin diubah ke `assets/custom/` (nama sama), edit, `node tools/assets.mjs sync`, dan build ulang.
+
 ## Development
 See `CONTRACT.md` for the engine API and which builder owns which file.
 Take phone-size screenshots with `node tools/shot.mjs shots/x.png "scene=level2&unlock" 3000`.

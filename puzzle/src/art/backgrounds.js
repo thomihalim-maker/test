@@ -8,6 +8,7 @@
 //        shapes: ellipsePts, circlePts, roundRectPts, starPts, heartPts, wobble(pts, seed, amp)
 //        shade(hex, amt) (amt<0 darker, >0 lighter), grainPattern(), paperTile()
 // Scenes: nightSky(w,h,opts) sprite, hills sprite, cloudSprite, moonSprite, starSprite, Starfield node, Fireflies node
+import { registerSprite, overrideSprite } from '../engine/raster.js';
 import { game } from '../engine/game.js';
 import { Node } from '../engine/node.js';
 import { rng } from '../engine/tween.js';
@@ -32,7 +33,9 @@ export function makeSprite(w, h, fn, { ratio = game.pxRatio, key = null } = {}) 
   c.width = Math.max(1, Math.ceil(w * ratio)); c.height = Math.max(1, Math.ceil(h * ratio));
   const x = c.getContext('2d'); x.scale(ratio, ratio); x.lineCap = 'round'; x.lineJoin = 'round';
   fn(x, w, h);
-  const sp = { img: c, w, h };
+  let sp = { img: c, w, h };
+  registerSprite(key, sp);                       // exportable via tools/assets.mjs
+  sp = overrideSprite(key, w, h, ratio) || sp;   // hand-made replacement from assets/custom/
   if (ck) spriteCache.set(ck, sp);
   return sp;
 }

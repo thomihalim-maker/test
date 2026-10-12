@@ -28,8 +28,9 @@ export default class Level3 extends LevelScene {
 
   async load() {
     await super.load();
-    const geo = (this.geo = A.buildJigsaw(11));
     const { PW, PH } = L3;
+    this.safeRects = this.portraitSafeRects(PW, PH);
+    const geo = (this.geo = A.buildJigsaw(11, this.safeRects));
     const [wall, garland, table, back, front, plant, lamp, hand, star, portrait, mom, dad, lmom, ldad, lbaby, backdrop, heart, props] = await Promise.all([
       svgSprite(A.wallSVG(PHOTO_CY), A.WALL_W, A.WALL_H, 'l3-wall'),
       svgSprite(A.garlandSVG(), A.GARLAND_W, A.GARLAND_H, 'l3-garland2'),
@@ -107,6 +108,32 @@ export default class Level3 extends LevelScene {
     this.dragging = null; this.celebrating = false; this.winPose = false; this.sparkT = 0;
   }
 
+  /** Rects (photo px) the jigsaw tabs must avoid: PORTRAIT_SAFE from characters.js if exported (fractions of w/h),
+   *  otherwise faces + swaddle estimated from PORTRAIT_LAYOUT, otherwise the classic three-heads composition. */
+  portraitSafeRects(w, h) {
+    const out = [];
+    const fx = v => (Math.abs(v) <= 1.5 ? v * w : v), fy = v => (Math.abs(v) <= 1.5 ? v * h : v);
+    const walk = (o, depth = 0) => {
+      if (!o || depth > 4) return;
+      if (Array.isArray(o)) { o.forEach(e => walk(e, depth + 1)); return; }
+      if (typeof o === 'object') {
+        if ([o.x, o.y, o.w, o.h].every(v => typeof v === 'number')) { out.push({ x: fx(o.x), y: fy(o.y), w: fx(o.w), h: fy(o.h), weight: o.weight || 1 }); return; }
+        Object.values(o).forEach(e => walk(e, depth + 1));
+      }
+    };
+    try { walk(typeof CH.PORTRAIT_SAFE === 'function' ? CH.PORTRAIT_SAFE(w, h) : CH.PORTRAIT_SAFE); } catch (_) {}
+    if (out.length) return out;
+    const L = CH.PORTRAIT_LAYOUT, s6 = h / 600;
+    const spec = { mom: [560, 0.6, 0.24], dad: [600, 0.6, 0.24], baby: [230, 0.7, 0.55] };
+    if (L) for (const k of ['mom', 'dad', 'baby']) {
+      const e = L[k]; if (!e) continue;
+      const [ht, fr, rr] = spec[k], H = ht * (e.scale ?? 1) * s6, cx = e.x * w, cy = e.y * h - fr * H, r = rr * H;
+      out.push({ x: cx - r, y: cy - r, w: 2 * r, h: 2 * r, weight: 2 });                  // face
+      if (k === 'baby') out.push({ x: cx - 0.85 * H, y: e.y * h - 0.5 * H, w: 1.7 * H, h: 0.55 * H }); // swaddle
+    }
+    if (!out.length) for (const u of [0.18, 0.5, 0.82]) out.push({ x: (u - 0.1) * w, y: 0.12 * h, w: 0.2 * w, h: 0.32 * h, weight: 2 });
+    return out;
+  }
   /** Photo backdrop for the live payoff: the character builder's portrait backdrop if exported, else our own. */
   async loadBackdrop(w, h) {
     try {

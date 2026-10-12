@@ -7,7 +7,9 @@
   "scripts": {
     "build:web": "node tools/build-web.mjs",
     "build:pc": "node tools/build-web.mjs && node tools/build-pc.mjs",
-    "shot": "node tools/shot.mjs"
+    "shot": "node tools/shot.mjs",
+    "assets:export": "node tools/assets.mjs export",
+    "assets:sync": "node tools/assets.mjs sync"
   },
   "devDependencies": {
     "esbuild": "0.24.0",

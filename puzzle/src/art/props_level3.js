@@ -274,26 +274,56 @@ const TAB = [
   [0.75, 0.14], [0.635, 0.10], [0.615, 0.05],
   [0.60, 0], [0.78, 0], [1, 0],
 ];
-/** Edge points in global photo coords: A + d*u*L + n*v*L*g. Variation keeps every edge a little different. */
-function tabEdge(ax, ay, dx, dy, nx, ny, L, g, r) {
-  const shift = (r() * 2 - 1) * 0.035, hs = 0.94 + r() * 0.1;
+/** Edge points in global photo coords: A + d*u*L + n*v*L*g. The knob is centred at `c` along the edge (off-centre so
+ *  it misses faces) and narrowed by `ws` so it still clears the corners; `jit` adds a little hand-made variation. */
+function tabEdge(ax, ay, dx, dy, nx, ny, L, g, c = 0.5, ws = 1, jit = null) {
+  const shift = jit ? (jit() * 2 - 1) * 0.02 : 0, hs = jit ? 0.95 + jit() * 0.08 : 1;
   return TAB.map(([u, v], i) => {
-    const inner = i >= 2 && i <= 16;
-    const uu = inner ? u + shift : u, vv = v * hs;
+    const uu = i === 0 || i === 18 ? u : c + shift + (u - 0.5) * ws, vv = v * hs;
     return [ax + dx * uu * L + nx * vv * L * g, ay + dy * uu * L + ny * vv * L * g];
   });
 }
+const KNOB_WS = 0.82;
+/** Choose each tab's position (30% / 70% along the edge) and direction so the knob avoids every safe rect
+ *  (faces, hands, swaddle). rects: [{x,y,w,h}] in photo px. Ties → the candidate farthest from any rect centre. */
+function pickTab(ax, ay, dx, dy, nx, ny, L, rects, prefer) {
+  let best = null;
+  for (const c of [0.3, 0.7]) for (const g of [1, -1]) {
+    const pts = tabEdge(ax, ay, dx, dy, nx, ny, L, g, c, KNOB_WS).slice(3, 16);
+    const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]), pad = 8;
+    const bx0 = Math.min(...xs) - pad, bx1 = Math.max(...xs) + pad, by0 = Math.min(...ys) - pad, by1 = Math.max(...ys) + pad;
+    const kx = (bx0 + bx1) / 2, ky = (by0 + by1) / 2;
+    let hit = 0, near = Infinity;
+    for (const r of rects) {
+      const ox = Math.max(0, Math.min(bx1, r.x + r.w) - Math.max(bx0, r.x)), oy = Math.max(0, Math.min(by1, r.y + r.h) - Math.max(by0, r.y));
+      hit += ox * oy * (r.weight || 1);
+      near = Math.min(near, Math.hypot(kx - (r.x + r.w / 2), ky - (r.y + r.h / 2)));
+    }
+    const score = hit * 1000 - near + (prefer && prefer(c, g) ? -5 : 0);
+    if (!best || score < best.score) best = { c, g, score };
+  }
+  return best;
+}
+
 const cubicAt = (p0, p1, p2, p3, t) => { const u = 1 - t; return [u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0], u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]]; };
 
-/** Build the 3×2 jigsaw. Returns {cw, ch, pad, SW, SH, pieces:[{i,c,r,d (sprite-local path), edge (sprite-local polyline), gx, gy}], ghostD} */
-export function buildJigsaw(seed = 7) {
+/** Build the 3×2 jigsaw. safeRects (photo px) steer each tab off faces/hands/swaddle.
+ *  Returns {cw, ch, pad, SW, SH, pieces:[{i,c,r,d (sprite-local path), edge (sprite-local polyline), gx, gy}], ghostD, choice} */
+export function buildJigsaw(seed = 7, safeRects = []) {
   const { PW, PH, COLS, ROWS } = L3, cw = PW / COLS, ch = PH / ROWS, r = rng(seed);
   const pad = Math.ceil(Math.max(cw, ch) * 0.36) + 46;   // room for tabs, cardboard thickness and the soft lift shadow
-  const H = [], V = [];
-  const signs = [1, -1, 1, -1, 1, -1, 1];
-  let si = 0;
-  for (let rr_ = 0; rr_ < ROWS - 1; rr_++) { H[rr_] = []; for (let c = 0; c < COLS; c++) H[rr_][c] = tabEdge(c * cw, (rr_ + 1) * ch, 1, 0, 0, 1, cw, signs[si++ % signs.length], r); }
-  for (let rr_ = 0; rr_ < ROWS; rr_++) { V[rr_] = []; for (let c = 0; c < COLS - 1; c++) V[rr_][c] = tabEdge((c + 1) * cw, rr_ * ch, 0, 1, 1, 0, ch, (rr_ + c) % 2 ? 1 : -1, r); }
+  const H = [], V = [], rects = safeRects || [], choice = [];
+  // horizontal cut: knobs off the centre column's middle (the baby); alternate directions only as a tie-break
+  for (let rr_ = 0; rr_ < ROWS - 1; rr_++) { H[rr_] = []; for (let c = 0; c < COLS; c++) {
+    const pk = pickTab(c * cw, (rr_ + 1) * ch, 1, 0, 0, 1, cw, rects, (cc, g) => (c === 1 ? g === 1 : g === (c % 2 ? -1 : 1)));
+    choice.push(['H', rr_, c, pk.c, pk.g]);
+    H[rr_][c] = tabEdge(c * cw, (rr_ + 1) * ch, 1, 0, 0, 1, cw, pk.g, pk.c, KNOB_WS, r);
+  } }
+  for (let rr_ = 0; rr_ < ROWS; rr_++) { V[rr_] = []; for (let c = 0; c < COLS - 1; c++) {
+    const pk = pickTab((c + 1) * cw, rr_ * ch, 0, 1, 1, 0, ch, rects, (cc, g) => g === ((rr_ + c) % 2 ? 1 : -1));
+    choice.push(['V', rr_, c, pk.c, pk.g]);
+    V[rr_][c] = tabEdge((c + 1) * cw, rr_ * ch, 0, 1, 1, 0, ch, pk.g, pk.c, KNOB_WS, r);
+  } }
   const pieces = [], ghostD = [];
   for (let rw = 0; rw < ROWS; rw++) for (let c = 0; c < COLS; c++) {
     const build = (ox, oy) => {
@@ -318,7 +348,7 @@ export function buildJigsaw(seed = 7) {
     pieces.push({ i: rw * COLS + c, c, r: rw, d: loc.d, edge: loc.poly, gx: (c + 0.5) * cw, gy: (rw + 0.5) * ch });
     ghostD.push(build(0, 0).d);
   }
-  return { cw, ch, pad, SW: cw + 2 * pad, SH: ch + 2 * pad, pieces, ghostD };
+  return { cw, ch, pad, SW: cw + 2 * pad, SH: ch + 2 * pad, pieces, ghostD, choice };
 }
 
 // Pencil "cut" line: one continuous soft-grey stroke — a gentle low-frequency wobble only (no grain/speckle).
