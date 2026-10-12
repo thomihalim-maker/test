@@ -11,7 +11,7 @@ gambar bawaan. Kode tidak perlu diubah.
    - Folder ini dibuat oleh perintah `node tools/assets.mjs export` (lihat bagian "Perintah"). Kamu juga bisa
      memakai paket zip ekspor yang dikirim lewat chat.
 2. **Salin** file yang mau diubah ke `assets/custom/`. **Nama file harus persis sama**, misalnya
-   `moon84.png`, `l2-basket_back_red.png` atau `chr3-mom-hijab.png`.
+   `moon84.png`, `l2-bk-front-red.png` (bagian depan keranjang merah) atau `chr3-mom-face.png`.
 3. **Edit** gambarnya di aplikasi apa saja (Photoshop, Procreate, Krita, Canva, ChatGPT, dan lainnya):
    - **Proporsi** (perbandingan lebar:tinggi) harus tetap sama dengan aslinya, karena gambar akan
      di-*stretch* ke ukuran aslinya. Resolusinya bebas: 2× atau 3× lebih besar justru membuat gambar
@@ -34,7 +34,7 @@ Untuk **kembali ke gambar bawaan**, hapus file dari `assets/custom/` lalu jalank
 |---|---|
 | `portrait-photo-510x340.png` | **Foto keluarga yang jadi gambar jigsaw di level 3.** Bisa diganti foto atau gambar apa pun, dengan proporsi 3:2. |
 | `portrait-photo-390x280.png` | Foto keluarga di kartu level menu |
-| `chr3-mom-*`, `chr3-dad-*`, `chr3-baby-*` | Bagian tubuh karakter: kepala, hijab, rambut, mata, mulut, baju, dan lainnya |
+| `chr3-mom-*`, `chr3-dad-*`, `chr3-baby-*` | Bagian tubuh karakter. Contoh untuk Ibu: `face` (wajah), `hood` / `hoodfront` / `knot` (hijab dan simpulnya), `body` (baju), `eye-*` (mata), `m-*` (mulut), `brow` (alis), `cheek` (pipi). Tangan terdiri dari pasangan `-f` (isi warna) dan `-o` (garis), jadi ganti keduanya bersamaan. |
 | `l1-*` | Level 1: kamar, jendela, boks bayi, barang-barang, siluet |
 | `l2-*` | Level 2: ruang bermain, keranjang, mainan |
 | `l3-*` | Level 3: dinding, bingkai, lemari |
@@ -43,8 +43,8 @@ Untuk **kembali ke gambar bawaan**, hapus file dari `assets/custom/` lalu jalank
 
 ## Yang tidak bisa diganti lewat cara ini
 
-- **Lengan dan tangan karakter** digambar langsung setiap frame supaya bisa bergerak luwes, jadi tidak ada
-  file PNG-nya. Bagian tubuh lain (kepala, baju, hijab, rambut) bisa diganti.
+- **Lengan karakter** digambar langsung setiap frame supaya bisa bergerak luwes, jadi tidak ada file PNG-nya.
+  Telapak tangan (`chr3-*-hand-*`) dan bagian tubuh lain (wajah, mata, mulut, baju, hijab, rambut) bisa diganti.
 - **Teks dan huruf** yang ditulis langsung dengan font. Judul "Bintang Kecil" dan "Hebat!" berupa gambar,
   jadi bisa diganti.
 - **Partikel kecil** (confetti, bintang) bisa diganti, tapi ukurannya kecil sekali.
