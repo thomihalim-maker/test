@@ -1004,10 +1004,17 @@ export async function createCharacter(kind, opts = {}) {
  * tiltOverride. Use applyPortraitPose(ch, kind, w, h) to place a live character exactly like the picture.
  */
 export const PORTRAIT_LAYOUT = {
-  mom: { x: 0.172, y: 0.63, scale: 0.62, rot: 0.0, mood: 'adore', gaze: [0.7, 0.35], tilt: 0.07 },
-  dad: { x: 0.842, y: 0.612, scale: 0.56, rot: 0.0, mood: 'adore', gaze: [-0.7, 0.35], tilt: -0.07 },
-  baby: { x: 0.5, y: 0.44, scale: 0.6, rot: 0, mood: 'adore', gaze: [0, 0], tilt: 0.03 },
+  mom: { x: 0.152, y: 0.575, scale: 0.58, rot: 0, mood: 'adore', gaze: [0.7, 0.35], tilt: 0.06 },
+  dad: { x: 0.878, y: 0.568, scale: 0.54, rot: 0, mood: 'adore', gaze: [-0.7, 0.35], tilt: -0.06 },
+  baby: { x: 0.5, y: 0.367, scale: 0.5, rot: 0, mood: 'adore', gaze: [0, 0], tilt: 0.03 },
 };
+/** Rects (fractions of the picture w/h) that jigsaw tabs must stay out of: faces + cheek hands, and the baby
+ *  (head + swaddle). Every rect ends ≥80/600 from the 3×2 cut lines. Use as {x, y, w, h} × (w, h). */
+export const PORTRAIT_SAFE = [
+  { name: 'mom', x: 0.055, y: 0.12, w: 0.19, h: 0.255, weight: 2 },
+  { name: 'baby', x: 0.43, y: 0.17, w: 0.14, h: 0.2, weight: 2 },
+  { name: 'dad', x: 0.765, y: 0.1, w: 0.22, h: 0.27, weight: 2 },
+];
 export function applyPortraitPose(ch, kind, w = 900, h = 600, ox = 0, oy = 0) {
   const L = PORTRAIT_LAYOUT[kind], s = h / 600;
   ch.x = ox + L.x * w; ch.y = oy + L.y * h; ch.sx = ch.sy = L.scale * s; ch.rot = L.rot;
@@ -1028,7 +1035,7 @@ function backdropPart(w, h) {
   };
   const heart = (x, y, sc, col) => blob(`M${x} ${y + 10 * sc} C${x - 26 * sc} ${y - 8 * sc} ${x - 14 * sc} ${y - 30 * sc} ${x} ${y - 16 * sc} C${x + 14 * sc} ${y - 30 * sc} ${x + 26 * sc} ${y - 8 * sc} ${x} ${y + 10 * sc} Z`, col, { shade: '#d0607a', g: 0.35, light: '#fff', l: 0.3, line: '#c25a72', lw: 2.4 });
   const wallD = `M0 0 H${w} V${h} H0 Z`;
-  const sofaBack = `M${w * 0.03} ${h * 0.7} C${w * 0.02} ${h * 0.54} ${w * 0.06} ${h * 0.44} ${w * 0.16} ${h * 0.43} C${w * 0.36} ${h * 0.41} ${w * 0.64} ${h * 0.41} ${w * 0.84} ${h * 0.43} C${w * 0.94} ${h * 0.44} ${w * 0.98} ${h * 0.54} ${w * 0.97} ${h * 0.7} Z`;
+  const sofaBack = `M${w * 0.03} ${h * 0.62} C${w * 0.02} ${h * 0.48} ${w * 0.06} ${h * 0.39} ${w * 0.16} ${h * 0.38} C${w * 0.36} ${h * 0.36} ${w * 0.64} ${h * 0.36} ${w * 0.84} ${h * 0.38} C${w * 0.94} ${h * 0.39} ${w * 0.98} ${h * 0.48} ${w * 0.97} ${h * 0.62} Z`;
   let stars = '';
   for (const [u, v, r] of [[0.04, 0.07, 10], [0.39, 0.25, 8], [0.61, 0.27, 9], [0.96, 0.07, 10], [0.37, 0.07, 6], [0.63, 0.06, 6], [0.04, 0.38, 7], [0.96, 0.36, 7]]) stars += star(u * w, v * h, r * (0.9 + R() * 0.3));
   const inner = `<defs><radialGradient id="glow" cx="50%" cy="45%" r="62%"><stop offset="0" stop-color="#f4fbf8"/><stop offset="0.55" stop-color="#d6f0ec"/><stop offset="1" stop-color="#a9d8dc"/></radialGradient>
@@ -1037,35 +1044,40 @@ function backdropPart(w, h) {
     grainLayers(wallD, '#7fb8c4', '#ffffff', 0.2, 0.4, -32, 'nonzero') +
     cloud(w * 0.5, h * 0.33, 0.5) +
     blob(sofaBack, '#c9b2e8', { shade: '#9c80c9', g: 0.42, light: '#fff', l: 0.3, line: '#8a70b4', lw: 2.6 }) +
-    pencil(`M${w * 0.36} ${h * 0.46} C${w * 0.35} ${h * 0.52} ${w * 0.35} ${h * 0.56} ${w * 0.36} ${h * 0.6} M${w * 0.64} ${h * 0.46} C${w * 0.65} ${h * 0.52} ${w * 0.65} ${h * 0.56} ${w * 0.64} ${h * 0.6}`, 2.2, '#8a70b4', 0.6) + stars +
+    pencil(`M${w * 0.3} ${h * 0.4} C${w * 0.29} ${h * 0.45} ${w * 0.29} ${h * 0.5} ${w * 0.3} ${h * 0.55} M${w * 0.7} ${h * 0.4} C${w * 0.71} ${h * 0.45} ${w * 0.71} ${h * 0.5} ${w * 0.7} ${h * 0.55}`, 2.2, '#8a70b4', 0.6) + stars +
     heart(w * 0.5, h * 0.11, 1.15, '#f590a8') + heart(w * 0.42, h * 0.15, 0.65, '#f9b2c3') + heart(w * 0.58, h * 0.145, 0.7, '#f7a0b6') +
     `<rect width="${w}" height="${h}" fill="url(#vig)"/>`;
   return part(`portrait-bd-${w}x${h}`, w, h, 0, 0, inner, 61);
 }
 function propsParts(w, h) {
   const k = `${w}x${h}`;
-  const seat = `M${w * 0.0} ${h * 0.63} C${w * 0.0} ${h * 0.6} ${w * 0.03} ${h * 0.59} ${w * 0.08} ${h * 0.59} C${w * 0.35} ${h * 0.58} ${w * 0.65} ${h * 0.58} ${w * 0.92} ${h * 0.59} C${w * 0.97} ${h * 0.59} ${w} ${h * 0.6} ${w} ${h * 0.63} L${w} ${h} L0 ${h} Z`;
-  const armL = `M${-w * 0.02} ${h * 0.56} C${w * 0.03} ${h * 0.52} ${w * 0.1} ${h * 0.55} ${w * 0.1} ${h * 0.62} L${w * 0.1} ${h} L${-w * 0.02} ${h} Z`;
-  const armR = `M${w * 1.02} ${h * 0.56} C${w * 0.97} ${h * 0.52} ${w * 0.9} ${h * 0.55} ${w * 0.9} ${h * 0.62} L${w * 0.9} ${h} L${w * 1.02} ${h} Z`;
+  const seat = `M${w * 0.0} ${h * 0.59} C${w * 0.0} ${h * 0.56} ${w * 0.03} ${h * 0.55} ${w * 0.08} ${h * 0.55} C${w * 0.35} ${h * 0.54} ${w * 0.65} ${h * 0.54} ${w * 0.92} ${h * 0.55} C${w * 0.97} ${h * 0.55} ${w} ${h * 0.56} ${w} ${h * 0.59} L${w} ${h} L0 ${h} Z`;
+  const armL = `M${-w * 0.02} ${h * 0.52} C${w * 0.03} ${h * 0.48} ${w * 0.08} ${h * 0.51} ${w * 0.08} ${h * 0.58} L${w * 0.08} ${h} L${-w * 0.02} ${h} Z`;
+  const armR = `M${w * 1.02} ${h * 0.52} C${w * 0.97} ${h * 0.48} ${w * 0.92} ${h * 0.51} ${w * 0.92} ${h * 0.58} L${w * 0.92} ${h} L${w * 1.02} ${h} Z`;
   const patch = (x, y, inner) => `<g transform="translate(${x} ${y})">${inner}</g>`;
   let star = ''; for (let j = 0; j < 10; j++) { const a = -Math.PI / 2 + j * Math.PI / 5, rr = j % 2 ? 15 : 32; star += (j ? 'L' : 'M') + n1(Math.cos(a) * rr) + ' ' + n1(Math.sin(a) * rr); }
   const seatSvg = blob(seat, '#d8c4f0', { shade: '#a58bd0', g: 0.42, light: '#fff', l: 0.32, line: '#8a70b4', lw: 2.8 }) +
-    pencil(`M${w * 0.04} ${h * 0.65} C${w * 0.35} ${h * 0.64} ${w * 0.65} ${h * 0.64} ${w * 0.96} ${h * 0.65}`, 2.2, '#8a70b4', 0.55) +
-    patch(w * 0.21, h * 0.8, blob('M-78 -50 C-40 -64 40 -64 78 -50 C92 -20 92 20 78 50 C40 64 -40 64 -78 50 C-92 20 -92 -20 -78 -50 Z', '#fbe08a', { shade: '#e0b54a', g: 0.4, light: '#fff', l: 0.3, line: '#c99a2a', lw: 2.6 }) +
+    pencil(`M${w * 0.04} ${h * 0.61} C${w * 0.35} ${h * 0.6} ${w * 0.65} ${h * 0.6} ${w * 0.96} ${h * 0.61}`, 2.2, '#8a70b4', 0.55) +
+    patch(w * 0.2, h * 0.79, blob('M-78 -50 C-40 -64 40 -64 78 -50 C92 -20 92 20 78 50 C40 64 -40 64 -78 50 C-92 20 -92 -20 -78 -50 Z', '#fbe08a', { shade: '#e0b54a', g: 0.4, light: '#fff', l: 0.3, line: '#c99a2a', lw: 2.6 }) +
       pencil('M-60 -40 C-20 -30 20 -30 60 -40 M-60 40 C-20 30 20 30 60 40', 1.8, '#d6a83e', 0.5) + blob(star + 'Z', '#f6b93b', { shade: '#d98f20', g: 0.3, line: '#c4832a', lw: 2.4 })) +
-    patch(w * 0.79, h * 0.8, blob('M-78 -50 C-40 -64 40 -64 78 -50 C92 -20 92 20 78 50 C40 64 -40 64 -78 50 C-92 20 -92 -20 -78 -50 Z', '#a9cdf5', { shade: '#6f9be8', g: 0.4, light: '#fff', l: 0.3, line: '#5a83c4', lw: 2.6 }) +
+    patch(w * 0.8, h * 0.79, blob('M-78 -50 C-40 -64 40 -64 78 -50 C92 -20 92 20 78 50 C40 64 -40 64 -78 50 C-92 20 -92 -20 -78 -50 Z', '#a9cdf5', { shade: '#6f9be8', g: 0.4, light: '#fff', l: 0.3, line: '#5a83c4', lw: 2.6 }) +
       pencil('M-60 -40 C-20 -30 20 -30 60 -40 M-60 40 C-20 30 20 30 60 40', 1.8, '#6f9be8', 0.5) + blob('M0 22 C-46 -10 -26 -50 0 -26 C26 -50 46 -10 0 22 Z', '#f590a8', { shade: '#d0607a', g: 0.35, line: '#c25a72', lw: 2.4 })) +
     blob(armL, '#c9b2e8', { shade: '#9c80c9', g: 0.42, light: '#fff', l: 0.3, line: '#8a70b4', lw: 2.6 }) + blob(armR, '#c9b2e8', { shade: '#9c80c9', g: 0.42, light: '#fff', l: 0.3, line: '#8a70b4', lw: 2.6 });
   // little woven basket for Bintang
-  const bx = w * 0.5, by = h * 0.415, bw = w * 0.135;
-  const back = blob(`M${bx - bw} ${by} C${bx - bw} ${by - 26} ${bx + bw} ${by - 26} ${bx + bw} ${by} Z`, '#c98f55', { shade: '#8f5a2c', g: 0.45, line: '#8a5a32', lw: 2.6 });
-  const front = `M${bx - bw - 6} ${by} C${bx - bw * 0.7} ${by + 12} ${bx + bw * 0.7} ${by + 12} ${bx + bw + 6} ${by} L${bx + bw * 0.86} ${by + h * 0.4} C${bx + bw * 0.4} ${by + h * 0.43} ${bx - bw * 0.4} ${by + h * 0.43} ${bx - bw * 0.86} ${by + h * 0.4} Z`;
-  let weave = '';
-  for (let i = 1; i < 9; i++) weave += `M${n1(bx - bw * (1 - i * 0.016))} ${n1(by + i * h * 0.044)} C${n1(bx - bw * 0.4)} ${n1(by + i * h * 0.044 + 10)} ${n1(bx + bw * 0.4)} ${n1(by + i * h * 0.044 + 10)} ${n1(bx + bw * (1 - i * 0.016))} ${n1(by + i * h * 0.044)} `;
-  for (let i = -3; i <= 3; i++) weave += `M${n1(bx + i * bw * 0.27)} ${n1(by + 10)} L${n1(bx + i * bw * 0.24)} ${n1(by + h * 0.4)} `;
-  const bow = blob(`M${bx} ${by + 26} C${bx - 30} ${by + 6} ${bx - 40} ${by + 46} ${bx} ${by + 30} C${bx + 40} ${by + 46} ${bx + 30} ${by + 6} ${bx} ${by + 26} Z`, '#f590a8', { shade: '#d0607a', g: 0.35, line: '#c25a72', lw: 2.4 });
-  const frontSvg = blob(front, '#dca46a', { shade: '#a26a36', g: 0.45, light: '#fff', l: 0.25, line: '#8a5a32', lw: 2.8 }) + pencil(weave, 2, '#9a6436', 0.7) +
-    pencil(`M${bx - bw - 6} ${by + 2} C${bx - bw * 0.7} ${by + 14} ${bx + bw * 0.7} ${by + 14} ${bx + bw + 6} ${by + 2}`, 5, '#b77f48', 0.9) + bow;
+  // low, soft bassinet (quilted cream fabric, scalloped rim, little stars) holding Bintang
+  const bx = w * 0.5, by = h * 0.345, bw = w * 0.15, bh = h * 0.21;
+  const back = blob(`M${bx - bw} ${by + 4} C${bx - bw} ${by - 22} ${bx + bw} ${by - 22} ${bx + bw} ${by + 4} Z`, '#f3dfb2', { shade: '#cfae6c', g: 0.4, line: '#b8925a', lw: 2.6 });
+  const tub = `M${bx - bw - 8} ${by} C${bx - bw * 0.6} ${by + 14} ${bx + bw * 0.6} ${by + 14} ${bx + bw + 8} ${by} C${bx + bw + 10} ${by + bh * 0.55} ${bx + bw * 0.7} ${by + bh} ${bx} ${by + bh} C${bx - bw * 0.7} ${by + bh} ${bx - bw - 10} ${by + bh * 0.55} ${bx - bw - 8} ${by} Z`;
+  let quilt = '';
+  for (let i = -2; i <= 2; i++) quilt += `M${n1(bx + i * bw * 0.36)} ${n1(by + 14)} C${n1(bx + i * bw * 0.4)} ${n1(by + bh * 0.5)} ${n1(bx + i * bw * 0.34)} ${n1(by + bh * 0.8)} ${n1(bx + i * bw * 0.28)} ${n1(by + bh * 0.95)} `;
+  let scal = `M${n1(bx - bw - 8)} ${n1(by)}`; const nS = 9;
+  for (let i = 1; i <= nS; i++) { const u = i / nS, xx = bx - bw - 8 + (2 * bw + 16) * u, yy = by + 14 * 4 * u * (1 - u) * 0.75; scal += ` Q${n1(xx - (bw + 8) / nS)} ${n1(yy + 13)} ${n1(xx)} ${n1(yy)}`; }
+  let st = '';
+  for (const [u, v, r] of [[-0.55, 0.45, 8], [0.05, 0.62, 9], [0.6, 0.4, 7]]) { let d = ''; for (let j = 0; j < 10; j++) { const a = -Math.PI / 2 + j * Math.PI / 5, rr = j % 2 ? r * 0.48 : r; d += (j ? 'L' : 'M') + n1(bx + u * bw + Math.cos(a) * rr) + ' ' + n1(by + v * bh + Math.sin(a) * rr); } st += blob(d + 'Z', C.star, { shade: '#d9a520', g: 0.3, line: '#c99a2a', lw: 1.8 }); }
+  const bow = blob(`M${bx} ${by + 20} C${bx - 26} ${by + 4} ${bx - 34} ${by + 38} ${bx} ${by + 24} C${bx + 34} ${by + 38} ${bx + 26} ${by + 4} ${bx} ${by + 20} Z`, '#f590a8', { shade: '#d0607a', g: 0.35, line: '#c25a72', lw: 2.2 });
+  const frontSvg = `<ellipse cx="${bx}" cy="${by + bh + 2}" rx="${bw + 6}" ry="9" fill="#5a3f7a" opacity=".18" filter="url(#blr)"/>` +
+    blob(tub, '#f8e8c4', { shade: '#d9b878', g: 0.4, light: '#fff', l: 0.3, line: '#b8925a', lw: 2.8 }) + pencil(quilt, 1.9, '#c9a46a', 0.6) +
+    `<path d="${polyD(sample(scal + ` L${n1(bx + bw + 8)} ${n1(by - 6)} L${n1(bx - bw - 8)} ${n1(by - 6)} Z`, 2))}" fill="#fff6e2"/>` + pencil(scal, 2.4, '#b8925a', 0.9) + st + bow;
   return { seat: part(`portrait-seat-${k}`, w, h, 0, 0, seatSvg, 71), basketBack: part(`portrait-bb-${k}`, w, h, 0, 0, back, 72), basketFront: part(`portrait-bf-${k}`, w, h, 0, 0, frontSvg, 73) };
 }
 /** Foreground props of the portrait → {seat, basketBack, basketFront} sprites (each w×h, draw at 0,0).
